@@ -22,10 +22,16 @@ func parsePtyRequest(s []byte) (pty Pty, ok bool) {
 		return
 	}
 	width32, s, ok := parseUint32(s)
+	if width32 < 1 {
+		ok = false
+	}
 	if !ok {
 		return
 	}
 	height32, _, ok := parseUint32(s)
+	if height32 < 1 {
+		ok = false
+	}
 	if !ok {
 		return
 	}
