@@ -26,6 +26,18 @@
   version = "v0.2.2"
 
 [[projects]]
+  branch = "master"
+  digest = "1:5e315098411db629f87dacc82113e404c224583b17b70c625d9f7ee5efaa0668"
+  name = "github.com/hugelgupf/p9"
+  packages = [
+    "p9",
+    "unimplfs",
+    "vecnet",
+  ]
+  pruneopts = "UT"
+  revision = "f08d8f7f979b47427657239b19535d5559d15c3b"
+
+[[projects]]
   digest = "1:3e2fbf3f6d30c4c009be006f9d2a9eaefc804d8f6b991e88cb793b87318cc5bc"
   name = "github.com/kr/pty"
   packages = ["."]
@@ -63,20 +75,22 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d674897448caf197caa185f734eea882573eecffbcc82ab2d9361c8107edc24c"
+  digest = "1:c7179511b29f76f9185ce21ecaf4a97739849f20f56d99d80c9f2579dc245b2d"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "c3b328c6e5a763a2bfc82a48b4bd855037210934"
+  revision = "0c1ff786ef13daa914a3351c5e6b0321aed5960e"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/gliderlabs/ssh",
+    "github.com/hugelgupf/p9/p9",
+    "github.com/hugelgupf/p9/unimplfs",
     "github.com/kr/pty",
     "github.com/u-root/u-root/pkg/termios",
     "github.com/u-root/u-root/pkg/uroot/util",
