@@ -192,7 +192,7 @@ func (l *cpu9p) WriteAt(p []byte, offset uint64) (int, error) {
 
 // Create implements p9.File.Create.
 func (l *cpu9p) Create(name string, mode p9.OpenFlags, permissions p9.FileMode, _ p9.UID, _ p9.GID) (p9.File, p9.QID, uint32, error) {
-	f, err := os.OpenFile(l.path, int(mode)|syscall.O_CREAT|syscall.O_EXCL, os.FileMode(permissions))
+	f, err := os.OpenFile(filepath.Join(l.path, name), os.O_CREATE|mode.OSFlags(), os.FileMode(permissions))
 	if err != nil {
 		return nil, p9.QID{}, 0, err
 	}
