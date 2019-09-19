@@ -59,7 +59,7 @@
 //     -remote
 //           Indicates we are the remote side of the cpu session
 //     -srv string
-//           what server to run (default "unpfs")
+//           what server to run (default none; use internal)
 // Examples
 // In these examples, cpu runs with warning messages enabled.
 // The first message is a warning that cpu could not use overlayfs to build a
