@@ -27,7 +27,9 @@
 
 [[constraint]]
   name = "github.com/gliderlabs/ssh"
-  version = "0.2.2"
+# lock to this revision as they disabled port forwarding in later versions,
+# and I need to learn how to enable it.
+  revision = "cbabf541443203944eeedf87d8bb92e2924170b5"
 
 [[constraint]]
   name = "github.com/kr/pty"
