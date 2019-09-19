@@ -32,7 +32,7 @@ steps:
     go get -v -t -d ./...
     if [ -f Gopkg.toml ]; then
         curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        echo dep ensure
+        dep ensure
     fi
     golint .
   workingDirectory: '$(modulePath)'
@@ -40,7 +40,7 @@ steps:
 - script: |
     if [ -f Gopkg.toml ]; then
         curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        echo NOT running dep ensure for now. 
+        dep ensure
     fi
   workingDirectory: '$(modulePath)'
   displayName: 'Download dep and run `dep ensure`'
