@@ -126,4 +126,14 @@
 //    rminnich@xcpu:~/gopath/src/github.com/u-root/u-root/xcmds/cpu$ ls -l ~/xyz
 //    -rw-r--r-- 1 rminnich rminnich 577 May 17 17:06 /home/rminnich/xyz
 //    rminnich@xcpu:~/gopath/src/github.com/u-root/u-root/xcmds/cpu$
+//
+// A note on sizes of things. Until we had a u-root fusermount we had to use the one from /bin.
+// We attached via the usual -files command: -files /bin/fusermount.
+// The uncompressed and compressed initramfs with /bin/fusermount:
+// -rwxr-xr-x 1 rminnich rminnich 20068892 Sep 20 00:53 /tmp/initramfs.linux_amd64.cpio
+// -rwxr-xr-x 1 rminnich rminnich 5566439 Sep 20 00:53 /tmp/initramfs.linux_amd64.cpio.lzma
+// With the u-root fusermount:
+// -rwxr-xr-x 1 rminnich rminnich 17835596 Sep 20 00:57 /tmp/initramfs.linux_amd64.cpio
+// -rwxr-xr-x 1 rminnich rminnich  5566439 Sep 20 00:53 /tmp/initramfs.linux_amd64.cpio.lzma
+// Writing our own fusermount saves at least 776476 bytes, and this is very significant in flash.
 package main
