@@ -317,14 +317,8 @@ func runClient(host, a string) error {
 // env sets environment variables. While we might think we ought to set
 // HOME and PATH, it's possibly not a great idea. We leave them here as markers
 // to remind ourselves not to try it later.
-// We don't just grab all environment variables because complex bash functions
-// will have no meaning to elvish. If there are simpler environment variables
-// you want to set, add them here. Note however that even basic ones like TERM
-// don't work either.
 func env(s *ossh.Session) {
-	e := []string{"HOME", "PATH", "LD_LIBRARY_PATH"}
-	// HOME and PATH are not allowed to be set by many sshds. Annoying.
-	for _, v := range e {
+	for _, v := range os.Environ() {
 		if err := s.Setenv(v, os.Getenv(v)); err != nil {
 			log.Printf("Warning: s.Setenv(%q, %q): %v", v, os.Getenv(v), err)
 		}
@@ -469,9 +463,8 @@ func handler(s ssh.Session) {
 	a := s.Command()
 	verbose("the handler is here, cmd is %v", a)
 	cmd := exec.Command(a[0], a[1:]...)
-	log.Printf("cmd.Env ius %v", cmd.Env)
 	adj := adjust(s.Environ())
-	log.Printf("s.Environt is %v, adjusted is %v", s.Environ(), adj)
+	verbose("s.Environ is %v, adjusted is %v", s.Environ(), adj)
 	cmd.Env = append(cmd.Env, adj...)
 	ptyReq, winCh, isPty := s.Pty()
 	verbose("the command is %v", *cmd)
