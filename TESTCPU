@@ -1,7 +1,14 @@
 #!/bin/bash
 set -e
 # You will need to put your host key and private key somewhere. They will be placed in the proper place in the image.
-u-root -build=bb -files ssh_host_rsa_key:etc/ssh/ssh_host_rsa_key -initcmd=/bbin/cpu -files ~/.ssh/cpu_rsa.pub:key.pub -files /bin/fusermount all github.com/u-root/cpu/cmds/cpu
+u-root \
+	-build=bb \
+	-files  ssh_host_rsa_key:etc/ssh/ssh_host_rsa_key \
+	-initcmd=/bbin/cpu \
+	-files  ~/.ssh/cpu_rsa.pub:key.pub \
+	-files /bin/fusermount \
+	all \
+	github.com/u-root/cpu/cmds/cpu
 
 sudo /usr/bin/qemu-system-x86_64 -kernel \
      /home/rminnich/projects/linuxboot/linux/arch/x86/boot/bzImage \
