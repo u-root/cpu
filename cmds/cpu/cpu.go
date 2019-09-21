@@ -49,7 +49,7 @@ var (
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	dbg9p     = flag.Bool("dbg9p", false, "show 9p io")
 	root      = flag.String("root", "/", "9p root")
-	bindover  = flag.String("bindover", "/lib:/lib64:/lib32:/usr:/bin:/etc", ": separated list of directories in /tmp/cpu to bind over /")
+	bindover  = flag.String("bindover", "/lib:/lib64:/lib32:/usr:/bin:/etc:/home", ": separated list of directories in /tmp/cpu to bind over /")
 	mountopts = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize     = flag.Int("msize", 1048576, "msize to use")
 )
@@ -161,8 +161,8 @@ func runRemote(cmd, port9p string) error {
 
 	// It's true we are making this directory while still root.
 	// This ought to be safe as it is a private namespace mount.
-	for _, n := range []string{"/tmp/cpu", "/tmp/local", "/tmp/merge", "/tmp/root"} {
-		if err := os.Mkdir(n, 0666); err != nil && !os.IsExist(err) {
+	for _, n := range []string{"/tmp/cpu", "/tmp/local", "/tmp/merge", "/tmp/root", "/home"} {
+		if err := os.MkdirAll(n, 0666); err != nil && !os.IsExist(err) {
 			log.Println(err)
 		}
 	}
@@ -319,7 +319,11 @@ func runClient(host, a string) error {
 // to remind ourselves not to try it later.
 func env(s *ossh.Session) {
 	for _, v := range os.Environ() {
-		if err := s.Setenv(v, os.Getenv(v)); err != nil {
+		env := strings.SplitN(v, "=", 2)
+		if len(env) == 1 {
+			env = append(env, "")
+		}
+		if err := s.Setenv(env[0], env[1]); err != nil {
 			log.Printf("Warning: s.Setenv(%q, %q): %v", v, os.Getenv(v), err)
 		}
 	}
@@ -436,36 +440,11 @@ func setWinsize(f *os.File, w, h int) {
 		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})))
 }
 
-// adjust adjusts environment variables containing paths from
-// / to /tmp/cpu. On Plan 9 this is done with a union mount.
-// PATH variables are the union mounts of Unix so we use them
-// instead.
-func adjust(env []string) []string {
-	var res []string
-	for _, e := range env {
-		n := strings.SplitN(e, "=", 2)
-		if len(n) < 2 {
-			res = append(res, e)
-			continue
-		}
-		v := strings.Split(n[1], ":")
-		for i := range v {
-			if filepath.IsAbs(v[i]) {
-				v[i] = filepath.Join("/tmp/cpu", v[i])
-			}
-		}
-		res = append(res, n[0]+"="+strings.Join(v, ":"))
-	}
-	return res
-}
-
 func handler(s ssh.Session) {
 	a := s.Command()
 	verbose("the handler is here, cmd is %v", a)
 	cmd := exec.Command(a[0], a[1:]...)
-	adj := adjust(s.Environ())
-	verbose("s.Environ is %v, adjusted is %v", s.Environ(), adj)
-	cmd.Env = append(cmd.Env, adj...)
+	cmd.Env = append(cmd.Env, s.Environ()...)
 	ptyReq, winCh, isPty := s.Pty()
 	verbose("the command is %v", *cmd)
 	if isPty {
