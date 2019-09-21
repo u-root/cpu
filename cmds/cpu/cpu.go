@@ -218,7 +218,7 @@ func runRemote(cmd, port9p string) error {
 	v("runRemote: command is %q", cmd)
 	f := strings.Fields(cmd)
 	c := exec.Command(f[0], f[1:]...)
-	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	return c.Run()
 }
 
