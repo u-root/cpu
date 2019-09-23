@@ -26,7 +26,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5e315098411db629f87dacc82113e404c224583b17b70c625d9f7ee5efaa0668"
+  digest = "1:e34461a46b8bc0c998db5a86ec8897071317ee54d200a79913c1ecb5364d5821"
   name = "github.com/hugelgupf/p9"
   packages = [
     "p9",
@@ -34,7 +34,7 @@
     "vecnet",
   ]
   pruneopts = "UT"
-  revision = "f08d8f7f979b47427657239b19535d5559d15c3b"
+  revision = "a5e7bac5e5553b9b8a4c5ff44df4d8d7313c2cdb"
 
 [[projects]]
   digest = "1:3e2fbf3f6d30c4c009be006f9d2a9eaefc804d8f6b991e88cb793b87318cc5bc"
@@ -70,18 +70,18 @@
     "ssh",
   ]
   pruneopts = "UT"
-  revision = "227b76d455e791cb042b03e633e2f7fbcfdf74a5"
+  revision = "9ee001bba392397c76f100a2d5b13afc86f167f1"
 
 [[projects]]
   branch = "master"
-  digest = "1:c7179511b29f76f9185ce21ecaf4a97739849f20f56d99d80c9f2579dc245b2d"
+  digest = "1:8478be2c0e96c2aa0eeea397cd38039aafa302b6edbf2dd01863c16cd6b4e087"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "0c1ff786ef13daa914a3351c5e6b0321aed5960e"
+  revision = "0a153f010e6963173baba2306531d173aa843137"
 
 [solve-meta]
   analyzer-name = "dep"

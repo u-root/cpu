@@ -792,7 +792,7 @@ func StatToAttr(s *syscall.Stat_t, req AttrMask) (Attr, AttrMask) {
 		attr.Mode = FileMode(s.Mode)
 	}
 	if req.NLink {
-		attr.NLink = s.Nlink
+		attr.NLink = NLink(s.Nlink)
 	}
 	if req.UID {
 		attr.UID = UID(s.Uid)
@@ -801,7 +801,7 @@ func StatToAttr(s *syscall.Stat_t, req AttrMask) (Attr, AttrMask) {
 		attr.GID = GID(s.Gid)
 	}
 	if req.RDev {
-		attr.RDev = s.Dev
+		attr.RDev = Dev(s.Dev)
 	}
 	if req.ATime {
 		attr.ATimeSeconds = uint64(s.Atim.Sec)

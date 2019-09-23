@@ -64,7 +64,7 @@ func buildIovec(bufs Buffers, iovecs []syscall.Iovec) ([]syscall.Iovec, int) {
 		if l := len(buf); l > 0 {
 			iovecs = append(iovecs, syscall.Iovec{
 				Base: &buf[0],
-				Len:  uint64(l),
+				Len:  iovlen(l),
 			})
 			length += l
 		}
@@ -78,7 +78,7 @@ func recvmsg(bufs Buffers, rc syscall.RawConn) (int, error) {
 	var msg syscall.Msghdr
 	if len(iovecs) != 0 {
 		msg.Iov = &iovecs[0]
-		msg.Iovlen = uint64(len(iovecs))
+		msg.Iovlen = iovlen(len(iovecs))
 	}
 
 	// n is the bytes received.
