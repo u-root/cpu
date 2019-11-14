@@ -10,12 +10,12 @@
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
 
 [[projects]]
-  digest = "1:385dff5bf83bf1c9d40ef2b0f2e697f0d1973fc9e24ae9401cf41698612bbebc"
+  digest = "1:e29335d5a78621ed7a539ed75e10785c3705bb67d916e48b03b1cdf9b727508d"
   name = "github.com/creack/pty"
   packages = ["."]
   pruneopts = "UT"
-  revision = "2769f65a3a94eb8f876f44a0459d24ae7ad2e488"
-  version = "v1.1.7"
+  revision = "3a6a957789163cacdfe0e291617a1c8e80612c11"
+  version = "v1.1.9"
 
 [[projects]]
   digest = "1:59032d8e8f5839263dc0242a5fb4dec5d084ff5e3c52d6e28e2528884a993d57"
@@ -58,30 +58,30 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3f9f5231692086f94c33394ed0881540b878328ab7de15162ddfe13bbffd58c7"
+  digest = "1:c9e0b137902d857921fb87c28039a4af7e587970bd10c4fcec818d1559347d43"
   name = "golang.org/x/crypto"
   packages = [
+    "chacha20",
     "curve25519",
     "ed25519",
     "ed25519/internal/edwards25519",
-    "internal/chacha20",
     "internal/subtle",
     "poly1305",
     "ssh",
   ]
   pruneopts = "UT"
-  revision = "9ee001bba392397c76f100a2d5b13afc86f167f1"
+  revision = "e1110fd1c708ef015366ea01799a23c459593c47"
 
 [[projects]]
   branch = "master"
-  digest = "1:8478be2c0e96c2aa0eeea397cd38039aafa302b6edbf2dd01863c16cd6b4e087"
+  digest = "1:2a7bb603cdfc77afb007e411395d21947ac9e8f9cc220ca0f6883027402bbdc3"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "0a153f010e6963173baba2306531d173aa843137"
+  revision = "4c7a9d0fe056d9d1de37e1409ca8a5c17accb46a"
 
 [solve-meta]
   analyzer-name = "dep"
