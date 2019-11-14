@@ -10,7 +10,7 @@ u-root \
 	github.com/u-root/cpu/cmds/cpu
 
 sudo /usr/bin/qemu-system-x86_64 -kernel \
-     /home/rminnich/projects/linuxboot/linux/arch/x86/boot/bzImage \
+     /home/rminnich/projects/linuxboot/mainboards/intel/generic/kernel-noinitramfs \
 	-cpu  max \
      -s   \
      -m 1024m \
@@ -27,6 +27,9 @@ sudo /usr/bin/qemu-system-x86_64 -kernel \
      # note we will exit here so the trash below is not a problem
      exit 0
 
+     # junk
+
+     /home/rminnich/projects/linuxboot/linux/arch/x86/boot/bzImage \
 
 # add the following line to qemu if you want to snoop packets.
 	-object filter-dump,id=f1,netdev=n1,file=/tmp/vm0.pcap \

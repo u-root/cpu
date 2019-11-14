@@ -534,6 +534,7 @@ func doInit() error {
 
 	// Now we run as an ssh server, and each time we get a connection,
 	// we run that command after setting things up for it.
+	forwardHandler := &ssh.ForwardedTCPHandler{}
 	server := ssh.Server{
 		LocalPortForwardingCallback: ssh.LocalPortForwardingCallback(func(ctx ssh.Context, dhost string, dport uint32) bool {
 			log.Println("Accepted forward", dhost, dport)
@@ -545,6 +546,10 @@ func doInit() error {
 			log.Println("attempt to bind", host, port, "granted")
 			return true
 		}),
+		RequestHandlers: map[string]ssh.RequestHandler{
+			"tcpip-forward":        forwardHandler.HandleSSHRequest,
+			"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
+		},
 		Handler: handler,
 	}
 
