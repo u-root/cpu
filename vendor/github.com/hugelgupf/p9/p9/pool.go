@@ -30,9 +30,6 @@ type pool struct {
 	// start is the starting value (if needed).
 	start uint64
 
-	// max is the current maximum issued.
-	max uint64
-
 	// limit is the upper limit.
 	limit uint64
 }
