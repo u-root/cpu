@@ -46,16 +46,37 @@
   version = "v1.1.8"
 
 [[projects]]
-  digest = "1:6a52db713d4c4e635375f9761ab39f91f976b7e4e0151c867abd8d3d7b58d1f8"
+  branch = "master"
+  digest = "1:af67a3792b721ac14f261a455794bbbad8f4ef6b020d679e50b67d82e16fe10c"
   name = "github.com/u-root/u-root"
   packages = [
     "pkg/cmdline",
+    "pkg/libinit",
     "pkg/termios",
-    "pkg/uroot/util",
+    "pkg/ulog",
+    "pkg/upath",
   ]
   pruneopts = "UT"
-  revision = "26a90287872f42e357dc889f6918855fc0fde4dc"
-  version = "v6.0.0"
+  revision = "d22874c657509be56f2e2869cfd75a45af09937f"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2dfbcaf62fe3421451c0bcd551fb8ffa875c2efc0e7cadff6b220bf54b8362b4"
+  name = "github.com/vishvananda/netlink"
+  packages = [
+    ".",
+    "nl",
+  ]
+  pruneopts = "UT"
+  revision = "d71301a47b607450337d920f260f3dc76481298e"
+
+[[projects]]
+  branch = "master"
+  digest = "1:975cb0c04431bf92e60b636a15897c4a3faba9f7dc04da505646630ac91d29d3"
+  name = "github.com/vishvananda/netns"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0a2b9b5464df8343199164a0321edf3313202f7e"
 
 [[projects]]
   branch = "master"
@@ -92,8 +113,8 @@
     "github.com/hugelgupf/p9/p9",
     "github.com/hugelgupf/p9/unimplfs",
     "github.com/kr/pty",
+    "github.com/u-root/u-root/pkg/libinit",
     "github.com/u-root/u-root/pkg/termios",
-    "github.com/u-root/u-root/pkg/uroot/util",
     "golang.org/x/crypto/ssh",
     "golang.org/x/sys/unix",
   ]

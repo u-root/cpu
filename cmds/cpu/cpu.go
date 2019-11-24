@@ -6,7 +6,7 @@ package main
 
 import (
 	"bytes"
-	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"io"
@@ -18,19 +18,21 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
-	"github.com/hugelgupf/p9/p9"
 	"github.com/kr/pty" // TODO: get rid of krpty
 	"github.com/u-root/u-root/pkg/termios"
-	"github.com/u-root/u-root/pkg/uroot/util"
 	// We use this ssh because it can unpack password-protected private keys.
 	ossh "golang.org/x/crypto/ssh"
 	"golang.org/x/sys/unix"
 )
+
+// a nonce is a [32]byte containing only printable characters, suitable for use as a string
+type nonce [32]byte
 
 var (
 	// For the ssh server part
@@ -44,7 +46,6 @@ var (
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
 	network   = flag.String("network", "tcp", "network to use")
 	keyFile   = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
-	srv9p     = flag.String("srv", "", "what server to run -- to use internal servers, leave this empty")
 	bin       = flag.String("bin", "cpu", "path of cpu binary")
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	dbg9p     = flag.Bool("dbg9p", false, "show 9p io")
@@ -56,6 +57,22 @@ var (
 
 func verbose(f string, a ...interface{}) {
 	v("\r\n"+f+"\r\n", a...)
+}
+
+// getNonce returns a nonce, or an error if random reader fails.
+func getNonce() (nonce, error) {
+	var b [len(nonce{}) / 2]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return nonce{}, err
+	}
+	var n nonce
+	copy(n[:], fmt.Sprintf("%02x", b))
+	return n, nil
+}
+
+// String is a Stringer for nonce.
+func (n nonce) String() string {
+	return string(n[:])
 }
 
 func dial(n, a string, config *ossh.ClientConfig) (*ossh.Client, error) {
@@ -143,6 +160,9 @@ func dropPrivs() error {
 // TODO: unshare first
 // We enter here as uid 0 and once the mount is done, back down.
 func runRemote(cmd, port9p string) error {
+	// Get the nonce and remove it from the environment.
+	nonce := os.Getenv("CPUNONCE")
+	os.Unsetenv("CPUNONCE")
 	// for some reason echo is not set.
 	t, err := termios.New()
 	if err != nil {
@@ -171,29 +191,44 @@ func runRemote(cmd, port9p string) error {
 	if user == "" {
 		user = "nouser"
 	}
+	// Connect to the socket, return the nonce.
+	a := net.JoinHostPort("127.0.0.1", port9p)
+	v("remote:Dial %v", a)
+	so, err := net.Dial("tcp4", a)
+	if err != nil {
+		log.Fatalf("Dial 9p port: %v", err)
+	}
+	v("remote:Connected: write nonce %s\n", nonce)
+	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
+		log.Fatalf("Write nonce: %v", err)
+	}
+	v("remote:Wrote the nonce")
+
+	// the kernel takes over the socket after the Mount.
+	defer so.Close()
 	flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID)
-	opts := fmt.Sprintf("version=9p2000.L,trans=tcp,port=%v,uname=%v,debug=0,msize=%d", port9p, user, *msize)
+	cf, err := so.(*net.TCPConn).File()
+	if err != nil {
+		log.Fatalf("Can not get fd for %v: %v", so, err)
+	}
+	fd := cf.Fd()
+	v("remote:fd is %v", fd)
+	opts := fmt.Sprintf("version=9p2000.L,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, *msize)
 	if *mountopts != "" {
 		opts += "," + *mountopts
 	}
+	v("remote; mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
 	if err := unix.Mount("127.0.0.1", "/tmp/cpu", "9p", flags, opts); err != nil {
 		return fmt.Errorf("9p mount %v", err)
 	}
+	v("remote: mount done")
 
 	// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
 	if err := unix.Mount("/", "/tmp/local", "", syscall.MS_BIND, ""); err != nil {
 		log.Printf("Warning: binding / over /tmp/cpu did not work: %v, continuing anyway", err)
 	}
 
-	var overlaid bool
-	if util.FindFileSystem("overlay") == nil {
-		if err := unix.Mount("overlay", "/tmp/root", "overlay", unix.MS_MGC_VAL, "lowerdir=/tmp/cpu,upperdir=/tmp/local,workdir=/tmp/merge"); err == nil {
-			//overlaid = true
-		} else {
-			log.Printf("Overlayfs mount failed: %v. Proceeding with selective mounts from /tmp/cpu into /", err)
-		}
-	}
-	if !overlaid && *bindover != "" {
+	if *bindover != "" {
 		// We could not get an overlayfs mount.
 		// There are lots of cases where binaries REQUIRE that ld.so be in the right place.
 		// In some cases if you set LD_LIBRARY_PATH it is ignored.
@@ -202,6 +237,7 @@ func runRemote(cmd, port9p string) error {
 		dirs := strings.Split(*bindover, ":")
 		for _, n := range dirs {
 			t := filepath.Join("/tmp/cpu", n)
+			v("remote: mount %v over %v", t, n)
 			if err := unix.Mount(t, n, "", syscall.MS_BIND, ""); err != nil {
 				log.Printf("Warning: mounting %v on %v failed: %v", t, n, err)
 			} else {
@@ -210,60 +246,17 @@ func runRemote(cmd, port9p string) error {
 
 		}
 	}
+	v("remote: bind mounts done")
 	// We don't want to run as the wrong uid.
 	if err := dropPrivs(); err != nil {
 		return err
 	}
 	// The unmount happens for free since we unshared.
-	v("runRemote: command is %q", cmd)
+	v("remote:runRemote: command is %q", cmd)
 	f := strings.Fields(cmd)
 	c := exec.Command(f[0], f[1:]...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	return c.Run()
-}
-
-// srv on 5641.
-// TODO: make it more private, and also, have server only take
-// one connection or use stdin/stdout
-func srv(ctx context.Context) (net.Conn, *exec.Cmd, error) {
-	c := exec.CommandContext(ctx, *srv9p, "tcp!localhost!5641", *root)
-	o, err := c.StdoutPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-	c.Stderr = c.Stdout
-	if err := c.Start(); err != nil {
-		return nil, nil, err
-	}
-	// Wait for the ready message.
-	var b = make([]byte, 8192)
-	n, err := o.Read(b)
-	if err != nil {
-		return nil, nil, err
-	}
-	v("Server says: %q", string(b[:n]))
-
-	srvSock, err := net.Dial("tcp", "localhost:5641")
-	if err != nil {
-		return nil, nil, err
-	}
-	return srvSock, c, nil
-}
-
-// We only do one accept for now.
-func forward(l net.Listener, s net.Conn) error {
-	//if err := l.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
-	//return fmt.Errorf("Can't set 9p client listen deadline: %v", err)
-	//}
-	c, err := l.Accept()
-	v("forward: c %v err %v", c, err)
-	if err != nil {
-		v("forward: accept: %v", err)
-		return err
-	}
-	go io.Copy(s, c)
-	go io.Copy(c, s)
-	return nil
 }
 
 // To make sure defer gets run and you tty is sane on exit
@@ -276,6 +269,14 @@ func runClient(host, a string) error {
 	if err != nil {
 		return err
 	}
+	// From setting up the forward to having the nonce written back to us,
+	// we only allow 10ms. This is a lot, considering that at this point,
+	// the sshd has forked a server for us and it's waiting to be
+	// told what to do. We suggest that making the deadline a flag
+	// would be a bad move, since people might be tempted to make it
+	// large.
+	deadline := time.Now().Add(10000000 * time.Nanosecond)
+
 	// Arrange port forwarding from remote ssh to our server.
 	// Request the remote side to open port 5640 on all interfaces.
 	// Note: cl.Listen returns a TCP listener with network is "tcp"
@@ -291,24 +292,13 @@ func runClient(host, a string) error {
 	port := ap[len(ap)-1]
 	v("listener %T %v addr %v port %v", l, l, l.Addr().String(), port)
 
-	if *srv9p == "" {
-		go p9.NewServer(&cpu9p{path: *root}).Serve(l)
-	} else {
-		ctx, cancel := context.WithCancel(context.Background())
-		srvSock, p, err := srv(ctx)
-		if err != nil {
-			cancel()
-			return err
-		}
-		defer func() {
-			cancel()
-			p.Wait()
-		}()
-		go forward(l, srvSock)
-		v("Connected to %v", cl)
+	nonce, err := getNonce()
+	if err != nil {
+		log.Fatalf("Getting nonce: %v", err)
 	}
+	go srv(l, *root, nonce, deadline)
 	// now run stuff.
-	if err := shell(cl, a, port); err != nil {
+	if err := shell(cl, nonce, a, port); err != nil {
 		return err
 	}
 	return nil
@@ -317,8 +307,8 @@ func runClient(host, a string) error {
 // env sets environment variables. While we might think we ought to set
 // HOME and PATH, it's possibly not a great idea. We leave them here as markers
 // to remind ourselves not to try it later.
-func env(s *ossh.Session) {
-	for _, v := range os.Environ() {
+func env(s *ossh.Session, envs ...string) {
+	for _, v := range append(os.Environ(), envs...) {
 		env := strings.SplitN(v, "=", 2)
 		if len(env) == 1 {
 			env = append(env, "")
@@ -329,7 +319,7 @@ func env(s *ossh.Session) {
 	}
 }
 
-func shell(client *ossh.Client, a, port9p string) error {
+func shell(client *ossh.Client, n nonce, a, port9p string) error {
 	t, err := termios.New()
 	if err != nil {
 		return err
@@ -351,7 +341,7 @@ func shell(client *ossh.Client, a, port9p string) error {
 		return err
 	}
 	defer session.Close()
-	env(session)
+	env(session, "CPUNONCE="+n.String())
 	// Set up terminal modes
 	modes := ossh.TerminalModes{
 		ossh.ECHO:          0,     // disable echoing
@@ -554,7 +544,7 @@ func doInit() error {
 	}
 
 	// start the process reaper
-	procs := make(chan int)
+	procs := make(chan uint)
 	go cpuDone(procs)
 
 	server.SetOption(ssh.HostKeyFile(*hostKeyFile))
