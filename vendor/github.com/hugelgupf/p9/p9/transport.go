@@ -156,7 +156,7 @@ func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, e
 	if err != nil {
 		// Throw away the contents of this message.
 		if remaining > 0 {
-			io.Copy(ioutil.Discard, io.LimitReader(conn, int64(remaining)))
+			_, _ = io.Copy(ioutil.Discard, io.LimitReader(conn, int64(remaining)))
 		}
 		return tag, nil, err
 	}
@@ -176,7 +176,7 @@ func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, e
 		if fixedSize > remaining {
 			// This is not a valid message.
 			if remaining > 0 {
-				io.Copy(ioutil.Discard, io.LimitReader(conn, int64(remaining)))
+				_, _ = io.Copy(ioutil.Discard, io.LimitReader(conn, int64(remaining)))
 			}
 			return noTag, nil, ErrNoValidMessage
 		}
