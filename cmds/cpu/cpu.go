@@ -59,8 +59,8 @@ func verbose(f string, a ...interface{}) {
 	v("\r\n"+f+"\r\n", a...)
 }
 
-// getNonce returns a nonce, or an error if random reader fails.
-func getNonce() (nonce, error) {
+// generateNonce returns a nonce, or an error if random reader fails.
+func generateNonce() (nonce, error) {
 	var b [len(nonce{}) / 2]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return nonce{}, err
@@ -209,7 +209,7 @@ func runRemote(cmd, port9p string) error {
 	flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID)
 	cf, err := so.(*net.TCPConn).File()
 	if err != nil {
-		log.Fatalf("Can not get fd for %v: %v", so, err)
+		log.Fatalf("Cannot get fd for %v: %v", so, err)
 	}
 	fd := cf.Fd()
 	v("remote:fd is %v", fd)
@@ -275,7 +275,8 @@ func runClient(host, a string) error {
 	// told what to do. We suggest that making the deadline a flag
 	// would be a bad move, since people might be tempted to make it
 	// large.
-	deadline := time.Now().Add(10000000 * time.Nanosecond)
+	const ms = 1000000 * time.Nanosecond
+	deadline := time.Now().Add(1000 * ms)
 
 	// Arrange port forwarding from remote ssh to our server.
 	// Request the remote side to open port 5640 on all interfaces.
@@ -292,7 +293,7 @@ func runClient(host, a string) error {
 	port := ap[len(ap)-1]
 	v("listener %T %v addr %v port %v", l, l, l.Addr().String(), port)
 
-	nonce, err := getNonce()
+	nonce, err := generateNonce()
 	if err != nil {
 		log.Fatalf("Getting nonce: %v", err)
 	}

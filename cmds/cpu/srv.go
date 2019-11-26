@@ -5,6 +5,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -13,30 +15,49 @@ import (
 	"github.com/hugelgupf/p9/p9"
 )
 
+// Made harder as you can't set a read deadline on ssh.Conn
 func srv(l net.Listener, root string, n nonce, deadline time.Time) {
 	// We only accept once
 	defer l.Close()
-	v("srv: try to accept")
-	c, err := l.Accept()
-	if err != nil {
-		log.Fatalf("accept 9p socket: %v", err)
-	}
-	v("srv got %v", c)
-	if err := c.SetDeadline(deadline); err != nil {
-		log.Fatalf("Set deadline for nonce: %v", err)
-	}
-	var rn nonce
-	if _, err := io.ReadAtLeast(c, rn[:], len(rn)); err != nil {
-		log.Fatalf("Reading nonce from remote: %v", err)
-	}
-	v("srv: read the nonce back got %s", rn)
-	if n.String() != rn.String() {
-		log.Fatalf("nonce mismatch: got %s but want %s", rn, n)
-	}
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	var (
+		errs chan error
+		c    net.Conn
+		err  error
+	)
+	go func() {
+		v("srv: try to accept")
+		c, err = l.Accept()
+		if err != nil {
+			errs <- fmt.Errorf("accept 9p socket: %v", err)
+			return
+		}
+		v("srv got %v", c)
+		var rn nonce
+		if _, err := io.ReadAtLeast(c, rn[:], len(rn)); err != nil {
+			errs <- fmt.Errorf("Reading nonce from remote: %v", err)
+			return
+		}
+		v("srv: read the nonce back got %s", rn)
+		if n.String() != rn.String() {
+			errs <- fmt.Errorf("nonce mismatch: got %s but want %s", rn, n)
+			return
+		}
+		// Without this cancel, the select seems to stick on the context. Fix me.
+		cancel()
+		errs <- nil
+	}()
 
-	// There is no deadline once we are set up.
-	if err := c.SetDeadline(time.Time{}); err != nil {
-		log.Printf("Warning: clearing deadline for socket: %v, things may fail", err)
+	select {
+	case <-ctx.Done():
+		if ctx.Err() != context.Canceled {
+			log.Fatalf("Timeout on nonce: %v", ctx.Err())
+		}
+	case err := <-errs:
+		if err != nil {
+			log.Fatalf("srv: %v", err)
+		}
 	}
 	if err := p9.NewServer(&cpu9p{path: root}).Handle(c); err != nil {
 		log.Fatalf("Serving cpu remote: %v", err)
