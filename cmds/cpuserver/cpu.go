@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"flag"
 	"fmt"
 	"io"
@@ -54,22 +53,6 @@ var (
 
 func verbose(f string, a ...interface{}) {
 	v("\r\n"+f+"\r\n", a...)
-}
-
-// generateNonce returns a nonce, or an error if random reader fails.
-func generateNonce() (nonce, error) {
-	var b [len(nonce{}) / 2]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return nonce{}, err
-	}
-	var n nonce
-	copy(n[:], fmt.Sprintf("%02x", b))
-	return n, nil
-}
-
-// String is a Stringer for nonce.
-func (n nonce) String() string {
-	return string(n[:])
 }
 
 func dropPrivs() error {
