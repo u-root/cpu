@@ -10,3 +10,6 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Building for u-root generates directory .bb, we dont want that duplicate
+*.bb
