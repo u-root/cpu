@@ -7,6 +7,7 @@ u-root \
 	-initcmd=/bbin/cpu \
 	-files  ~/.ssh/cpu_rsa.pub:key.pub \
 	all \
+	github.com/u-root/cpu/cmds/cpuserver \
 	github.com/u-root/cpu/cmds/cpu
 
 sudo /usr/bin/qemu-system-x86_64 -kernel \
