@@ -53,6 +53,7 @@ var (
 	bindover  = flag.String("bindover", "/lib:/lib64:/lib32:/usr:/bin:/etc:/home", ": separated list of directories in /tmp/cpu to bind over /")
 	mountopts = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize     = flag.Int("msize", 1048576, "msize to use")
+	pid1      bool
 )
 
 func verbose(f string, a ...interface{}) {
@@ -394,7 +395,7 @@ func shell(client *ossh.Client, n nonce, a, port9p string) error {
 func init() {
 	flag.Parse()
 	if os.Getpid() == 1 {
-		*runAsInit, *debug = true, false
+		pid1, *runAsInit, *debug = true, true, false
 	}
 	if *debug {
 		v = log.Printf
@@ -467,48 +468,50 @@ func handler(s ssh.Session) {
 }
 
 func doInit() error {
-	if err := cpuSetup(); err != nil {
-		log.Printf("CPU setup error with cpu running as init: %v", err)
-	}
-	cmds := [][]string{{"/bin/defaultsh"}, {"/bbin/dhclient", "-v"}}
-	verbose("Try to run %v", cmds)
-
-	for _, v := range cmds {
-		verbose("Let's try to run %v", v)
-		if _, err := os.Stat(v[0]); os.IsNotExist(err) {
-			verbose("it's not there")
-			continue
+	if pid1 {
+		if err := cpuSetup(); err != nil {
+			log.Printf("CPU setup error with cpu running as init: %v", err)
 		}
+		cmds := [][]string{{"/bin/defaultsh"}, {"/bbin/dhclient", "-v"}}
+		verbose("Try to run %v", cmds)
 
-		// I *love* special cases. Evaluate just the top-most symlink.
-		//
-		// In source mode, this would be a symlink like
-		// /buildbin/defaultsh -> /buildbin/elvish ->
-		// /buildbin/installcommand.
-		//
-		// To actually get the command to build, argv[0] has to end
-		// with /elvish, so we resolve one level of symlink.
-		if filepath.Base(v[0]) == "defaultsh" {
-			s, err := os.Readlink(v[0])
-			if err == nil {
-				v[0] = s
+		for _, v := range cmds {
+			verbose("Let's try to run %v", v)
+			if _, err := os.Stat(v[0]); os.IsNotExist(err) {
+				verbose("it's not there")
+				continue
 			}
-			verbose("readlink of %v returns %v", v[0], s)
-			// and, well, it might be a relative link.
-			// We must go deeper.
-			d, b := filepath.Split(v[0])
-			d = filepath.Base(d)
-			v[0] = filepath.Join("/", os.Getenv("UROOT_ROOT"), d, b)
-			verbose("is now %v", v[0])
-		}
 
-		cmd := exec.Command(v[0], v[1:]...)
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
-		verbose("Run %v", cmd)
-		if err := cmd.Start(); err != nil {
-			log.Printf("Error starting %v: %v", v, err)
-			continue
+			// I *love* special cases. Evaluate just the top-most symlink.
+			//
+			// In source mode, this would be a symlink like
+			// /buildbin/defaultsh -> /buildbin/elvish ->
+			// /buildbin/installcommand.
+			//
+			// To actually get the command to build, argv[0] has to end
+			// with /elvish, so we resolve one level of symlink.
+			if filepath.Base(v[0]) == "defaultsh" {
+				s, err := os.Readlink(v[0])
+				if err == nil {
+					v[0] = s
+				}
+				verbose("readlink of %v returns %v", v[0], s)
+				// and, well, it might be a relative link.
+				// We must go deeper.
+				d, b := filepath.Split(v[0])
+				d = filepath.Base(d)
+				v[0] = filepath.Join("/", os.Getenv("UROOT_ROOT"), d, b)
+				verbose("is now %v", v[0])
+			}
+
+			cmd := exec.Command(v[0], v[1:]...)
+			cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+			cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
+			verbose("Run %v", cmd)
+			if err := cmd.Start(); err != nil {
+				log.Printf("Error starting %v: %v", v, err)
+				continue
+			}
 		}
 	}
 	publicKeyOption := func(ctx ssh.Context, key ssh.PublicKey) bool {
