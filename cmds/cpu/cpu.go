@@ -46,7 +46,7 @@ var (
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
 	network   = flag.String("network", "tcp", "network to use")
 	keyFile   = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
-	bin       = flag.String("bin", "cpuserver", "path of cpu binary")
+	bin       = flag.String("bin", "cpud", "path of cpu binary")
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	dbg9p     = flag.Bool("dbg9p", false, "show 9p io")
 	root      = flag.String("root", "/", "9p root")
