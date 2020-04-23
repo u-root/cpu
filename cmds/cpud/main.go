@@ -34,7 +34,7 @@ var (
 	// For the ssh server part
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
-	port        = flag.String("sp", "2222", "ssh default port")
+	port        = flag.String("sp", "23", "cpu default port")
 
 	debug     = flag.Bool("d", false, "enable debug prints")
 	runAsInit = flag.Bool("init", false, "run as init (Debug only; normal test is if we are pid 1")
