@@ -157,9 +157,9 @@ func runRemote(cmd, port9p string) error {
 			t := filepath.Join("/tmp/cpu", n)
 			v("remote: mount %v over %v", t, n)
 			if err := unix.Mount(t, n, "", syscall.MS_BIND, ""); err != nil {
-				log.Printf("Warning: mounting %v on %v failed: %v", t, n, err)
+				v("Warning: mounting %v on %v failed: %v", t, n, err)
 			} else {
-				log.Printf("Mounted %v on %v", t, n)
+				v("Mounted %v on %v", t, n)
 			}
 
 		}
