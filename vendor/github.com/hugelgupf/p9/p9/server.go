@@ -21,7 +21,9 @@ import (
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
-	"syscall"
+
+	"github.com/hugelgupf/p9/internal/linux"
+	"github.com/u-root/u-root/pkg/ulog"
 )
 
 // Server is a 9p2000.L server.
@@ -41,15 +43,32 @@ type Server struct {
 	// acquire two path nodes in any order, as all other concurrent
 	// operations acquire at most a single node.
 	renameMu sync.RWMutex
+
+	// log is a logger to log to, if specified.
+	log ulog.Logger
+}
+
+// ServerOpt is an optional config for a new server.
+type ServerOpt func(s *Server)
+
+// WithServerLogger overrides the default logger for the server.
+func WithServerLogger(l ulog.Logger) ServerOpt {
+	return func(s *Server) {
+		s.log = l
+	}
 }
 
 // NewServer returns a new server.
-//
-func NewServer(attacher Attacher) *Server {
-	return &Server{
+func NewServer(attacher Attacher, o ...ServerOpt) *Server {
+	s := &Server{
 		attacher: attacher,
 		pathTree: newPathNode(),
+		log:      ulog.Null,
 	}
+	for _, opt := range o {
+		opt(s)
+	}
+	return s
 }
 
 // connState is the state for a single connection.
@@ -60,8 +79,9 @@ type connState struct {
 	// sendMu is the send lock.
 	sendMu sync.Mutex
 
-	// conn is the connection.
-	conn net.Conn
+	// t reads T messages and r write R messages
+	t io.ReadCloser
+	r io.WriteCloser
 
 	// fids is the set of active fids.
 	//
@@ -79,6 +99,9 @@ type connState struct {
 	// messageSize is the maximum message size. The server does not
 	// do automatic splitting of messages.
 	messageSize uint32
+
+	// baseVersion is the version of 9P protocol.
+	baseVersion baseVersion
 
 	// version is the agreed upon version X of 9P2000.L.Google.X.
 	// version 0 implies 9P2000.L.
@@ -397,8 +420,8 @@ func (cs *connState) handleRequest() {
 	}
 
 	// Receive a message.
-	tag, m, err := recv(cs.conn, messageSize, msgRegistry.get)
-	if errSocket, ok := err.(ErrSocket); ok {
+	tag, m, err := recv(cs.server.log, cs.t, messageSize, msgDotLRegistry.get)
+	if errSocket, ok := err.(ConnError); ok {
 		// Connection problem; stop serving.
 		cs.recvDone <- errSocket.error
 		return
@@ -412,7 +435,7 @@ func (cs *connState) handleRequest() {
 		// If it's not a connection error, but some other protocol error,
 		// we can send a response immediately.
 		cs.sendMu.Lock()
-		err := send(cs.conn, tag, newErr(err))
+		err := send(cs.server.log, cs.r, tag, newErr(err))
 		cs.sendMu.Unlock()
 		cs.sendDone <- err
 		return
@@ -438,7 +461,7 @@ func (cs *connState) handleRequest() {
 			// Wrap in an EFAULT error; we don't really have a
 			// better way to describe this kind of error. It will
 			// usually manifest as a result of the test framework.
-			r = newErr(syscall.EFAULT)
+			r = newErr(linux.EFAULT)
 		}
 
 		// Clear the tag before sending. That's because as soon as this
@@ -448,7 +471,7 @@ func (cs *connState) handleRequest() {
 
 		// Send back the result.
 		cs.sendMu.Lock()
-		err = send(cs.conn, tag, r)
+		err = send(cs.server.log, cs.r, tag, r)
 		cs.sendMu.Unlock()
 		cs.sendDone <- err
 	}()
@@ -457,9 +480,9 @@ func (cs *connState) handleRequest() {
 		r = handler.handle(cs)
 	} else {
 		// Produce an ENOSYS error.
-		r = newErr(syscall.ENOSYS)
+		r = newErr(linux.ENOSYS)
 	}
-	msgRegistry.put(m)
+	msgDotLRegistry.put(m)
 	m = nil // 'm' should not be touched after this point.
 }
 
@@ -483,7 +506,8 @@ func (cs *connState) stop() {
 	}
 
 	// Ensure the connection is closed.
-	cs.conn.Close()
+	cs.r.Close()
+	cs.t.Close()
 }
 
 // service services requests concurrently.
@@ -537,10 +561,11 @@ func (cs *connState) service() error {
 }
 
 // Handle handles a single connection.
-func (s *Server) Handle(conn net.Conn) error {
+func (s *Server) Handle(t io.ReadCloser, r io.WriteCloser) error {
 	cs := &connState{
 		server:   s,
-		conn:     conn,
+		t:        t,
+		r:        r,
 		fids:     make(map[fid]*fidRef),
 		tags:     make(map[tag]chan struct{}),
 		recvOkay: make(chan bool),
@@ -569,7 +594,7 @@ func (s *Server) Serve(serverSocket net.Listener) error {
 
 		wg.Add(1)
 		go func(conn net.Conn) { // S/R-SAFE: Irrelevant.
-			s.Handle(conn)
+			s.Handle(conn, conn)
 			wg.Done()
 		}(conn)
 	}

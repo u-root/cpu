@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !arm,!mips,!mipsle
+// +build !386,!arm,!mips,!mipsle
 
 package vecnet
 

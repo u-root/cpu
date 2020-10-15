@@ -3,19 +3,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1a200e7e73293b75eb8e5c93d023b5472663432da0b663e1532624fcfede9ca8"
+  digest = "1:b0a8a228414ba1996bf55f5e66076aa08d0128bd2f6ee1c6dff5d297ee9f0d66"
   name = "github.com/anmitsu/go-shlex"
   packages = ["."]
   pruneopts = "UT"
-  revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
+  revision = "38f4b401e2be5955e3e00b843d96e3c406f5094d"
 
 [[projects]]
-  digest = "1:e29335d5a78621ed7a539ed75e10785c3705bb67d916e48b03b1cdf9b727508d"
+  digest = "1:376409c05d9e563e19815109c2b13776eb4e2529cbb006bae2d32a99877a6839"
   name = "github.com/creack/pty"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3a6a957789163cacdfe0e291617a1c8e80612c11"
-  version = "v1.1.9"
+  revision = "2a38352e8b4d7ab6c336eef107e42a55e72e7fbc"
+  version = "v1.1.11"
 
 [[projects]]
   digest = "1:0a01355005024757ae2a1f62e8fe68a30b4f5fde7a08ac88b3685e7999ac354b"
@@ -26,16 +26,18 @@
   version = "v0.2.2"
 
 [[projects]]
-  branch = "master"
-  digest = "1:b850f33189449c646a50055e21f927b9fac0e5a3d485aa02f4d2e87296f3c374"
+  digest = "1:34fc73f06f892d481aab0821dddfe06fd8ad947fada1c468991d413b6170caa5"
   name = "github.com/hugelgupf/p9"
   packages = [
+    "fsimpl/templatefs",
+    "internal",
+    "internal/linux",
     "p9",
-    "unimplfs",
     "vecnet",
   ]
   pruneopts = "UT"
-  revision = "ede262f409e34431adb8bee319b12151a16dce54"
+  revision = "7cc848b3cdfd46f1a2d5ffcfbd0e790fd869614f"
+  version = "v0.1.0"
 
 [[projects]]
   digest = "1:3e2fbf3f6d30c4c009be006f9d2a9eaefc804d8f6b991e88cb793b87318cc5bc"
@@ -47,42 +49,44 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:af67a3792b721ac14f261a455794bbbad8f4ef6b020d679e50b67d82e16fe10c"
+  digest = "1:34a34944fc8c3a0785ea775b227b588318062deeef6d9ee935c10614006a2a7f"
   name = "github.com/u-root/u-root"
   packages = [
     "pkg/cmdline",
     "pkg/libinit",
+    "pkg/shlex",
     "pkg/termios",
     "pkg/ulog",
     "pkg/upath",
   ]
   pruneopts = "UT"
-  revision = "d22874c657509be56f2e2869cfd75a45af09937f"
+  revision = "35b36569855114955a239bfd7a321485597e5a31"
 
 [[projects]]
-  branch = "master"
-  digest = "1:2dfbcaf62fe3421451c0bcd551fb8ffa875c2efc0e7cadff6b220bf54b8362b4"
+  digest = "1:1314b5ef1c0b25257ea02e454291bf042478a48407cfe3ffea7e20323bbf5fdf"
   name = "github.com/vishvananda/netlink"
   packages = [
     ".",
     "nl",
   ]
   pruneopts = "UT"
-  revision = "d71301a47b607450337d920f260f3dc76481298e"
+  revision = "f049be6f391489d3f374498fe0c8df8449258372"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:975cb0c04431bf92e60b636a15897c4a3faba9f7dc04da505646630ac91d29d3"
+  digest = "1:f4426574338c0a0518623550d8c06355cbec9ba21ea5a6187b818aa3d3ed3b47"
   name = "github.com/vishvananda/netns"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0a2b9b5464df8343199164a0321edf3313202f7e"
+  revision = "db3c7e526aae966c4ccfa6c8189b693d6ac5d202"
 
 [[projects]]
   branch = "master"
-  digest = "1:c9e0b137902d857921fb87c28039a4af7e587970bd10c4fcec818d1559347d43"
+  digest = "1:8b5cc33ecfc0bd0cba9f1a10ee26ee5787ced684fb3ee61a522622b4cef89eed"
   name = "golang.org/x/crypto"
   packages = [
+    "blowfish",
     "chacha20",
     "curve25519",
     "ed25519",
@@ -90,28 +94,30 @@
     "internal/subtle",
     "poly1305",
     "ssh",
+    "ssh/internal/bcrypt_pbkdf",
   ]
   pruneopts = "UT"
-  revision = "ac88ee75c92c889b97e05591e9a39b6480c538b3"
+  revision = "84dcc777aaee85807c99afb056f496a3a8b3d8de"
 
 [[projects]]
   branch = "master"
-  digest = "1:0073b575c4b3b0f6bb93e45d2262ff7dc6eff7a46e08f461f1c92b3c7ec96e67"
+  digest = "1:1dd654b2333df351d643910dd8d03bfc96172d7556b4e31742962a0a836763ca"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
+    "internal/unsafeheader",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "bd437916bb0eb726b873ee8e9b2dcf212d32e2fd"
+  revision = "e3ed0017c21142d3345308d92dcc7ad7020040c6"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/gliderlabs/ssh",
+    "github.com/hugelgupf/p9/fsimpl/templatefs",
     "github.com/hugelgupf/p9/p9",
-    "github.com/hugelgupf/p9/unimplfs",
     "github.com/kr/pty",
     "github.com/u-root/u-root/pkg/libinit",
     "github.com/u-root/u-root/pkg/termios",

@@ -7,12 +7,12 @@
 // ulog has three implementations of the Logger interface: a Go standard
 // library "log" package Logger, a kernel syslog (dmesg) Logger, and a test
 // Logger that logs via a test's testing.TB.Logf.
+// To use the test logger import "ulog/ulogtest".
 package ulog
 
 import (
 	"log"
 	"os"
-	"testing"
 )
 
 // Logger is a log receptacle.
@@ -24,19 +24,12 @@ type Logger interface {
 }
 
 // Log is a Logger that prints to stderr, like the default log package.
-var Log = log.New(os.Stderr, "", log.LstdFlags)
+var Log Logger = log.New(os.Stderr, "", log.LstdFlags)
 
-// TestLogger is a Logger implementation that logs to testing.TB.Logf.
-type TestLogger struct {
-	TB testing.TB
-}
+type emptyLogger struct{}
 
-// Printf formats according to the format specifier and prints to a unit test's log.
-func (tl TestLogger) Printf(format string, v ...interface{}) {
-	tl.TB.Logf(format, v...)
-}
+func (emptyLogger) Printf(format string, v ...interface{}) {}
+func (emptyLogger) Print(v ...interface{})                 {}
 
-// Print formats according the default formats for v and prints to a unit test's log.
-func (tl TestLogger) Print(v ...interface{}) {
-	tl.TB.Log(v...)
-}
+// Null is a logger that prints nothing.
+var Null Logger = emptyLogger{}

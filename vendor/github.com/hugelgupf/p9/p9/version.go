@@ -34,16 +34,21 @@ const (
 	// Clients are free to send a Tversion request at a version below this
 	// value but are expected to encounter an Rlerror in response.
 	lowestSupportedVersion uint32 = 0
+)
 
-	// baseVersion is the base version of 9P that this package must always
-	// support.  It is equivalent to 9P2000.L.Google.0.
-	baseVersion = "9P2000.L"
+type baseVersion string
+
+const (
+	undetermined   baseVersion = ""
+	version9P2000  baseVersion = "9P2000"
+	version9P2000U baseVersion = "9P2000.u"
+	version9P2000L baseVersion = "9P2000.L"
 )
 
 // HighestVersionString returns the highest possible version string that a client
 // may request or a server may support.
 func HighestVersionString() string {
-	return versionString(highestSupportedVersion)
+	return versionString(version9P2000L, highestSupportedVersion)
 }
 
 // parseVersion parses a Tversion version string into a numeric version number
@@ -68,43 +73,40 @@ func HighestVersionString() string {
 // func VersionSupportsX(v int32) bool {
 //	...
 // )
-func parseVersion(str string) (uint32, bool) {
-	// Special case the base version which lacks the ".Google.X" suffix.  This
-	// version always means version 0.
-	if str == baseVersion {
-		return 0, true
+func parseVersion(str string) (baseVersion, uint32, bool) {
+	switch str {
+	case "9P2000.L":
+		return version9P2000L, 0, true
+	case "9P2000.u":
+		return version9P2000U, 0, true
+	case "9P2000":
+		return version9P2000, 0, true
+	default:
+		substr := strings.Split(str, ".")
+		if len(substr) != 4 {
+			return "", 0, false
+		}
+		if substr[0] != "9P2000" || substr[1] != "L" || substr[2] != "Google" || len(substr[3]) == 0 {
+			return "", 0, false
+		}
+		version, err := strconv.ParseUint(substr[3], 10, 32)
+		if err != nil {
+			return "", 0, false
+		}
+		return version9P2000L, uint32(version), true
 	}
-	substr := strings.Split(str, ".")
-	if len(substr) != 4 {
-		return 0, false
-	}
-	if substr[0] != "9P2000" || substr[1] != "L" || substr[2] != "Google" || len(substr[3]) == 0 {
-		return 0, false
-	}
-	version, err := strconv.ParseUint(substr[3], 10, 32)
-	if err != nil {
-		return 0, false
-	}
-	return uint32(version), true
 }
 
 // versionString formats a p9 version number into a Tversion version string.
-func versionString(version uint32) string {
+func versionString(baseVersion baseVersion, version uint32) string {
 	// Special case the base version so that clients expecting this string
 	// instead of the 9P2000.L.Google.0 equivalent get it.  This is important
 	// for backwards compatibility with legacy servers that check for exactly
 	// the baseVersion and allow nothing else.
 	if version == 0 {
-		return baseVersion
+		return string(baseVersion)
 	}
 	return fmt.Sprintf("9P2000.L.Google.%d", version)
-}
-
-// VersionSupportsTflushf returns true if version v supports the Tflushf message.
-// This predicate must be checked by clients before attempting to make a Tflushf
-// request.  If this predicate returns false, then clients may safely no-op.
-func VersionSupportsTflushf(v uint32) bool {
-	return v >= 1
 }
 
 // versionSupportsTwalkgetattr returns true if version v supports the

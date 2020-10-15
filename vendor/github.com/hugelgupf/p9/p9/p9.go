@@ -25,11 +25,17 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
-	"syscall"
+
+	"github.com/hugelgupf/p9/internal"
 )
 
 // Debug can be assigned to log.Printf to print messages received and sent.
 var Debug = func(fmt string, v ...interface{}) {}
+
+const (
+	// DefaultMessageSize is a sensible default.
+	DefaultMessageSize uint32 = 64 << 10
+)
 
 // OpenFlags is the mode passed to Open and Create operations.
 //
@@ -706,13 +712,27 @@ func (a *AttrMask) encode(b *buffer) {
 	b.Write64(mask)
 }
 
+// NLink is the number of links to this fs object.
+//
+// While this type has no utilities, it is useful in order to force linux+amd64
+// only developers to cast to NLink for the NLink field, which will make their
+// code compatible with other GOARCH and GOOS values.
+type NLink uint64
+
+// Dev is the device number of an fs object.
+//
+// While this type has no utilities, it is useful in order to force linux+amd64
+// only developers to cast to Dev for the Dev field, which will make their
+// code compatible with other GOARCH and GOOS values.
+type Dev uint64
+
 // Attr is a set of attributes for getattr.
 type Attr struct {
 	Mode             FileMode
 	UID              UID
 	GID              GID
-	NLink            uint64
-	RDev             uint64
+	NLink            NLink
+	RDev             Dev
 	Size             uint64
 	BlockSize        uint64
 	Blocks           uint64
@@ -739,8 +759,8 @@ func (a *Attr) encode(b *buffer) {
 	b.WriteFileMode(a.Mode)
 	b.WriteUID(a.UID)
 	b.WriteGID(a.GID)
-	b.Write64(a.NLink)
-	b.Write64(a.RDev)
+	b.Write64(uint64(a.NLink))
+	b.Write64(uint64(a.RDev))
 	b.Write64(a.Size)
 	b.Write64(a.BlockSize)
 	b.Write64(a.Blocks)
@@ -761,8 +781,8 @@ func (a *Attr) decode(b *buffer) {
 	a.Mode = b.ReadFileMode()
 	a.UID = b.ReadUID()
 	a.GID = b.ReadGID()
-	a.NLink = b.Read64()
-	a.RDev = b.Read64()
+	a.NLink = NLink(b.Read64())
+	a.RDev = Dev(b.Read64())
 	a.Size = b.Read64()
 	a.BlockSize = b.Read64()
 	a.Blocks = b.Read64()
@@ -779,7 +799,7 @@ func (a *Attr) decode(b *buffer) {
 }
 
 // StatToAttr converts a Linux syscall stat structure to an Attr.
-func StatToAttr(s *syscall.Stat_t, req AttrMask) (Attr, AttrMask) {
+func StatToAttr(s *internal.Stat_t, req AttrMask) (Attr, AttrMask) {
 	attr := Attr{
 		UID: NoUID,
 		GID: NoGID,
@@ -1002,7 +1022,20 @@ func (a *Attr) Apply(mask SetAttrMask, attr SetAttr) {
 	}
 }
 
-// Dirent is used for readdir.
+// Dirents is a collection of directory entries.
+type Dirents []Dirent
+
+// Find returns a Dirent with the given name if it exists, or nil.
+func (d Dirents) Find(name string) *Dirent {
+	for _, dir := range d {
+		if dir.Name == name {
+			return &dir
+		}
+	}
+	return nil
+}
+
+// Dirent represents a directory entry in File.Readdir.
 type Dirent struct {
 	// QID is the entry QID.
 	QID QID

@@ -76,7 +76,7 @@ func (t *tversion) encode(b *buffer) {
 	b.WriteString(t.Version)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tversion) typ() msgType {
 	return msgTversion
 }
@@ -107,7 +107,7 @@ func (r *rversion) encode(b *buffer) {
 	b.WriteString(r.Version)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rversion) typ() msgType {
 	return msgRversion
 }
@@ -133,7 +133,7 @@ func (t *tflush) encode(b *buffer) {
 	b.WriteTag(t.OldTag)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tflush) typ() msgType {
 	return msgTflush
 }
@@ -155,7 +155,7 @@ func (*rflush) decode(b *buffer) {
 func (*rflush) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rflush) typ() msgType {
 	return msgRflush
 }
@@ -198,7 +198,7 @@ func (t *twalk) encode(b *buffer) {
 	}
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*twalk) typ() msgType {
 	return msgTwalk
 }
@@ -233,7 +233,7 @@ func (r *rwalk) encode(b *buffer) {
 	}
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rwalk) typ() msgType {
 	return msgRwalk
 }
@@ -259,7 +259,7 @@ func (t *tclunk) encode(b *buffer) {
 	b.WriteFID(t.fid)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tclunk) typ() msgType {
 	return msgTclunk
 }
@@ -280,7 +280,7 @@ func (*rclunk) decode(b *buffer) {
 func (*rclunk) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rclunk) typ() msgType {
 	return msgRclunk
 }
@@ -306,7 +306,7 @@ func (t *tremove) encode(b *buffer) {
 	b.WriteFID(t.fid)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tremove) typ() msgType {
 	return msgTremove
 }
@@ -328,7 +328,7 @@ func (*rremove) decode(b *buffer) {
 func (*rremove) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rremove) typ() msgType {
 	return msgRremove
 }
@@ -355,7 +355,7 @@ func (r *rlerror) encode(b *buffer) {
 	b.Write32(r.Error)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rlerror) typ() msgType {
 	return msgRlerror
 }
@@ -396,7 +396,7 @@ func (t *tauth) encode(b *buffer) {
 	b.WriteUID(t.UID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tauth) typ() msgType {
 	return msgTauth
 }
@@ -413,7 +413,7 @@ type rauth struct {
 	QID
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rauth) typ() msgType {
 	return msgRauth
 }
@@ -446,7 +446,7 @@ func (t *tattach) encode(b *buffer) {
 	t.Auth.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tattach) typ() msgType {
 	return msgTattach
 }
@@ -461,7 +461,7 @@ type rattach struct {
 	QID
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rattach) typ() msgType {
 	return msgRattach
 }
@@ -492,7 +492,7 @@ func (t *tlopen) encode(b *buffer) {
 	b.WriteOpenFlags(t.Flags)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tlopen) typ() msgType {
 	return msgTlopen
 }
@@ -523,7 +523,7 @@ func (r *rlopen) encode(b *buffer) {
 	b.Write32(r.IoUnit)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rlopen) typ() msgType {
 	return msgRlopen
 }
@@ -574,7 +574,7 @@ func (t *tlcreate) encode(b *buffer) {
 	b.WriteGID(t.GID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tlcreate) typ() msgType {
 	return msgTlcreate
 }
@@ -591,7 +591,7 @@ type rlcreate struct {
 	rlopen
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rlcreate) typ() msgType {
 	return msgRlcreate
 }
@@ -632,7 +632,7 @@ func (t *tsymlink) encode(b *buffer) {
 	b.WriteGID(t.GID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tsymlink) typ() msgType {
 	return msgTsymlink
 }
@@ -658,7 +658,7 @@ func (r *rsymlink) encode(b *buffer) {
 	r.QID.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rsymlink) typ() msgType {
 	return msgRsymlink
 }
@@ -694,7 +694,7 @@ func (t *tlink) encode(b *buffer) {
 	b.WriteString(t.Name)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tlink) typ() msgType {
 	return msgTlink
 }
@@ -708,7 +708,7 @@ func (t *tlink) String() string {
 type rlink struct {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rlink) typ() msgType {
 	return msgRlink
 }
@@ -757,7 +757,7 @@ func (t *trenameat) encode(b *buffer) {
 	b.WriteString(t.NewName)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*trenameat) typ() msgType {
 	return msgTrenameat
 }
@@ -779,7 +779,7 @@ func (*rrenameat) decode(b *buffer) {
 func (*rrenameat) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rrenameat) typ() msgType {
 	return msgRrenameat
 }
@@ -815,7 +815,7 @@ func (t *tunlinkat) encode(b *buffer) {
 	b.Write32(t.Flags)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tunlinkat) typ() msgType {
 	return msgTunlinkat
 }
@@ -837,7 +837,7 @@ func (*runlinkat) decode(b *buffer) {
 func (*runlinkat) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*runlinkat) typ() msgType {
 	return msgRunlinkat
 }
@@ -873,7 +873,7 @@ func (t *trename) encode(b *buffer) {
 	b.WriteString(t.Name)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*trename) typ() msgType {
 	return msgTrename
 }
@@ -895,7 +895,7 @@ func (*rrename) decode(b *buffer) {
 func (*rrename) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rrename) typ() msgType {
 	return msgRrename
 }
@@ -921,7 +921,7 @@ func (t *treadlink) encode(b *buffer) {
 	b.WriteFID(t.fid)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*treadlink) typ() msgType {
 	return msgTreadlink
 }
@@ -947,7 +947,7 @@ func (r *rreadlink) encode(b *buffer) {
 	b.WriteString(r.Target)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rreadlink) typ() msgType {
 	return msgRreadlink
 }
@@ -983,7 +983,7 @@ func (t *tread) encode(b *buffer) {
 	b.Write32(t.Count)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tread) typ() msgType {
 	return msgTread
 }
@@ -1016,7 +1016,7 @@ func (r *rread) encode(b *buffer) {
 	b.Write32(uint32(len(r.Data)))
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rread) typ() msgType {
 	return msgRread
 }
@@ -1072,7 +1072,7 @@ func (t *twrite) encode(b *buffer) {
 	b.Write32(uint32(len(t.Data)))
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*twrite) typ() msgType {
 	return msgTwrite
 }
@@ -1113,7 +1113,7 @@ func (r *rwrite) encode(b *buffer) {
 	b.Write32(r.Count)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rwrite) typ() msgType {
 	return msgRwrite
 }
@@ -1164,7 +1164,7 @@ func (t *tmknod) encode(b *buffer) {
 	b.WriteGID(t.GID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tmknod) typ() msgType {
 	return msgTmknod
 }
@@ -1190,7 +1190,7 @@ func (r *rmknod) encode(b *buffer) {
 	r.QID.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rmknod) typ() msgType {
 	return msgRmknod
 }
@@ -1231,7 +1231,7 @@ func (t *tmkdir) encode(b *buffer) {
 	b.WriteGID(t.GID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tmkdir) typ() msgType {
 	return msgTmkdir
 }
@@ -1257,7 +1257,7 @@ func (r *rmkdir) encode(b *buffer) {
 	r.QID.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rmkdir) typ() msgType {
 	return msgRmkdir
 }
@@ -1288,7 +1288,7 @@ func (t *tgetattr) encode(b *buffer) {
 	t.AttrMask.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tgetattr) typ() msgType {
 	return msgTgetattr
 }
@@ -1324,7 +1324,7 @@ func (r *rgetattr) encode(b *buffer) {
 	r.Attr.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rgetattr) typ() msgType {
 	return msgRgetattr
 }
@@ -1360,7 +1360,7 @@ func (t *tsetattr) encode(b *buffer) {
 	t.SetAttr.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tsetattr) typ() msgType {
 	return msgTsetattr
 }
@@ -1382,7 +1382,7 @@ func (*rsetattr) decode(b *buffer) {
 func (*rsetattr) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rsetattr) typ() msgType {
 	return msgRsetattr
 }
@@ -1418,7 +1418,7 @@ func (t *txattrwalk) encode(b *buffer) {
 	b.WriteString(t.Name)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*txattrwalk) typ() msgType {
 	return msgTxattrwalk
 }
@@ -1444,7 +1444,7 @@ func (r *rxattrwalk) encode(b *buffer) {
 	b.Write64(r.Size)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rxattrwalk) typ() msgType {
 	return msgRxattrwalk
 }
@@ -1488,7 +1488,7 @@ func (t *txattrcreate) encode(b *buffer) {
 	b.Write32(t.Flags)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*txattrcreate) typ() msgType {
 	return msgTxattrcreate
 }
@@ -1510,7 +1510,7 @@ func (r *rxattrcreate) decode(b *buffer) {
 func (r *rxattrcreate) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rxattrcreate) typ() msgType {
 	return msgRxattrcreate
 }
@@ -1546,7 +1546,7 @@ func (t *treaddir) encode(b *buffer) {
 	b.Write32(t.Count)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*treaddir) typ() msgType {
 	return msgTreaddir
 }
@@ -1593,20 +1593,20 @@ func (r *rreaddir) decode(b *buffer) {
 // encode implements encoder.encode.
 func (r *rreaddir) encode(b *buffer) {
 	entriesBuf := buffer{}
+	payloadSize := 0
 	for _, d := range r.Entries {
-		prev := len(entriesBuf.data)
 		d.encode(&entriesBuf)
-		if len(entriesBuf.data) >= int(r.Count) {
-			entriesBuf.data = entriesBuf.data[:prev]
+		if len(entriesBuf.data) > int(r.Count) {
 			break
 		}
+		payloadSize = len(entriesBuf.data)
 	}
-	r.Count = uint32(len(entriesBuf.data))
-	r.payload = entriesBuf.data
-	b.Write32(uint32(r.Count))
+	r.Count = uint32(payloadSize)
+	r.payload = entriesBuf.data[:payloadSize]
+	b.Write32(r.Count)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rreaddir) typ() msgType {
 	return msgRreaddir
 }
@@ -1647,7 +1647,7 @@ func (t *tfsync) encode(b *buffer) {
 	b.WriteFID(t.fid)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tfsync) typ() msgType {
 	return msgTfsync
 }
@@ -1669,7 +1669,7 @@ func (*rfsync) decode(b *buffer) {
 func (*rfsync) encode(b *buffer) {
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rfsync) typ() msgType {
 	return msgRfsync
 }
@@ -1695,7 +1695,7 @@ func (t *tstatfs) encode(b *buffer) {
 	b.WriteFID(t.fid)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*tstatfs) typ() msgType {
 	return msgTstatfs
 }
@@ -1721,7 +1721,7 @@ func (r *rstatfs) encode(b *buffer) {
 	r.FSStat.encode(b)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rstatfs) typ() msgType {
 	return msgRstatfs
 }
@@ -1729,54 +1729,6 @@ func (*rstatfs) typ() msgType {
 // String implements fmt.Stringer.
 func (r *rstatfs) String() string {
 	return fmt.Sprintf("Rstatfs{FSStat: %v}", r.FSStat)
-}
-
-// tflushf is a flush file request, not to be confused with tflush.
-type tflushf struct {
-	// fid is the fid to be flushed.
-	fid fid
-}
-
-// decode implements encoder.decode.
-func (t *tflushf) decode(b *buffer) {
-	t.fid = b.ReadFID()
-}
-
-// encode implements encoder.encode.
-func (t *tflushf) encode(b *buffer) {
-	b.WriteFID(t.fid)
-}
-
-// Type implements message.Type.
-func (*tflushf) typ() msgType {
-	return msgTflushf
-}
-
-// String implements fmt.Stringer.
-func (t *tflushf) String() string {
-	return fmt.Sprintf("Tflushf{FID: %d}", t.fid)
-}
-
-// rflushf is a flush file response.
-type rflushf struct {
-}
-
-// decode implements encoder.decode.
-func (*rflushf) decode(b *buffer) {
-}
-
-// encode implements encoder.encode.
-func (*rflushf) encode(b *buffer) {
-}
-
-// Type implements message.Type.
-func (*rflushf) typ() msgType {
-	return msgRflushf
-}
-
-// String implements fmt.Stringer.
-func (*rflushf) String() string {
-	return fmt.Sprintf("Rflushf{}")
 }
 
 // twalkgetattr is a walk request.
@@ -1812,7 +1764,7 @@ func (t *twalkgetattr) encode(b *buffer) {
 	}
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*twalkgetattr) typ() msgType {
 	return msgTwalkgetattr
 }
@@ -1857,7 +1809,7 @@ func (r *rwalkgetattr) encode(b *buffer) {
 	}
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rwalkgetattr) typ() msgType {
 	return msgRwalkgetattr
 }
@@ -1887,7 +1839,7 @@ func (t *tucreate) encode(b *buffer) {
 	b.WriteUID(t.UID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (t *tucreate) typ() msgType {
 	return msgTucreate
 }
@@ -1902,7 +1854,7 @@ type rucreate struct {
 	rlcreate
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rucreate) typ() msgType {
 	return msgRucreate
 }
@@ -1932,7 +1884,7 @@ func (t *tumkdir) encode(b *buffer) {
 	b.WriteUID(t.UID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (t *tumkdir) typ() msgType {
 	return msgTumkdir
 }
@@ -1947,7 +1899,7 @@ type rumkdir struct {
 	rmkdir
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rumkdir) typ() msgType {
 	return msgRumkdir
 }
@@ -1977,7 +1929,7 @@ func (t *tumknod) encode(b *buffer) {
 	b.WriteUID(t.UID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (t *tumknod) typ() msgType {
 	return msgTumknod
 }
@@ -1992,7 +1944,7 @@ type rumknod struct {
 	rmknod
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rumknod) typ() msgType {
 	return msgRumknod
 }
@@ -2022,7 +1974,7 @@ func (t *tusymlink) encode(b *buffer) {
 	b.WriteUID(t.UID)
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (t *tusymlink) typ() msgType {
 	return msgTusymlink
 }
@@ -2037,7 +1989,7 @@ type rusymlink struct {
 	rsymlink
 }
 
-// Type implements message.Type.
+// typ implements message.typ.
 func (*rusymlink) typ() msgType {
 	return msgRusymlink
 }
@@ -2055,11 +2007,11 @@ type msgFactory struct {
 	cache  chan message
 }
 
-// msgRegistry indexes all message factories by type.
-var msgRegistry registry
+// msgDotLRegistry indexes all 9P2000.L(.Google.N) message factories by type.
+var msgDotLRegistry registry
 
 type registry struct {
-	factories [math.MaxUint8]msgFactory
+	factories [math.MaxUint8 + 1]msgFactory
 
 	// largestFixedSize is computed so that given some message size M, you can
 	// compute the maximum payload size (e.g. for Twrite, Rread) with
@@ -2130,69 +2082,67 @@ func calculateSize(m message) uint32 {
 }
 
 func init() {
-	msgRegistry.register(msgRlerror, func() message { return &rlerror{} })
-	msgRegistry.register(msgTstatfs, func() message { return &tstatfs{} })
-	msgRegistry.register(msgRstatfs, func() message { return &rstatfs{} })
-	msgRegistry.register(msgTlopen, func() message { return &tlopen{} })
-	msgRegistry.register(msgRlopen, func() message { return &rlopen{} })
-	msgRegistry.register(msgTlcreate, func() message { return &tlcreate{} })
-	msgRegistry.register(msgRlcreate, func() message { return &rlcreate{} })
-	msgRegistry.register(msgTsymlink, func() message { return &tsymlink{} })
-	msgRegistry.register(msgRsymlink, func() message { return &rsymlink{} })
-	msgRegistry.register(msgTmknod, func() message { return &tmknod{} })
-	msgRegistry.register(msgRmknod, func() message { return &rmknod{} })
-	msgRegistry.register(msgTrename, func() message { return &trename{} })
-	msgRegistry.register(msgRrename, func() message { return &rrename{} })
-	msgRegistry.register(msgTreadlink, func() message { return &treadlink{} })
-	msgRegistry.register(msgRreadlink, func() message { return &rreadlink{} })
-	msgRegistry.register(msgTgetattr, func() message { return &tgetattr{} })
-	msgRegistry.register(msgRgetattr, func() message { return &rgetattr{} })
-	msgRegistry.register(msgTsetattr, func() message { return &tsetattr{} })
-	msgRegistry.register(msgRsetattr, func() message { return &rsetattr{} })
-	msgRegistry.register(msgTxattrwalk, func() message { return &txattrwalk{} })
-	msgRegistry.register(msgRxattrwalk, func() message { return &rxattrwalk{} })
-	msgRegistry.register(msgTxattrcreate, func() message { return &txattrcreate{} })
-	msgRegistry.register(msgRxattrcreate, func() message { return &rxattrcreate{} })
-	msgRegistry.register(msgTreaddir, func() message { return &treaddir{} })
-	msgRegistry.register(msgRreaddir, func() message { return &rreaddir{} })
-	msgRegistry.register(msgTfsync, func() message { return &tfsync{} })
-	msgRegistry.register(msgRfsync, func() message { return &rfsync{} })
-	msgRegistry.register(msgTlink, func() message { return &tlink{} })
-	msgRegistry.register(msgRlink, func() message { return &rlink{} })
-	msgRegistry.register(msgTmkdir, func() message { return &tmkdir{} })
-	msgRegistry.register(msgRmkdir, func() message { return &rmkdir{} })
-	msgRegistry.register(msgTrenameat, func() message { return &trenameat{} })
-	msgRegistry.register(msgRrenameat, func() message { return &rrenameat{} })
-	msgRegistry.register(msgTunlinkat, func() message { return &tunlinkat{} })
-	msgRegistry.register(msgRunlinkat, func() message { return &runlinkat{} })
-	msgRegistry.register(msgTversion, func() message { return &tversion{} })
-	msgRegistry.register(msgRversion, func() message { return &rversion{} })
-	msgRegistry.register(msgTauth, func() message { return &tauth{} })
-	msgRegistry.register(msgRauth, func() message { return &rauth{} })
-	msgRegistry.register(msgTattach, func() message { return &tattach{} })
-	msgRegistry.register(msgRattach, func() message { return &rattach{} })
-	msgRegistry.register(msgTflush, func() message { return &tflush{} })
-	msgRegistry.register(msgRflush, func() message { return &rflush{} })
-	msgRegistry.register(msgTwalk, func() message { return &twalk{} })
-	msgRegistry.register(msgRwalk, func() message { return &rwalk{} })
-	msgRegistry.register(msgTread, func() message { return &tread{} })
-	msgRegistry.register(msgRread, func() message { return &rread{} })
-	msgRegistry.register(msgTwrite, func() message { return &twrite{} })
-	msgRegistry.register(msgRwrite, func() message { return &rwrite{} })
-	msgRegistry.register(msgTclunk, func() message { return &tclunk{} })
-	msgRegistry.register(msgRclunk, func() message { return &rclunk{} })
-	msgRegistry.register(msgTremove, func() message { return &tremove{} })
-	msgRegistry.register(msgRremove, func() message { return &rremove{} })
-	msgRegistry.register(msgTflushf, func() message { return &tflushf{} })
-	msgRegistry.register(msgRflushf, func() message { return &rflushf{} })
-	msgRegistry.register(msgTwalkgetattr, func() message { return &twalkgetattr{} })
-	msgRegistry.register(msgRwalkgetattr, func() message { return &rwalkgetattr{} })
-	msgRegistry.register(msgTucreate, func() message { return &tucreate{} })
-	msgRegistry.register(msgRucreate, func() message { return &rucreate{} })
-	msgRegistry.register(msgTumkdir, func() message { return &tumkdir{} })
-	msgRegistry.register(msgRumkdir, func() message { return &rumkdir{} })
-	msgRegistry.register(msgTumknod, func() message { return &tumknod{} })
-	msgRegistry.register(msgRumknod, func() message { return &rumknod{} })
-	msgRegistry.register(msgTusymlink, func() message { return &tusymlink{} })
-	msgRegistry.register(msgRusymlink, func() message { return &rusymlink{} })
+	msgDotLRegistry.register(msgRlerror, func() message { return &rlerror{} })
+	msgDotLRegistry.register(msgTstatfs, func() message { return &tstatfs{} })
+	msgDotLRegistry.register(msgRstatfs, func() message { return &rstatfs{} })
+	msgDotLRegistry.register(msgTlopen, func() message { return &tlopen{} })
+	msgDotLRegistry.register(msgRlopen, func() message { return &rlopen{} })
+	msgDotLRegistry.register(msgTlcreate, func() message { return &tlcreate{} })
+	msgDotLRegistry.register(msgRlcreate, func() message { return &rlcreate{} })
+	msgDotLRegistry.register(msgTsymlink, func() message { return &tsymlink{} })
+	msgDotLRegistry.register(msgRsymlink, func() message { return &rsymlink{} })
+	msgDotLRegistry.register(msgTmknod, func() message { return &tmknod{} })
+	msgDotLRegistry.register(msgRmknod, func() message { return &rmknod{} })
+	msgDotLRegistry.register(msgTrename, func() message { return &trename{} })
+	msgDotLRegistry.register(msgRrename, func() message { return &rrename{} })
+	msgDotLRegistry.register(msgTreadlink, func() message { return &treadlink{} })
+	msgDotLRegistry.register(msgRreadlink, func() message { return &rreadlink{} })
+	msgDotLRegistry.register(msgTgetattr, func() message { return &tgetattr{} })
+	msgDotLRegistry.register(msgRgetattr, func() message { return &rgetattr{} })
+	msgDotLRegistry.register(msgTsetattr, func() message { return &tsetattr{} })
+	msgDotLRegistry.register(msgRsetattr, func() message { return &rsetattr{} })
+	msgDotLRegistry.register(msgTxattrwalk, func() message { return &txattrwalk{} })
+	msgDotLRegistry.register(msgRxattrwalk, func() message { return &rxattrwalk{} })
+	msgDotLRegistry.register(msgTxattrcreate, func() message { return &txattrcreate{} })
+	msgDotLRegistry.register(msgRxattrcreate, func() message { return &rxattrcreate{} })
+	msgDotLRegistry.register(msgTreaddir, func() message { return &treaddir{} })
+	msgDotLRegistry.register(msgRreaddir, func() message { return &rreaddir{} })
+	msgDotLRegistry.register(msgTfsync, func() message { return &tfsync{} })
+	msgDotLRegistry.register(msgRfsync, func() message { return &rfsync{} })
+	msgDotLRegistry.register(msgTlink, func() message { return &tlink{} })
+	msgDotLRegistry.register(msgRlink, func() message { return &rlink{} })
+	msgDotLRegistry.register(msgTmkdir, func() message { return &tmkdir{} })
+	msgDotLRegistry.register(msgRmkdir, func() message { return &rmkdir{} })
+	msgDotLRegistry.register(msgTrenameat, func() message { return &trenameat{} })
+	msgDotLRegistry.register(msgRrenameat, func() message { return &rrenameat{} })
+	msgDotLRegistry.register(msgTunlinkat, func() message { return &tunlinkat{} })
+	msgDotLRegistry.register(msgRunlinkat, func() message { return &runlinkat{} })
+	msgDotLRegistry.register(msgTversion, func() message { return &tversion{} })
+	msgDotLRegistry.register(msgRversion, func() message { return &rversion{} })
+	msgDotLRegistry.register(msgTauth, func() message { return &tauth{} })
+	msgDotLRegistry.register(msgRauth, func() message { return &rauth{} })
+	msgDotLRegistry.register(msgTattach, func() message { return &tattach{} })
+	msgDotLRegistry.register(msgRattach, func() message { return &rattach{} })
+	msgDotLRegistry.register(msgTflush, func() message { return &tflush{} })
+	msgDotLRegistry.register(msgRflush, func() message { return &rflush{} })
+	msgDotLRegistry.register(msgTwalk, func() message { return &twalk{} })
+	msgDotLRegistry.register(msgRwalk, func() message { return &rwalk{} })
+	msgDotLRegistry.register(msgTread, func() message { return &tread{} })
+	msgDotLRegistry.register(msgRread, func() message { return &rread{} })
+	msgDotLRegistry.register(msgTwrite, func() message { return &twrite{} })
+	msgDotLRegistry.register(msgRwrite, func() message { return &rwrite{} })
+	msgDotLRegistry.register(msgTclunk, func() message { return &tclunk{} })
+	msgDotLRegistry.register(msgRclunk, func() message { return &rclunk{} })
+	msgDotLRegistry.register(msgTremove, func() message { return &tremove{} })
+	msgDotLRegistry.register(msgRremove, func() message { return &rremove{} })
+	msgDotLRegistry.register(msgTwalkgetattr, func() message { return &twalkgetattr{} })
+	msgDotLRegistry.register(msgRwalkgetattr, func() message { return &rwalkgetattr{} })
+	msgDotLRegistry.register(msgTucreate, func() message { return &tucreate{} })
+	msgDotLRegistry.register(msgRucreate, func() message { return &rucreate{} })
+	msgDotLRegistry.register(msgTumkdir, func() message { return &tumkdir{} })
+	msgDotLRegistry.register(msgRumkdir, func() message { return &rumkdir{} })
+	msgDotLRegistry.register(msgTumknod, func() message { return &tumknod{} })
+	msgDotLRegistry.register(msgRumknod, func() message { return &rumknod{} })
+	msgDotLRegistry.register(msgTusymlink, func() message { return &tusymlink{} })
+	msgDotLRegistry.register(msgRusymlink, func() message { return &rusymlink{} })
 }

@@ -15,7 +15,7 @@
 package p9
 
 import (
-	"syscall"
+	"github.com/hugelgupf/p9/internal/linux"
 )
 
 // Attacher is provided by the server.
@@ -65,7 +65,7 @@ type File interface {
 	// WalkGetAttr walks to the next file and returns its maximal set of
 	// attributes.
 	//
-	// Server-side p9.Files may return syscall.ENOSYS to indicate that Walk
+	// Server-side p9.Files may return linux.ENOSYS to indicate that Walk
 	// and GetAttr should be used separately to satisfy this request.
 	//
 	// On the server, WalkGetAttr has a read concurrency guarantee.
@@ -97,8 +97,8 @@ type File interface {
 	// On the server, Close has no concurrency guarantee.
 	Close() error
 
-	// Open must be called prior to using Read, Write or Readdir. Once Open
-	// is called, some operations, such as Walk, will no longer work.
+	// Open must be called prior to using ReadAt, WriteAt, or Readdir. Once
+	// Open is called, some operations, such as Walk, will no longer work.
 	//
 	// On the client, Open should be called only once. The fd return is
 	// optional, and may be nil.
@@ -111,21 +111,21 @@ type File interface {
 	// deletion check, so resolving in the data path is not viable.
 	Open(mode OpenFlags) (QID, uint32, error)
 
-	// Read reads from this file. Open must be called first.
+	// ReadAt reads from this file. Open must be called first.
 	//
-	// This may return io.EOF in addition to syscall.Errno values.
+	// This may return io.EOF in addition to linux.Errno values.
 	//
 	// On the server, ReadAt has a read concurrency guarantee. See Open for
 	// additional requirements regarding lazy path resolution.
-	ReadAt(p []byte, offset uint64) (int, error)
+	ReadAt(p []byte, offset int64) (int, error)
 
-	// Write writes to this file. Open must be called first.
+	// WriteAt writes to this file. Open must be called first.
 	//
-	// This may return io.EOF in addition to syscall.Errno values.
+	// This may return io.EOF in addition to linux.Errno values.
 	//
 	// On the server, WriteAt has a read concurrency guarantee. See Open
 	// for additional requirements regarding lazy path resolution.
-	WriteAt(p []byte, offset uint64) (int, error)
+	WriteAt(p []byte, offset int64) (int, error)
 
 	// FSync syncs this node. Open must be called first.
 	//
@@ -190,26 +190,18 @@ type File interface {
 
 	// Readdir reads directory entries.
 	//
-	// This may return io.EOF in addition to syscall.Errno values.
+	// offset is the entry offset, and count the number of entries to
+	// return.
+	//
+	// This may return io.EOF in addition to linux.Errno values.
 	//
 	// On the server, Readdir has a read concurrency guarantee.
-	Readdir(offset uint64, count uint32) ([]Dirent, error)
+	Readdir(offset uint64, count uint32) (Dirents, error)
 
 	// Readlink reads the link target.
 	//
 	// On the server, Readlink has a read concurrency guarantee.
 	Readlink() (string, error)
-
-	// Flush is called prior to Close.
-	//
-	// Whereas Close drops all references to the file, Flush cleans up the
-	// file state. Behavior is implementation-specific.
-	//
-	// Flush is not related to flush(9p). Flush is an extension to 9P2000.L,
-	// see version.go.
-	//
-	// On the server, Flush has a read concurrency guarantee.
-	Flush() error
 
 	// Renamed is called when this node is renamed.
 	//
@@ -229,5 +221,5 @@ type DefaultWalkGetAttr struct{}
 
 // WalkGetAttr implements File.WalkGetAttr.
 func (DefaultWalkGetAttr) WalkGetAttr([]string) ([]QID, File, AttrMask, Attr, error) {
-	return nil, nil, AttrMask{}, Attr{}, syscall.ENOSYS
+	return nil, nil, AttrMask{}, Attr{}, linux.ENOSYS
 }
