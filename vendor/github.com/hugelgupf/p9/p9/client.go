@@ -17,10 +17,12 @@ package p9
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
-	"net"
 	"sync"
-	"syscall"
+
+	"github.com/hugelgupf/p9/internal/linux"
+	"github.com/u-root/u-root/pkg/ulog"
 )
 
 // ErrOutOfTags indicates no tags are available.
@@ -67,8 +69,8 @@ var responsePool = sync.Pool{
 
 // Client is at least a 9P2000.L client.
 type Client struct {
-	// socket is the connected socket.
-	socket net.Conn
+	// conn is the connected conn.
+	conn io.ReadWriteCloser
 
 	// tagPool is the collection of available tags.
 	tagPool pool
@@ -101,47 +103,80 @@ type Client struct {
 	// version is the agreed upon version X of 9P2000.L.Google.X.
 	// version 0 implies 9P2000.L.
 	version uint32
+
+	// log is the logger to write to, if specified.
+	log ulog.Logger
 }
 
-// NewClient creates a new client.  It performs a Tversion exchange with
+// ClientOpt enables optional client configuration.
+type ClientOpt func(*Client) error
+
+// WithMessageSize overrides the default message size.
+func WithMessageSize(m uint32) ClientOpt {
+	return func(c *Client) error {
+		// Need at least one byte of payload.
+		if m <= msgDotLRegistry.largestFixedSize {
+			return &ErrMessageTooLarge{
+				size:  m,
+				msize: msgDotLRegistry.largestFixedSize,
+			}
+		}
+		c.messageSize = m
+		return nil
+	}
+}
+
+// WithClientLogger overrides the default logger for the client.
+func WithClientLogger(l ulog.Logger) ClientOpt {
+	return func(c *Client) error {
+		c.log = l
+		return nil
+	}
+}
+
+func roundDown(p uint32, align uint32) uint32 {
+	if p > align && p%align != 0 {
+		return p - p%align
+	}
+	return p
+}
+
+// NewClient creates a new client. It performs a Tversion exchange with
 // the server to assert that messageSize is ok to use.
 //
-// You should not use the same socket for multiple clients.
-func NewClient(socket net.Conn, messageSize uint32, version string) (*Client, error) {
-	// Need at least one byte of payload.
-	if messageSize <= msgRegistry.largestFixedSize {
-		return nil, &ErrMessageTooLarge{
-			size:  messageSize,
-			msize: msgRegistry.largestFixedSize,
+// You should not use the same conn for multiple clients.
+func NewClient(conn io.ReadWriteCloser, o ...ClientOpt) (*Client, error) {
+	c := &Client{
+		conn:        conn,
+		tagPool:     pool{start: 1, limit: uint64(noTag)},
+		fidPool:     pool{start: 1, limit: uint64(noFID)},
+		pending:     make(map[tag]*response),
+		recvr:       make(chan bool, 1),
+		messageSize: DefaultMessageSize,
+		log:         ulog.Null,
+
+		// Request a high version by default.
+		version: highestSupportedVersion,
+	}
+
+	for _, opt := range o {
+		if err := opt(c); err != nil {
+			return nil, err
 		}
 	}
 
 	// Compute a payload size and round to 512 (normal block size)
 	// if it's larger than a single block.
-	payloadSize := messageSize - msgRegistry.largestFixedSize
-	if payloadSize > 512 && payloadSize%512 != 0 {
-		payloadSize -= (payloadSize % 512)
-	}
-	c := &Client{
-		socket:      socket,
-		tagPool:     pool{start: 1, limit: uint64(noTag)},
-		fidPool:     pool{start: 1, limit: uint64(noFID)},
-		pending:     make(map[tag]*response),
-		recvr:       make(chan bool, 1),
-		messageSize: messageSize,
-		payloadSize: payloadSize,
-	}
+	c.payloadSize = roundDown(c.messageSize-msgDotLRegistry.largestFixedSize, 512)
+
 	// Agree upon a version.
-	requested, ok := parseVersion(version)
-	if !ok {
-		return nil, ErrBadVersionString
-	}
+	requested := c.version
 	for {
 		rversion := rversion{}
-		err := c.sendRecv(&tversion{Version: versionString(requested), MSize: messageSize}, &rversion)
+		err := c.sendRecv(&tversion{Version: versionString(version9P2000L, requested), MSize: c.messageSize}, &rversion)
 
 		// The server told us to try again with a lower version.
-		if err == syscall.EAGAIN {
+		if err == linux.EAGAIN {
 			if requested == lowestSupportedVersion {
 				return nil, ErrVersionsExhausted
 			}
@@ -155,10 +190,14 @@ func NewClient(socket net.Conn, messageSize uint32, version string) (*Client, er
 		}
 
 		// Parse the version.
-		version, ok := parseVersion(rversion.Version)
+		baseVersion, version, ok := parseVersion(rversion.Version)
 		if !ok {
 			// The server gave us a bad version. We return a generically worrisome error.
 			log.Printf("server returned bad version string %q", rversion.Version)
+			return nil, ErrBadVersionString
+		}
+		if baseVersion != version9P2000L {
+			log.Printf("server returned unsupported base version %q (version %q)", baseVersion, rversion.Version)
 			return nil, ErrBadVersionString
 		}
 		c.version = version
@@ -172,7 +211,7 @@ func NewClient(socket net.Conn, messageSize uint32, version string) (*Client, er
 // This should only be called with the token from recvr. Note that the received
 // tag will automatically be cleared from pending.
 func (c *Client) handleOne() {
-	t, r, err := recv(c.socket, c.messageSize, func(t tag, mt msgType) (message, error) {
+	t, r, err := recv(c.log, c.conn, c.messageSize, func(t tag, mt msgType) (message, error) {
 		c.pendingMu.Lock()
 		resp := c.pending[t]
 		c.pendingMu.Unlock()
@@ -199,7 +238,7 @@ func (c *Client) handleOne() {
 	})
 
 	if err != nil {
-		// No tag was extracted (probably a socket error).
+		// No tag was extracted (probably a conn error).
 		//
 		// Likely catastrophic. Notify all waiters and clear pending.
 		c.pendingMu.Lock()
@@ -269,7 +308,7 @@ func (c *Client) sendRecv(tm message, rm message) error {
 
 	// Send the request over the wire.
 	c.sendMu.Lock()
-	err := send(c.socket, tag(t), tm)
+	err := send(c.log, c.conn, tag(t), tm)
 	c.sendMu.Unlock()
 	if err != nil {
 		return fmt.Errorf("send: %v", err)
@@ -285,7 +324,7 @@ func (c *Client) sendRecv(tm message, rm message) error {
 	// For convenience, we transform these directly
 	// into errors. Handlers need not handle this case.
 	if rlerr, ok := resp.r.(*rlerror); ok {
-		return syscall.Errno(rlerr.Error)
+		return linux.Errno(rlerr.Error)
 	}
 
 	// At this point, we know it matches.
@@ -300,7 +339,7 @@ func (c *Client) Version() uint32 {
 	return c.version
 }
 
-// Close closes the underlying socket.
+// Close closes the underlying connection.
 func (c *Client) Close() error {
-	return c.socket.Close()
+	return c.conn.Close()
 }

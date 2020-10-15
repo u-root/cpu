@@ -14,9 +14,10 @@ import (
 
 // KernelLog is a logger that prints to the kernel syslog buffer.
 //
+// Default log level is KLogInfo.
+//
 // If the syslog buffer cannot be written to, KernelLog falls back to Log.
 var KernelLog = &KLog{
-	// Default log level is Info.
 	LogLevel: uintptr(KLogInfo),
 }
 
@@ -37,8 +38,10 @@ type KLog struct {
 
 // Reinit reopens the /dev/kmsg file.
 func (k *KLog) Reinit() {
-	f, _ := os.OpenFile("/dev/kmsg", os.O_RDWR, 0)
-	KernelLog.File = f
+	f, err := os.OpenFile("/dev/kmsg", os.O_RDWR, 0)
+	if err == nil {
+		KernelLog.File = f
+	}
 }
 
 // writeString returns true iff it was able to write the log to /dev/kmsg.
@@ -81,19 +84,12 @@ const (
 	KLogDebug     KLogLevel = 7
 )
 
-const (
-	_SYSLOG_ACTION_READ_ALL      = 3
-	_SYSLOG_ACTION_READ_CLEAR    = 4
-	_SYSLOG_ACTION_CLEAR         = 5
-	_SYSLOG_ACTION_CONSOLE_LEVEL = 8
-)
-
 // SetConsoleLogLevel sets the console level with syslog(2).
 //
 // After this call, only messages with a level value lower than the one
 // specified will be printed to console by the kernel.
 func (k *KLog) SetConsoleLogLevel(level KLogLevel) error {
-	if _, _, err := unix.Syscall(unix.SYS_SYSLOG, _SYSLOG_ACTION_CONSOLE_LEVEL, 0, uintptr(level)); err != 0 {
+	if _, _, err := unix.Syscall(unix.SYS_SYSLOG, unix.SYSLOG_ACTION_CONSOLE_LEVEL, 0, uintptr(level)); err != 0 {
 		return fmt.Errorf("could not set syslog level to %d: %v", level, err)
 	}
 	return nil
@@ -106,16 +102,16 @@ func (k *KLog) SetLogLevel(level KLogLevel) {
 
 // ClearLog clears kernel logs back to empty.
 func (k *KLog) ClearLog() error {
-	_, err := unix.Klogctl(_SYSLOG_ACTION_CLEAR, nil)
+	_, err := unix.Klogctl(unix.SYSLOG_ACTION_CLEAR, nil)
 	return err
 }
 
 // Read reads from the tail of the kernel log.
 func (k *KLog) Read(b []byte) (int, error) {
-	return unix.Klogctl(_SYSLOG_ACTION_READ_ALL, b)
+	return unix.Klogctl(unix.SYSLOG_ACTION_READ_ALL, b)
 }
 
 // ReadClear reads from the tail of the kernel log and clears what was read.
 func (k *KLog) ReadClear(b []byte) (int, error) {
-	return unix.Klogctl(_SYSLOG_ACTION_READ_CLEAR, b)
+	return unix.Klogctl(unix.SYSLOG_ACTION_READ_CLEAR, b)
 }

@@ -23,19 +23,23 @@ import (
 	"sync"
 
 	"github.com/hugelgupf/p9/vecnet"
+	"github.com/u-root/u-root/pkg/ulog"
 )
 
-// ErrSocket is returned in cases of a socket issue.
+// ConnError is returned in cases of a connection issue.
 //
 // This may be treated differently than other errors.
-type ErrSocket struct {
+type ConnError struct {
 	// error is the socket error.
 	error
 }
 
-func (e ErrSocket) Error() string {
+func (e ConnError) Error() string {
 	return fmt.Sprintf("socket error: %v", e.error)
 }
+
+// Is reports whether any error in err's chain matches target.
+func (e ConnError) Is(target error) bool { return target == e.error }
 
 // ErrMessageTooLarge indicates the size was larger than reasonable.
 type ErrMessageTooLarge struct {
@@ -65,16 +69,19 @@ const (
 var dataPool = sync.Pool{
 	New: func() interface{} {
 		// These buffers are used for decoding without a payload.
-		return make([]byte, initialBufferLength)
+		// We need to return a pointer to avoid unnecessary allocations
+		// (see https://staticcheck.io/docs/checks#SA6002).
+		b := make([]byte, initialBufferLength)
+		return &b
 	},
 }
 
 // send sends the given message over the socket.
-func send(conn net.Conn, tag tag, m message) error {
-	data := dataPool.Get().([]byte)
-	dataBuf := buffer{data: data[:0]}
+func send(l ulog.Logger, w io.Writer, tag tag, m message) error {
+	data := dataPool.Get().(*[]byte)
+	dataBuf := buffer{data: (*data)[:0]}
 
-	Debug("send [conn %p] [Tag %06d] %s", conn, tag, m)
+	l.Printf("send [w %p] [Tag %06d] %s", w, tag, m)
 
 	// Encode the message. The buffer will grow automatically.
 	m.encode(&dataBuf)
@@ -103,12 +110,12 @@ func send(conn net.Conn, tag tag, m message) error {
 	headerBuf.WriteMsgType(m.typ())
 	headerBuf.WriteTag(tag)
 
-	if _, err := vecs.WriteTo(conn); err != nil {
-		return ErrSocket{err}
+	if _, err := vecs.WriteTo(w); err != nil {
+		return ConnError{err}
 	}
 
 	// All set.
-	dataPool.Put(dataBuf.data)
+	dataPool.Put(&dataBuf.data)
 	return nil
 }
 
@@ -126,12 +133,12 @@ type lookupTagAndType func(tag tag, t msgType) (message, error)
 // On a socket error, the special error type ErrSocket is returned.
 //
 // The tag value NoTag will always be returned if err is non-nil.
-func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, error) {
+func recv(l ulog.Logger, r io.Reader, msize uint32, lookup lookupTagAndType) (tag, message, error) {
 	// Read a header.
 	var hdr [headerLength]byte
 
-	if _, err := io.ReadAtLeast(conn, hdr[:], int(headerLength)); err != nil {
-		return noTag, nil, ErrSocket{err}
+	if _, err := io.ReadAtLeast(r, hdr[:], int(headerLength)); err != nil {
+		return noTag, nil, ConnError{err}
 	}
 
 	// Decode the header.
@@ -143,11 +150,11 @@ func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, e
 		// The message is too small.
 		//
 		// See above: it's probably screwed.
-		return noTag, nil, ErrSocket{ErrNoValidMessage}
+		return noTag, nil, ConnError{ErrNoValidMessage}
 	}
 	if size > maximumLength || size > msize {
 		// The message is too big.
-		return noTag, nil, ErrSocket{&ErrMessageTooLarge{size, msize}}
+		return noTag, nil, ConnError{&ErrMessageTooLarge{size, msize}}
 	}
 	remaining := size - headerLength
 
@@ -156,19 +163,36 @@ func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, e
 	if err != nil {
 		// Throw away the contents of this message.
 		if remaining > 0 {
-			_, _ = io.Copy(ioutil.Discard, io.LimitReader(conn, int64(remaining)))
+			_, _ = io.Copy(ioutil.Discard, io.LimitReader(r, int64(remaining)))
 		}
 		return tag, nil, err
 	}
 
 	// Not yet initialized.
 	var dataBuf buffer
+	var vecs vecnet.Buffers
+
+	appendBuffer := func(size int) *[]byte {
+		// Pull a data buffer from the pool.
+		datap := dataPool.Get().(*[]byte)
+		data := *datap
+		if size > len(data) {
+			// Create a larger data buffer.
+			data = make([]byte, size)
+			datap = &data
+		} else {
+			// Limit the data buffer.
+			data = data[:size]
+		}
+		dataBuf = buffer{data: data}
+		vecs = append(vecs, data)
+		return datap
+	}
 
 	// Read the rest of the payload.
 	//
 	// This requires some special care to ensure that the vectors all line
 	// up the way they should. We do this to minimize copying data around.
-	var vecs vecnet.Buffers
 	if payloader, ok := m.(payloader); ok {
 		fixedSize := payloader.FixedSize()
 
@@ -176,28 +200,14 @@ func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, e
 		if fixedSize > remaining {
 			// This is not a valid message.
 			if remaining > 0 {
-				_, _ = io.Copy(ioutil.Discard, io.LimitReader(conn, int64(remaining)))
+				_, _ = io.Copy(ioutil.Discard, io.LimitReader(r, int64(remaining)))
 			}
 			return noTag, nil, ErrNoValidMessage
 		}
 
 		if fixedSize != 0 {
-			// Pull a data buffer from the pool.
-			data := dataPool.Get().([]byte)
-			if int(fixedSize) > len(data) {
-				// Create a larger data buffer, ensuring
-				// sufficient capicity for the message.
-				data = make([]byte, fixedSize)
-				defer dataPool.Put(data)
-				dataBuf = buffer{data: data}
-				vecs = append(vecs, data)
-			} else {
-				// Limit the data buffer, and make sure it
-				// gets filled before the payload buffer.
-				defer dataPool.Put(data)
-				dataBuf = buffer{data: data[:fixedSize]}
-				vecs = append(vecs, data[:fixedSize])
-			}
+			datap := appendBuffer(int(fixedSize))
+			defer dataPool.Put(datap)
 		}
 
 		// Include the payload.
@@ -210,25 +220,13 @@ func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, e
 			vecs = append(vecs, p)
 		}
 	} else if remaining != 0 {
-		// Pull a data buffer from the pool.
-		data := dataPool.Get().([]byte)
-		if int(remaining) > len(data) {
-			// Create a larger data buffer.
-			data = make([]byte, remaining)
-			defer dataPool.Put(data)
-			dataBuf = buffer{data: data}
-			vecs = append(vecs, data)
-		} else {
-			// Limit the data buffer.
-			defer dataPool.Put(data)
-			dataBuf = buffer{data: data[:remaining]}
-			vecs = append(vecs, data[:remaining])
-		}
+		datap := appendBuffer(int(remaining))
+		defer dataPool.Put(datap)
 	}
 
 	if len(vecs) > 0 {
-		if _, err := vecs.ReadFrom(conn); err != nil {
-			return noTag, nil, ErrSocket{err}
+		if _, err := vecs.ReadFrom(r); err != nil {
+			return noTag, nil, ConnError{err}
 		}
 	}
 
@@ -239,7 +237,7 @@ func recv(conn net.Conn, msize uint32, lookup lookupTagAndType) (tag, message, e
 		return noTag, nil, ErrNoValidMessage
 	}
 
-	Debug("recv [conn %p] [Tag %06d] %s", conn, tag, m)
+	l.Printf("recv [r %p] [Tag %06d] %s", r, tag, m)
 
 	// All set.
 	return tag, m, nil
