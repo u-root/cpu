@@ -181,13 +181,13 @@ func (l *cpu9p) Open(mode p9.OpenFlags) (p9.QID, uint32, error) {
 	return qid, 4096, nil
 }
 
-// Read implements p9.File.Read.
-func (l *cpu9p) ReadAt(p []byte, offset uint64) (int, error) {
+// Read implements p9.File.ReadAt.
+func (l *cpu9p) ReadAt(p []byte, offset int64) (int, error) {
 	return l.file.ReadAt(p, int64(offset))
 }
 
-// Write implements p9.File.Write.
-func (l *cpu9p) WriteAt(p []byte, offset uint64) (int, error) {
+// Write implements p9.File.WriteAt.
+func (l *cpu9p) WriteAt(p []byte, offset int64) (int, error) {
 	return l.file.WriteAt(p, int64(offset))
 }
 
@@ -240,12 +240,12 @@ func (l *cpu9p) Link(target p9.File, newname string) error {
 }
 
 // Readdir implements p9.File.Readdir.
-func (l *cpu9p) Readdir(offset uint64, count uint32) ([]p9.Dirent, error) {
+func (l *cpu9p) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
 	fi, err := ioutil.ReadDir(l.path)
 	if err != nil {
 		return nil, err
 	}
-	var dirents []p9.Dirent
+	var dirents p9.Dirents
 	//log.Printf("readdir %q returns %d entries start at offset %d", l.path, len(fi), offset)
 	for i := int(offset); i < len(fi); i++ {
 		entry := cpu9p{path: filepath.Join(l.path, fi[i].Name())}
