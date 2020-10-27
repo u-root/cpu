@@ -3,7 +3,7 @@ version: 2
 templates:
   golang-template: &golang-template
     docker:
-      - image: circleci/golang:1.13
+      - image: circleci/golang:1.14
     working_directory: /go/src/github.com/u-root/cpu
     environment:
       - GOPATH: "/go"
