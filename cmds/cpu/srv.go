@@ -59,7 +59,7 @@ func srv(l net.Listener, root string, n nonce, deadline time.Time) {
 			log.Fatalf("srv: %v", err)
 		}
 	}
-	if err := p9.NewServer(&cpu9p{path: root}).Handle(c); err != nil {
+	if err := p9.NewServer(&cpu9p{path: root}).Handle(c, c); err != nil {
 		log.Fatalf("Serving cpu remote: %v", err)
 	}
 }
