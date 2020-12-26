@@ -21,15 +21,14 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/hugelgupf/p9/fsimpl/templatefs"
 	"github.com/hugelgupf/p9/p9"
-        "github.com/hugelgupf/p9/fsimpl/templatefs"
-
 )
 
 // cpu9p is a p9.Attacher.
 type cpu9p struct {
 	p9.DefaultWalkGetAttr
-        templatefs.NoopFile
+	templatefs.NoopFile
 
 	path string
 	file *os.File

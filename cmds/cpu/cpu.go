@@ -242,7 +242,7 @@ func runRemote(cmd, port9p string) error {
 			if err := unix.Mount(t, n, "", syscall.MS_BIND, ""); err != nil {
 				log.Printf("Warning: mounting %v on %v failed: %v", t, n, err)
 			} else {
-				log.Printf("Mounted %v on %v", t, n)
+				v("Mounted %v on %v", t, n)
 			}
 
 		}
@@ -383,6 +383,7 @@ func shell(client *ossh.Client, n nonce, a, port9p string) error {
 	if err := session.Start(cmd); err != nil {
 		return fmt.Errorf("Failed to run %v: %v", a, err.Error())
 	}
+	//env(session, "CPUNONCE="+n.String())
 	go io.Copy(i, os.Stdin)
 	go io.Copy(os.Stdout, o)
 	go io.Copy(os.Stderr, e)
@@ -423,6 +424,11 @@ func init() {
 		flags = 0
 		if err := unix.Mount("cpu", "/tmp", "tmpfs", flags, ""); err != nil {
 			log.Printf("Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
+		}
+		log.Printf("\r\r\r\n------------>Environ: %q", os.Environ())
+		for _, element := range os.Environ() {
+			variable := strings.Split(element, "=")
+			log.Print(variable[0], "=>", variable[1])
 		}
 	}
 }
@@ -596,8 +602,16 @@ func main() {
 		if a == "" {
 			a = os.Getenv("SHELL")
 		}
+		t, err := termios.GetTermios(0)
+		if err != nil {
+			log.Fatal("Getting Termios")
+		}
 		if err := runClient(host, a); err != nil {
+			log.Print(err)
+		}
+		if err := termios.SetTermios(0, t); err != nil {
 			log.Fatal(err)
 		}
+
 	}
 }
