@@ -5,7 +5,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -16,11 +15,9 @@ import (
 )
 
 // Made harder as you can't set a read deadline on ssh.Conn
-func srv(l net.Listener, root string, n nonce, deadline time.Time) {
+func srv(l net.Listener, root string, n nonce, deadline time.Duration) {
 	// We only accept once
 	defer l.Close()
-	ctx, cancel := context.WithDeadline(context.Background(), deadline)
-	defer cancel()
 	var (
 		errs = make(chan error)
 		c    net.Conn
@@ -44,15 +41,19 @@ func srv(l net.Listener, root string, n nonce, deadline time.Time) {
 			errs <- fmt.Errorf("nonce mismatch: got %s but want %s", rn, n)
 			return
 		}
-		// Without this cancel, the select seems to stick on the context. Fix me.
 		errs <- nil
 	}()
 
+	// This is interesting. If we return an error from the timeout
+	// in this select, the Accept above *never* succeeds. It always hangs.
+	// If we return at all, for any reason, same result.
+	// I have no clue what's up here, since the usage exactly
+	// follows most other packages, but I suspect it's some
+	// conflicting usage of time with the ssh package. I'm past caring.
+	// To be continued ...
 	select {
-	case <-ctx.Done():
-		if ctx.Err() != context.Canceled {
-			log.Fatalf("Timeout on nonce: %v", ctx.Err())
-		}
+	case <-time.After(deadline):
+		log.Fatalf("cpud did not connect for more than %v", deadline)
 	case err := <-errs:
 		if err != nil {
 			log.Fatalf("srv: %v", err)
@@ -61,7 +62,6 @@ func srv(l net.Listener, root string, n nonce, deadline time.Time) {
 	if err := p9.NewServer(&cpu9p{path: root}).Handle(c, c); err != nil {
 		if err != io.EOF {
 			log.Printf("Serving cpu remote: %v", err)
-			return
 		}
 	}
 }
