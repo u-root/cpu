@@ -277,7 +277,7 @@ func runClient(host, a string) error {
 	// would be a bad move, since people might be tempted to make it
 	// large.
 	const ms = 1000000 * time.Nanosecond
-	deadline := time.Now().Add(1000 * ms)
+	deadline := time.Now().Add(10 * ms)
 
 	// Arrange port forwarding from remote ssh to our server.
 	// Request the remote side to open port 5640 on all interfaces.
