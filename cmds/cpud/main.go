@@ -23,6 +23,7 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
 	"github.com/kr/pty" // TODO: get rid of krpty
+	"github.com/u-root/u-root/pkg/libinit"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/sys/unix"
 )
@@ -244,6 +245,7 @@ func handler(s ssh.Session) {
 			io.Copy(f, s) // stdin
 		}()
 		io.Copy(s, f) // stdout
+		libinit.WaitOrphans()
 	} else {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s
 		verbose("running command without pty")
@@ -260,7 +262,7 @@ func doInit() error {
 		if err := cpuSetup(); err != nil {
 			log.Printf("CPU setup error with cpu running as init: %v", err)
 		}
-		cmds := [][]string{{"/bin/defaultsh"}, {"/bbin/dhclient", "-v"}}
+		cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-v"}}
 		verbose("Try to run %v", cmds)
 
 		for _, v := range cmds {
