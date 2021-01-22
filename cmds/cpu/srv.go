@@ -22,7 +22,7 @@ func srv(l net.Listener, root string, n nonce, deadline time.Time) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 	var (
-		errs chan error
+		errs = make(chan error)
 		c    net.Conn
 		err  error
 	)
@@ -45,7 +45,6 @@ func srv(l net.Listener, root string, n nonce, deadline time.Time) {
 			return
 		}
 		// Without this cancel, the select seems to stick on the context. Fix me.
-		cancel()
 		errs <- nil
 	}()
 
