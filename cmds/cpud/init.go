@@ -39,9 +39,9 @@ func cpuSetup() error {
 
 func cpuDone(c chan uint) {
 	// We need to reap all children before exiting.
-	log.Printf("init: Waiting for orphaned children")
+	log.Printf("init: Waiting for orphaned startup jobs (there may not be any ...)")
 	procs := libinit.WaitOrphans()
-	log.Printf("cpu: All commands exited")
+	log.Printf("cpu: All startup jobs exited")
 	log.Printf("cpu: Syncing filesystems")
 	syscall.Sync()
 	c <- procs
