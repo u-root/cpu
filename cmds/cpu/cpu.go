@@ -153,7 +153,7 @@ func runClient(host, a string) error {
 	// told what to do. We suggest that making the deadline a flag
 	// would be a bad move, since people might be tempted to make it
 	// large.
-	deadline := 10 * time.Millisecond
+	deadline := 100 * time.Millisecond
 
 	// Arrange port forwarding from remote ssh to our server.
 	// Request the remote side to open port 5640 on all interfaces.
