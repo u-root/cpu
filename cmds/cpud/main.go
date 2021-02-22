@@ -25,6 +25,7 @@ import (
 	"github.com/kr/pty" // TODO: get rid of krpty
 	"github.com/u-root/u-root/pkg/libinit"
 	"github.com/u-root/u-root/pkg/termios"
+	"github.com/u-root/u-root/pkg/ulog"
 	"golang.org/x/sys/unix"
 )
 
@@ -47,7 +48,7 @@ var (
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	dbg9p     = flag.String("dbg9p", "0", "show 9p io")
 	root      = flag.String("root", "/", "9p root")
-	bindover  = flag.String("bindover", "/lib:/lib64:/lib32:/usr:/bin:/etc:/home", ": separated list of directories in /tmp/cpu to bind over /")
+
 	mountopts = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize     = flag.Int("msize", 1048576, "msize to use")
 	pid1      bool
@@ -98,6 +99,16 @@ func runRemote(cmd, port9p string) error {
 		}
 	}
 
+	bindover := "/lib:/lib64:/lib32:/usr:/bin:/etc:/home"
+	if s, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
+		bindover = s
+	}
+
+	user := os.Getenv("USER")
+	if user == "" {
+		user = "nouser"
+	}
+
 	// It's true we are making this directory while still root.
 	// This ought to be safe as it is a private namespace mount.
 	for _, n := range []string{"/tmp/cpu", "/tmp/local", "/tmp/merge", "/tmp/root", "/home"} {
@@ -106,10 +117,6 @@ func runRemote(cmd, port9p string) error {
 		}
 	}
 
-	user := os.Getenv("USER")
-	if user == "" {
-		user = "nouser"
-	}
 	// Connect to the socket, return the nonce.
 	a := net.JoinHostPort("127.0.0.1", port9p)
 	v("remote:Dial %v", a)
@@ -130,30 +137,28 @@ func runRemote(cmd, port9p string) error {
 	if err != nil {
 		log.Fatalf("Cannot get fd for %v: %v", so, err)
 	}
-	fd := cf.Fd()
-	v("remote:fd is %v", fd)
-	opts := fmt.Sprintf("version=9p2000.L,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, *msize)
-	if *mountopts != "" {
-		opts += "," + *mountopts
-	}
-	v("remote; mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
-	if err := unix.Mount("127.0.0.1", "/tmp/cpu", "9p", flags, opts); err != nil {
-		return fmt.Errorf("9p mount %v", err)
-	}
-	v("remote: mount done")
+	if len(bindover) != 0 {
+		fd := cf.Fd()
+		v("remote:fd is %v", fd)
+		opts := fmt.Sprintf("version=9p2000.L,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, *msize)
+		if *mountopts != "" {
+			opts += "," + *mountopts
+		}
+		v("remote; mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
+		if err := unix.Mount("127.0.0.1", "/tmp/cpu", "9p", flags, opts); err != nil {
+			return fmt.Errorf("9p mount %v", err)
+		}
+		v("remote: mount done")
 
-	// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
-	if err := unix.Mount("/", "/tmp/local", "", syscall.MS_BIND, ""); err != nil {
-		log.Printf("Warning: binding / over /tmp/cpu did not work: %v, continuing anyway", err)
-	}
+		// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
+		if err := unix.Mount("/", "/tmp/local", "", syscall.MS_BIND, ""); err != nil {
+			log.Printf("Warning: binding / over /tmp/cpu did not work: %v, continuing anyway", err)
+		}
 
-	if *bindover != "" {
-		// We could not get an overlayfs mount.
-		// There are lots of cases where binaries REQUIRE that ld.so be in the right place.
 		// In some cases if you set LD_LIBRARY_PATH it is ignored.
 		// This is disappointing to say the least. We just bind a few things into /
 		// bind *may* hide local resources but for now it's the least worst option.
-		dirs := strings.Split(*bindover, ":")
+		dirs := strings.Split(bindover, ":")
 		for _, n := range dirs {
 			t := filepath.Join("/tmp/cpu", n)
 			v("remote: mount %v over %v", t, n)
@@ -187,7 +192,9 @@ func init() {
 		pid1, *runAsInit, *debug = true, true, false
 	}
 	if *debug {
+		ulog.KernelLog.Reinit()
 		v = log.Printf
+		v = ulog.KernelLog.Printf
 	}
 	if *remote {
 		// The unshare system call in Linux doesn't unshare mount points
