@@ -48,7 +48,6 @@ var (
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	dbg9p     = flag.Bool("dbg9p", false, "show 9p io")
 	root      = flag.String("root", "/", "9p root")
-	bindover  = flag.String("bindover", "/lib:/lib64:/lib32:/usr:/bin:/etc:/home", ": separated list of directories in /tmp/cpu to bind over /")
 	mountopts = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize     = flag.Int("msize", 1048576, "msize to use")
 	pid1      bool
