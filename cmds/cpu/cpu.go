@@ -146,44 +146,53 @@ func runClient(host, a string) error {
 	if err != nil {
 		return err
 	}
-	// From setting up the forward to having the nonce written back to us,
-	// we only allow 10ms. This is a lot, considering that at this point,
-	// the sshd has forked a server for us and it's waiting to be
-	// told what to do. We suggest that making the deadline a flag
-	// would be a bad move, since people might be tempted to make it
-	// large.
-	deadline := 100 * time.Millisecond
+	// Special case: maybe we don't want a namespace. If so, we don't need
+	// to open up the socket.
+	wantNameSpace := true
+	if n, ok := os.LookupEnv("CPU_NAMESPACE"); ok && len(n) == 0 {
+		wantNameSpace = false
+	}
 
-	// Arrange port forwarding from remote ssh to our server.
-	// Request the remote side to open port 5640 on all interfaces.
-	// Note: cl.Listen returns a TCP listener with network is "tcp"
-	// or variants. This lets us use a listen deadline.
-	l, err := cl.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return fmt.Errorf("First cl.Listen %v", err)
-	}
-	ap := strings.Split(l.Addr().String(), ":")
-	if len(ap) == 0 {
-		return fmt.Errorf("Can't find a port number in %v", l.Addr().String())
-	}
-	port := ap[len(ap)-1]
-	v("listener %T %v addr %v port %v", l, l, l.Addr().String(), port)
+	var env []string
+	cmd := fmt.Sprintf("%v -remote -bin %v", *bin, *bin)
+	if wantNameSpace {
+		// From setting up the forward to having the nonce written back to us,
+		// we only allow 100ms. This is a lot, considering that at this point,
+		// the sshd has forked a server for us and it's waiting to be
+		// told what to do. We suggest that making the deadline a flag
+		// would be a bad move, since people might be tempted to make it
+		// large.
+		deadline := 100 * time.Millisecond
+		// Arrange port forwarding from remote ssh to our server.
+		// Request the remote side to open port 5640 on all interfaces.
+		// Note: cl.Listen returns a TCP listener with network is "tcp"
+		// or variants. This lets us use a listen deadline.
+		l, err := cl.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return fmt.Errorf("First cl.Listen %v", err)
+		}
+		ap := strings.Split(l.Addr().String(), ":")
+		if len(ap) == 0 {
+			return fmt.Errorf("Can't find a port number in %v", l.Addr().String())
+		}
+		port9p := ap[len(ap)-1]
+		v("listener %T %v addr %v port %v", l, l, l.Addr().String(), port)
 
-	nonce, err := generateNonce()
-	if err != nil {
-		log.Fatalf("Getting nonce: %v", err)
+		nonce, err := generateNonce()
+		if err != nil {
+			log.Fatalf("Getting nonce: %v", err)
+		}
+		go srv(l, *root, nonce, deadline)
+		cmd = fmt.Sprintf("%s -port9p %v", cmd, port9p)
+		env = append(env, "CPUNONCE="+nonce.String())
 	}
-	go srv(l, *root, nonce, deadline)
-	// now run stuff.
-	if err := shell(cl, nonce, a, port); err != nil {
+	cmd = fmt.Sprintf("%s %q", cmd, a)
+	if err := shell(cl, cmd, env...); err != nil {
 		return err
 	}
 	return nil
 }
 
-// env sets environment variables. While we might think we ought to set
-// HOME and PATH, it's possibly not a great idea. We leave them here as markers
-// to remind ourselves not to try it later.
 func env(s *ossh.Session, envs ...string) {
 	for _, v := range append(os.Environ(), envs...) {
 		env := strings.SplitN(v, "=", 2)
@@ -196,7 +205,7 @@ func env(s *ossh.Session, envs ...string) {
 	}
 }
 
-func shell(client *ossh.Client, n nonce, a, port9p string) error {
+func shell(client *ossh.Client, cmd string, envs ...string) error {
 	t, err := termios.New()
 	if err != nil {
 		return err
@@ -211,14 +220,14 @@ func shell(client *ossh.Client, n nonce, a, port9p string) error {
 			return err
 		}
 	}
-	a = fmt.Sprintf("%v -remote -port9p %v -bin %v %v", *bin, port9p, *bin, a)
-	v("command is %q", a)
+
+	v("command is %q", cmd)
 	session, err := client.NewSession()
 	if err != nil {
 		return err
 	}
 	defer session.Close()
-	env(session, "CPUNONCE="+n.String())
+	env(session, envs...)
 	// Set up terminal modes
 	modes := ossh.TerminalModes{
 		ossh.ECHO:          0,     // disable echoing
@@ -242,21 +251,9 @@ func shell(client *ossh.Client, n nonce, a, port9p string) error {
 		return err
 	}
 
-	// sshd doesn't want to set us set the HOME and PATH via the normal
-	// request route. So we do this nasty hack to ensure we can find
-	// the cpu binary. We append our paths to the one the shell has.
-	// This should suffice for u-root systems with paths including
-	// /bbin and /ubin as well as more conventional systems.
-	// The only possible flaw in this approach is elvish, which
-	// has a very odd PATH syntax. For elvish, the PATH= is ignored,
-	// so does no harm. Our use case for elvish is u-root, and
-	// we will have the right path anyway, so it will still work.
-	// It is working well in testing.
-	//	cmd := fmt.Sprintf("PATH=$PATH:%s %s", os.Getenv("PATH"), a)
-	cmd := a
 	v("Start remote with command %q", cmd)
 	if err := session.Start(cmd); err != nil {
-		return fmt.Errorf("Failed to run %v: %v", a, err.Error())
+		return fmt.Errorf("Failed to run %v: %v", cmd, err.Error())
 	}
 	//env(session, "CPUNONCE="+n.String())
 	go io.Copy(i, os.Stdin)

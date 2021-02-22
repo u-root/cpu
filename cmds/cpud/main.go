@@ -38,7 +38,7 @@ var (
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
 	port        = flag.String("sp", "23", "cpu default port")
 
-	debug     = flag.Bool("d", false, "enable debug prints")
+	debug     = flag.Bool("d", true, "enable debug prints")
 	runAsInit = flag.Bool("init", false, "run as init (Debug only; normal test is if we are pid 1")
 	v         = func(string, ...interface{}) {}
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
