@@ -116,28 +116,28 @@ func runRemote(cmd, port9p string) error {
 			log.Println(err)
 		}
 	}
-
-	// Connect to the socket, return the nonce.
-	a := net.JoinHostPort("127.0.0.1", port9p)
-	v("remote:Dial %v", a)
-	so, err := net.Dial("tcp4", a)
-	if err != nil {
-		log.Fatalf("Dial 9p port: %v", err)
-	}
-	v("remote:Connected: write nonce %s\n", nonce)
-	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
-		log.Fatalf("Write nonce: %v", err)
-	}
-	v("remote:Wrote the nonce")
-
-	// the kernel takes over the socket after the Mount.
-	defer so.Close()
-	flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID)
-	cf, err := so.(*net.TCPConn).File()
-	if err != nil {
-		log.Fatalf("Cannot get fd for %v: %v", so, err)
-	}
 	if len(bindover) != 0 {
+		// Connect to the socket, return the nonce.
+		a := net.JoinHostPort("127.0.0.1", port9p)
+		v("remote:Dial %v", a)
+		so, err := net.Dial("tcp4", a)
+		if err != nil {
+			log.Fatalf("Dial 9p port: %v", err)
+		}
+		v("remote:Connected: write nonce %s\n", nonce)
+		if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
+			log.Fatalf("Write nonce: %v", err)
+		}
+		v("remote:Wrote the nonce")
+
+		// the kernel takes over the socket after the Mount.
+		defer so.Close()
+		flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID)
+		cf, err := so.(*net.TCPConn).File()
+		if err != nil {
+			log.Fatalf("Cannot get fd for %v: %v", so, err)
+		}
+
 		fd := cf.Fd()
 		v("remote:fd is %v", fd)
 		opts := fmt.Sprintf("version=9p2000.L,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, *msize)
