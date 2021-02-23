@@ -39,18 +39,18 @@ var (
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
 	port        = flag.String("sp", "23", "cpu default port")
-
-	debug     = flag.Bool("d", false, "enable debug prints")
-	v         = func(string, ...interface{}) {}
-	network   = flag.String("network", "tcp", "network to use")
-	keyFile   = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
-	bin       = flag.String("bin", "cpud", "path of cpu binary")
-	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
-	dbg9p     = flag.Bool("dbg9p", false, "show 9p io")
-	root      = flag.String("root", "/", "9p root")
-	mountopts = flag.String("mountopts", "", "Extra options to add to the 9p mount")
-	msize     = flag.Int("msize", 1048576, "msize to use")
-	pid1      bool
+	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
+	debug       = flag.Bool("d", false, "enable debug prints")
+	v           = func(string, ...interface{}) {}
+	network     = flag.String("network", "tcp", "network to use")
+	keyFile     = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
+	bin         = flag.String("bin", "cpud", "path of cpu binary")
+	port9p      = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
+	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
+	root        = flag.String("root", "/", "9p root")
+	mountopts   = flag.String("mountopts", "", "Extra options to add to the 9p mount")
+	msize       = flag.Int("msize", 1048576, "msize to use")
+	pid1        bool
 )
 
 func verbose(f string, a ...interface{}) {
@@ -162,7 +162,10 @@ func runClient(host, a string) error {
 		// told what to do. We suggest that making the deadline a flag
 		// would be a bad move, since people might be tempted to make it
 		// large.
-		deadline := 100 * time.Millisecond
+		deadline, err := time.ParseDuration(*timeout9P)
+		if err != nil {
+			return err
+		}
 		// Arrange port forwarding from remote ssh to our server.
 		// Request the remote side to open port 5640 on all interfaces.
 		// Note: cl.Listen returns a TCP listener with network is "tcp"
