@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hugelgupf/p9/p9"
+	"github.com/u-root/u-root/pkg/ulog"
 )
 
 // Made harder as you can't set a read deadline on ssh.Conn
@@ -57,6 +58,19 @@ func srv(l net.Listener, root string, n nonce, deadline time.Duration) {
 	case err := <-errs:
 		if err != nil {
 			log.Fatalf("srv: %v", err)
+		}
+	}
+	// If we are debugging, add the option to trace records.
+	if *dbg9p {
+		if *dump {
+			log.SetOutput(dumpWriter)
+			log.SetFlags(log.Ltime | log.Lmicroseconds)
+			ulog.Log = log.New(dumpWriter, "9p", log.Ltime|log.Lmicroseconds)
+		}
+		if err := p9.NewServer(&cpu9p{path: root}, p9.WithServerLogger(ulog.Log)).Handle(c, c); err != nil {
+			if err != io.EOF {
+				log.Printf("Serving cpu remote: %v", err)
+			}
 		}
 	}
 	if err := p9.NewServer(&cpu9p{path: root}).Handle(c, c); err != nil {

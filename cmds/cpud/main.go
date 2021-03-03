@@ -23,7 +23,6 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
 	"github.com/kr/pty" // TODO: get rid of krpty
-	"github.com/u-root/u-root/pkg/libinit"
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 	"golang.org/x/sys/unix"
@@ -38,7 +37,7 @@ var (
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
 	port        = flag.String("sp", "23", "cpu default port")
 
-	debug     = flag.Bool("d", true, "enable debug prints")
+	debug     = flag.Bool("d", false, "enable debug prints")
 	runAsInit = flag.Bool("init", false, "run as init (Debug only; normal test is if we are pid 1")
 	v         = func(string, ...interface{}) {}
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
@@ -48,25 +47,32 @@ var (
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	dbg9p     = flag.String("dbg9p", "0", "show 9p io")
 	root      = flag.String("root", "/", "9p root")
+	klog      = flag.Bool("klog", false, "Log cpud messages in kernel log, not stdout")
 
 	mountopts = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize     = flag.Int("msize", 1048576, "msize to use")
-	pid1      bool
+	// To get debugging when Things Go Wrong, you can run as, e.g., -wtf /bbin/elvish
+	// or change the value here to /bbin/elvish.
+	// This way, when Things Go Wrong, you'll be dropped into a shell and look around.
+	// This is sometimes your only way to debug if there is (e.g.) a Go runtime
+	// bug around unsharing. Which has happened.
+	wtf  = flag.String("wtf", "", "Command to run if setup (e.g. private name space mounts) fail")
+	pid1 bool
 )
 
 func verbose(f string, a ...interface{}) {
-	v("\r\n"+f+"\r\n", a...)
+	v("\r\nCPUD:"+f+"\r\n", a...)
 }
 
 func dropPrivs() error {
 	uid := unix.Getuid()
-	v("dropPrives: uid is %v", uid)
+	v("CPUD:dropPrives: uid is %v", uid)
 	if uid == 0 {
-		v("dropPrivs: not dropping privs")
+		v("CPUD:dropPrivs: not dropping privs")
 		return nil
 	}
 	gid := unix.Getgid()
-	v("dropPrivs: gid is %v", gid)
+	v("CPUD:dropPrivs: gid is %v", gid)
 	if err := unix.Setreuid(-1, uid); err != nil {
 		return err
 	}
@@ -86,20 +92,20 @@ func runRemote(cmd, port9p string) error {
 	// for some reason echo is not set.
 	t, err := termios.New()
 	if err != nil {
-		log.Printf("can't get a termios; oh well; %v", err)
+		log.Printf("CPUD:can't get a termios; oh well; %v", err)
 	} else {
 		term, err := t.Get()
 		if err != nil {
-			log.Printf("can't get a termios; oh well; %v", err)
+			log.Printf("CPUD:can't get a termios; oh well; %v", err)
 		} else {
 			term.Lflag |= unix.ECHO | unix.ECHONL
 			if err := t.Set(term); err != nil {
-				log.Printf("can't set a termios; oh well; %v", err)
+				log.Printf("CPUD:can't set a termios; oh well; %v", err)
 			}
 		}
 	}
 
-	bindover := "/lib:/lib64:/lib32:/usr:/bin:/etc:/home"
+	bindover := "/lib:/lib64:/usr:/bin:/etc:/home"
 	if s, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
 		bindover = s
 	}
@@ -116,19 +122,20 @@ func runRemote(cmd, port9p string) error {
 			log.Println(err)
 		}
 	}
+	var fail bool
 	if len(bindover) != 0 {
 		// Connect to the socket, return the nonce.
 		a := net.JoinHostPort("127.0.0.1", port9p)
-		v("remote:Dial %v", a)
+		v("CPUD:Dial %v", a)
 		so, err := net.Dial("tcp4", a)
 		if err != nil {
 			log.Fatalf("Dial 9p port: %v", err)
 		}
-		v("remote:Connected: write nonce %s\n", nonce)
+		v("CPUD:Connected: write nonce %s\n", nonce)
 		if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
 			log.Fatalf("Write nonce: %v", err)
 		}
-		v("remote:Wrote the nonce")
+		v("CPUD:Wrote the nonce")
 
 		// the kernel takes over the socket after the Mount.
 		defer so.Close()
@@ -139,20 +146,23 @@ func runRemote(cmd, port9p string) error {
 		}
 
 		fd := cf.Fd()
-		v("remote:fd is %v", fd)
+		v("CPUD:fd is %v", fd)
+		// The debug= option is here so you can see how to temporarily set it if needed.
+		// It generates copious output so use it sparingly.
+		// A useful compromise value is 5.
 		opts := fmt.Sprintf("version=9p2000.L,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, *msize)
 		if *mountopts != "" {
 			opts += "," + *mountopts
 		}
-		v("remote; mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
+		v("CPUD: mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
 		if err := unix.Mount("127.0.0.1", "/tmp/cpu", "9p", flags, opts); err != nil {
 			return fmt.Errorf("9p mount %v", err)
 		}
-		v("remote: mount done")
+		v("CPUD: mount done")
 
 		// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
 		if err := unix.Mount("/", "/tmp/local", "", syscall.MS_BIND, ""); err != nil {
-			log.Printf("Warning: binding / over /tmp/cpu did not work: %v, continuing anyway", err)
+			log.Printf("CPUD:Warning: binding / over /tmp/cpu did not work: %v, continuing anyway", err)
 		}
 
 		// In some cases if you set LD_LIBRARY_PATH it is ignored.
@@ -161,26 +171,48 @@ func runRemote(cmd, port9p string) error {
 		dirs := strings.Split(bindover, ":")
 		for _, n := range dirs {
 			t := filepath.Join("/tmp/cpu", n)
-			v("remote: mount %v over %v", t, n)
+			v("CPUD: mount %v over %v", t, n)
 			if err := unix.Mount(t, n, "", syscall.MS_BIND, ""); err != nil {
-				v("Warning: mounting %v on %v failed: %v", t, n, err)
+				fail = true
+				log.Printf("CPUD:Warning: mounting %v on %v failed: %v", t, n, err)
 			} else {
-				v("Mounted %v on %v", t, n)
+				v("CPUD:Mounted %v on %v", t, n)
 			}
 
 		}
 	}
-	v("remote: bind mounts done")
+	v("CPUD: bind mounts done")
+	if fail && len(*wtf) != 0 {
+		c := exec.Command(*wtf)
+		c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, "/"
+		log.Printf("CPUD: WTF: try to run %v", c)
+		if err := c.Run(); err != nil {
+			log.Printf("CPUD: Running %q failed: %v", *wtf, err)
+		}
+		log.Printf("CPUD: WTF done")
+	}
 	// We don't want to run as the wrong uid.
 	if err := dropPrivs(); err != nil {
 		return err
 	}
 	// The unmount happens for free since we unshared.
-	v("remote:runRemote: command is %q", cmd)
+	v("CPUD:runRemote: command is %q", cmd)
 	f := strings.Fields(cmd)
 	c := exec.Command(f[0], f[1:]...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
-	return c.Run()
+	err = c.Run()
+	if err != nil {
+		if fail && len(*wtf) != 0 {
+			c := exec.Command(*wtf)
+			c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, "/"
+			log.Printf("CPUD: WTF: try to run %v", c)
+			if err := c.Run(); err != nil {
+				log.Printf("CPUD: Running %q failed: %v", *wtf, err)
+			}
+			log.Printf("CPUD: WTF done")
+		}
+	}
+	return err
 }
 
 // We do flag parsing in init so we can
@@ -192,9 +224,11 @@ func init() {
 		pid1, *runAsInit, *debug = true, true, false
 	}
 	if *debug {
-		ulog.KernelLog.Reinit()
 		v = log.Printf
-		v = ulog.KernelLog.Printf
+		if *klog {
+			ulog.KernelLog.Reinit()
+			v = ulog.KernelLog.Printf
+		}
 	}
 	if *remote {
 		// The unshare system call in Linux doesn't unshare mount points
@@ -209,16 +243,27 @@ func init() {
 			slash = [...]byte{'/', 0}
 			flags = uintptr(unix.MS_PRIVATE | unix.MS_REC) // Thanks for nothing Linux.
 		)
-		if err := syscall.Unshare(syscall.CLONE_NEWNS); err != nil {
-			log.Printf("bad Unshare: %v", err)
+		// We assume that this was called via an unshare command or forked by
+		// a process with the CLONE_NEWS flag set. This call to Unshare used to work;
+		// no longer. We leave this code here as a signpost. Don't enable it.
+		// It won't work. Go's green threads and Linux name space code have
+		// never gotten along. Fixing it is hard, I've discussed this with the Go
+		// core from time to time and it's not a priority for them.
+		if false {
+			if err := syscall.Unshare(syscall.CLONE_NEWNS); err != nil {
+				log.Printf("CPUD:bad Unshare: %v", err)
+			}
 		}
+		// Make / private. This call *is* safe so far for reasons.
+		// Probably because, on many systems, we are lucky enough not to have a systemd
+		// there screwing up namespaces.
 		_, _, err1 := syscall.RawSyscall6(unix.SYS_MOUNT, uintptr(unsafe.Pointer(&none[0])), uintptr(unsafe.Pointer(&slash[0])), 0, flags, 0, 0)
 		if err1 != 0 {
-			log.Printf("Warning: unshare failed (%v). There will be no private 9p mount", err1)
+			log.Printf("CPUD:Warning: unshare failed (%v). There will be no private 9p mount if systemd is there", err1)
 		}
 		flags = 0
 		if err := unix.Mount("cpu", "/tmp", "tmpfs", flags, ""); err != nil {
-			log.Printf("Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
+			log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
 		}
 	}
 }
@@ -232,6 +277,7 @@ func handler(s ssh.Session) {
 	a := s.Command()
 	verbose("the handler is here, cmd is %v", a)
 	cmd := exec.Command(a[0], a[1:]...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags: syscall.CLONE_NEWNS}
 	cmd.Env = append(cmd.Env, s.Environ()...)
 	ptyReq, winCh, isPty := s.Pty()
 	verbose("the command is %v", *cmd)
@@ -240,7 +286,7 @@ func handler(s ssh.Session) {
 		f, err := pty.Start(cmd)
 		verbose("command started with pty")
 		if err != nil {
-			log.Print(err)
+			log.Printf("CPUD:err %v", err)
 			return
 		}
 		go func() {
@@ -252,13 +298,47 @@ func handler(s ssh.Session) {
 			io.Copy(f, s) // stdin
 		}()
 		io.Copy(s, f) // stdout
-		libinit.WaitOrphans()
+		// Avoid the temptation to use libinit here. It does not
+		// return errors and we need that.
+		// Plus, it is likely we'll need to do things in a special way,
+		// at some point, so this is as good a place as any.
+		var (
+			numReaped   uint
+			errs        error
+			firstStatus int
+		)
+
+		for {
+			var (
+				s syscall.WaitStatus
+				r syscall.Rusage
+			)
+			p, err := syscall.Wait4(-1, &s, 0, &r)
+			if p == -1 {
+				break
+			}
+			if err != nil {
+				if errs == nil {
+					errs = fmt.Errorf("%dth proc: %v", numReaped, err)
+					firstStatus = s.ExitStatus()
+				} else {
+					errs = fmt.Errorf(",%dth proc:%v", numReaped, err)
+				}
+			}
+			log.Printf("CPUD:%v: exited with %v, status %v, rusage %v", p, errs, s, r)
+			numReaped++
+		}
+		if errs != nil {
+			log.Printf("CPUD:Reaped %d processes, errors %v", numReaped, errs)
+			s.Exit(firstStatus)
+		}
+
 	} else {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s
 		verbose("running command without pty")
 		if err := cmd.Run(); err != nil {
-			log.Print(err)
-			return
+			log.Printf("CPUD:err %v", err)
+			s.Exit(1)
 		}
 	}
 	verbose("handler exits")
@@ -267,7 +347,7 @@ func handler(s ssh.Session) {
 func doInit() error {
 	if pid1 {
 		if err := cpuSetup(); err != nil {
-			log.Printf("CPU setup error with cpu running as init: %v", err)
+			log.Printf("CPUD:CPU setup error with cpu running as init: %v", err)
 		}
 		cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-v"}}
 		verbose("Try to run %v", cmds)
@@ -306,7 +386,7 @@ func doInit() error {
 			cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 			verbose("Run %v", cmd)
 			if err := cmd.Start(); err != nil {
-				log.Printf("Error starting %v: %v", v, err)
+				log.Printf("CPUD:Error starting %v: %v", v, err)
 				continue
 			}
 		}
@@ -328,13 +408,13 @@ func doInit() error {
 	forwardHandler := &ssh.ForwardedTCPHandler{}
 	server := ssh.Server{
 		LocalPortForwardingCallback: ssh.LocalPortForwardingCallback(func(ctx ssh.Context, dhost string, dport uint32) bool {
-			log.Println("Accepted forward", dhost, dport)
+			log.Println("CPUD:Accepted forward", dhost, dport)
 			return true
 		}),
 		Addr:             ":" + *port,
 		PublicKeyHandler: publicKeyOption,
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-			log.Println("attempt to bind", host, port, "granted")
+			log.Println("CPUD:attempt to bind", host, port, "granted")
 			return true
 		}),
 		RequestHandlers: map[string]ssh.RequestHandler{
@@ -349,9 +429,9 @@ func doInit() error {
 	go cpuDone(procs)
 
 	server.SetOption(ssh.HostKeyFile(*hostKeyFile))
-	log.Println("starting ssh server on port " + *port)
+	log.Println("CPUD:starting ssh server on port " + *port)
 	if err := server.ListenAndServe(); err != nil {
-		log.Print(err)
+		log.Printf("CPUD:err %v", err)
 	}
 	verbose("server.ListenAndServer returned")
 
@@ -376,14 +456,14 @@ func main() {
 	case *runAsInit:
 		verbose("Running as Init")
 		if err := doInit(); err != nil {
-			log.Fatal(err)
+			log.Fatalf("CPUD(as init):%v", err)
 		}
 	case *remote:
 		verbose("Running as remote")
 		if err := runRemote(strings.Join(args, " "), *port9p); err != nil {
-			log.Fatal(err)
+			log.Fatalf("CPUD(as remote):%v", err)
 		}
 	default:
-		log.Fatal("can only run as remote or pid 1")
+		log.Fatal("CPUD:can only run as remote or pid 1")
 	}
 }
