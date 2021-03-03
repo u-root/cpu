@@ -26,6 +26,7 @@ import (
 
 	// TODO: get rid of krpty
 	"github.com/u-root/u-root/pkg/termios"
+	"github.com/u-root/u-root/pkg/ulog"
 
 	// We use this ssh because it can unpack password-protected private keys.
 	ossh "golang.org/x/crypto/ssh"
@@ -50,7 +51,9 @@ var (
 	root        = flag.String("root", "/", "9p root")
 	mountopts   = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize       = flag.Int("msize", 1048576, "msize to use")
+	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
 	pid1        bool
+	dumpWriter  *os.File
 )
 
 func verbose(f string, a ...interface{}) {
@@ -270,8 +273,22 @@ func shell(client *ossh.Client, cmd string, envs ...string) error {
 // single threaded.
 func init() {
 	flag.Parse()
+	if *dump && *debug {
+		log.Fatalf("You can only set either dump OR debug")
+	}
 	if *debug {
 		v = log.Printf
+	}
+	if *dump {
+		var err error
+		dumpWriter, err = ioutil.TempFile("", "cpu")
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Logging to %s", dumpWriter.Name())
+		*dbg9p = true
+		ulog.Log = log.New(dumpWriter, "", log.Ltime|log.Lmicroseconds)
+		v = ulog.Log.Printf
 	}
 }
 
@@ -310,5 +327,4 @@ func main() {
 	if err := termios.SetTermios(0, t); err != nil {
 		log.Print(err)
 	}
-
 }
