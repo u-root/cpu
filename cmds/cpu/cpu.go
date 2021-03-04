@@ -37,23 +37,23 @@ type nonce [32]byte
 
 var (
 	// For the ssh server part
-	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
-	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
-	port        = flag.String("sp", "23", "cpu default port")
-	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
-	debug       = flag.Bool("d", false, "enable debug prints")
-	v           = func(string, ...interface{}) {}
-	network     = flag.String("network", "tcp", "network to use")
-	keyFile     = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
 	bin         = flag.String("bin", "cpud", "path of cpu binary")
-	port9p      = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
+	debug       = flag.Bool("d", false, "enable debug prints")
 	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
-	root        = flag.String("root", "/", "9p root")
+	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
+	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
+	keyFile     = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
 	mountopts   = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize       = flag.Int("msize", 1048576, "msize to use")
-	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
-	pid1        bool
-	dumpWriter  *os.File
+	network     = flag.String("network", "tcp", "network to use")
+	port        = flag.String("sp", "23", "cpu default port")
+	port9p      = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
+	root        = flag.String("root", "/", "9p root")
+	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
+
+	v          = func(string, ...interface{}) {}
+	pid1       bool
+	dumpWriter *os.File
 )
 
 func verbose(f string, a ...interface{}) {

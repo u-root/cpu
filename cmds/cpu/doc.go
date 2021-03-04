@@ -65,23 +65,36 @@
 // Options:
 //     -bin string
 //           path of cpu binary
-//     -d    enable debug prints
+//     -d
+//           enable debug prints
 //     -dbg9p
 //           show 9p io
-//     -hostkey string
+//     -dump
+//           Dump all debug output and 9p packets to a file in /tmp
+//     -hk string
 //           host key file
 //     -key string
 //           key file (default "$HOME/.ssh/cpu_rsa")
+//     -mountopts string
+//           extra options for the 9p mount, default "". Lightly tested.
+//     -msize uint
+//           max size for 9p packets, default 1 MiB
 //     -network string
 //           network to use (default "tcp")
-//     -p string
-//           port to use (default "22")
 //     -port9p string
 //           port9p # on remote machine for 9p mount
 //     -remote
 //           Indicates we are the remote side of the cpu session
+//     -root
+//           Root for 9p server, default "/"
+//           If you are cpu'ing from, eg., x86 to arm, you might
+//           use, e.g., /amd64
+//     -sp string
+//          remote port, default 23
 //     -srv string
 //           what server to run (default none; use internal)
+//     -timeout9p time.Duration
+//           How long to wait for the server to connect to 9p (default100ms)
 // Examples
 // In these examples, cpu runs with warning messages enabled.
 // The first message is a warning that cpu could not use overlayfs to build a
