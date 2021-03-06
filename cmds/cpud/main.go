@@ -37,7 +37,7 @@ var (
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
 	port        = flag.String("sp", "23", "cpu default port")
 
-	debug     = flag.Bool("d", false, "enable debug prints")
+	debug     = flag.Bool("d", true, "enable debug prints")
 	runAsInit = flag.Bool("init", false, "run as init (Debug only; normal test is if we are pid 1")
 	v         = func(string, ...interface{}) {}
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
@@ -298,39 +298,25 @@ func handler(s ssh.Session) {
 			io.Copy(f, s) // stdin
 		}()
 		io.Copy(s, f) // stdout
-		// Avoid the temptation to use libinit here. It does not
-		// return errors and we need that.
-		// Plus, it is likely we'll need to do things in a special way,
-		// at some point, so this is as good a place as any.
-		var (
-			numReaped   uint
-			errs        error
-			firstStatus int
-		)
-
-		for {
-			var (
-				s syscall.WaitStatus
-				r syscall.Rusage
-			)
-			p, err := syscall.Wait4(-1, &s, 0, &r)
-			if p == -1 {
-				break
-			}
-			if err != nil {
-				if errs == nil {
-					errs = fmt.Errorf("%dth proc: %v", numReaped, err)
-					firstStatus = s.ExitStatus()
-				} else {
-					errs = fmt.Errorf(",%dth proc:%v", numReaped, err)
-				}
-			}
-			log.Printf("CPUD:%v: exited with %v, status %v, rusage %v", p, errs, s, r)
-			numReaped++
-		}
-		if errs != nil {
-			log.Printf("CPUD:Reaped %d processes, errors %v", numReaped, errs)
-			s.Exit(firstStatus)
+		// Stdout is closed, "there's no more to the show/
+		// If you all want to breath right/you all better go"
+		// This is going to seem a bit odd, but it is important to
+		// only wait for the process started here, not any orphans.
+		// In most cases, that process is either a singleton (so the wait
+		// will be all we need); a shell (which does all the waiting for
+		// its children); or the rare case of a detached process (in which
+		// case the reaper will get it).
+		// Seen in the wild: were this code to wait for orphans,
+		// and the main loop to wait for orphans, they end up
+		// competing with each other and the results are odd to say the least.
+		// If the command exits, leaving orphans behind, it is the job
+		// of the reaper to get them.
+		verbose("wait for %v", cmd)
+		err = cmd.Wait()
+		verbose("cmd returns with %v", cmd.ProcessState)
+		if err != nil {
+			verbose("CPUD:child exited with  %v", err)
+			s.Exit(cmd.ProcessState.ExitCode())
 		}
 
 	} else {
@@ -391,6 +377,7 @@ func doInit() error {
 			}
 		}
 	}
+	verbose("Kicked off startup jobs, now serve ssh")
 	publicKeyOption := func(ctx ssh.Context, key ssh.PublicKey) bool {
 		// Glob the users's home directory for all the
 		// possible keys?
@@ -426,6 +413,7 @@ func doInit() error {
 
 	// start the process reaper
 	procs := make(chan uint)
+	verbose("Start the process reaper")
 	go cpuDone(procs)
 
 	server.SetOption(ssh.HostKeyFile(*hostKeyFile))
