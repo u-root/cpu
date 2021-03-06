@@ -211,6 +211,52 @@ func env(s *ossh.Session, envs ...string) {
 	}
 }
 
+func stdin(s *ossh.Session, w io.WriteCloser, r io.Reader) {
+	var newLine, tilde bool
+	var t = []byte{'~'}
+	var b [1]byte
+	for {
+		if _, err := r.Read(b[:]); err != nil {
+			break
+		}
+		switch b[0] {
+		default:
+			newLine = false
+			if tilde {
+				if _, err := w.Write(t[:]); err != nil {
+					return
+				}
+				tilde = false
+			}
+			if _, err := w.Write(b[:]); err != nil {
+				return
+			}
+		case '\n', '\r':
+			newLine = true
+			if _, err := w.Write(b[:]); err != nil {
+				return
+			}
+		case '~':
+			if newLine {
+				newLine = false
+				tilde = true
+				break
+			}
+			if _, err := w.Write(t[:]); err != nil {
+				return
+			}
+		case '.':
+			if tilde {
+				s.Close()
+				return
+			}
+			if _, err := w.Write(b[:]); err != nil {
+				return
+			}
+		}
+	}
+}
+
 func shell(client *ossh.Client, cmd string, envs ...string) error {
 	t, err := termios.New()
 	if err != nil {
@@ -262,7 +308,7 @@ func shell(client *ossh.Client, cmd string, envs ...string) error {
 		return fmt.Errorf("Failed to run %v: %v", cmd, err.Error())
 	}
 	//env(session, "CPUNONCE="+n.String())
-	go io.Copy(i, os.Stdin)
+	go stdin(session, i, os.Stdin)
 	go io.Copy(os.Stdout, o)
 	go io.Copy(os.Stderr, e)
 	return session.Wait()
