@@ -368,9 +368,16 @@ func main() {
 		log.Fatal("Getting Termios")
 	}
 	if err := runClient(host, a); err != nil {
-		log.Print(err)
+		e := 1
+		if x,ok := err.(*ossh.ExitError); ok {
+			e = x.ExitStatus()
+		}
+		defer os.Exit(e)
 	}
 	if err := termios.SetTermios(0, t); err != nil {
+		// Never make this a log.Fatal, it might
+		// interfere with the exit handling
+		// for errors from the remote process.
 		log.Print(err)
 	}
 }
