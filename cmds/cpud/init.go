@@ -59,13 +59,18 @@ func cpuSetup() error {
 				r syscall.Rusage
 			)
 			p, err := syscall.Wait4(-1, &s, 0, &r)
+			// Once per second, Wait 4 returns if there's nothing
+			// else to do.
+			if err != nil && err.Error () == "no child processes" {
+				continue
+			}
 			verbose("orphan reaper: returns with %v", p)
 			if p == -1 {
 				verbose("Nothing to wait for, %d wait for so far", numReaped)
 				time.Sleep(time.Second)
 			}
 			if err != nil {
-				log.Printf("CPUD: a process exited with %v, status %v, rusage %v", p, s, r)
+				log.Printf("CPUD: a process exited with %v, status %v, rusage %v, err %v", p, s, r, err)
 			}
 			numReaped++
 		}
