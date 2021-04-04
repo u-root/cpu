@@ -369,7 +369,8 @@ func main() {
 	}
 	if err := runClient(host, a); err != nil {
 		e := 1
-		if x,ok := err.(*ossh.ExitError); ok {
+		log.Printf("SSH error %s", err)
+		if x, ok := err.(*ossh.ExitError); ok {
 			e = x.ExitStatus()
 		}
 		defer os.Exit(e)
