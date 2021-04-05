@@ -110,48 +110,6 @@ func (l *cpu9p) FSync() error {
 	return l.file.Sync()
 }
 
-// GetAttr implements p9.File.GetAttr.
-//
-// Not fully implemented.
-func (l *cpu9p) GetAttr(req p9.AttrMask) (p9.QID, p9.AttrMask, p9.Attr, error) {
-	qid, fi, err := l.info()
-	if err != nil {
-		return qid, p9.AttrMask{}, p9.Attr{}, err
-	}
-
-	stat := fi.Sys().(*syscall.Stat_t)
-	attr := p9.Attr{
-		Mode:             p9.FileMode(stat.Mode),
-		UID:              p9.UID(stat.Uid),
-		GID:              p9.GID(stat.Gid),
-		NLink:            p9.NLink(stat.Nlink),
-		RDev:             p9.Dev(stat.Rdev),
-		Size:             uint64(stat.Size),
-		BlockSize:        uint64(stat.Blksize),
-		Blocks:           uint64(stat.Blocks),
-		ATimeSeconds:     uint64(stat.Atim.Sec),
-		ATimeNanoSeconds: uint64(stat.Atim.Nsec),
-		MTimeSeconds:     uint64(stat.Mtim.Sec),
-		MTimeNanoSeconds: uint64(stat.Mtim.Nsec),
-		CTimeSeconds:     uint64(stat.Ctim.Sec),
-		CTimeNanoSeconds: uint64(stat.Ctim.Nsec),
-	}
-	valid := p9.AttrMask{
-		Mode:   true,
-		UID:    true,
-		GID:    true,
-		NLink:  true,
-		RDev:   true,
-		Size:   true,
-		Blocks: true,
-		ATime:  true,
-		MTime:  true,
-		CTime:  true,
-	}
-
-	return qid, valid, attr, nil
-}
-
 // Close implements p9.File.Close.
 func (l *cpu9p) Close() error {
 	if l.file != nil {
