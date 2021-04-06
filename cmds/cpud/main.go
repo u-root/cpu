@@ -23,6 +23,7 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
 	"github.com/kr/pty" // TODO: get rid of krpty
+	"github.com/u-root/u-root/pkg/mount"
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 	"golang.org/x/sys/unix"
@@ -124,6 +125,9 @@ func runRemote(cmd, port9p string) error {
 	}
 	var fail bool
 	if len(bindover) != 0 {
+		if err := mount.FindFileSystem("9p"); err != nil {
+			log.Fatalf("Mounting namespace %q: must have 9p and it is not listed in /proc/filesystems", bindover)
+		}
 		// Connect to the socket, return the nonce.
 		a := net.JoinHostPort("127.0.0.1", port9p)
 		v("CPUD:Dial %v", a)
