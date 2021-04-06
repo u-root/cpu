@@ -61,7 +61,7 @@ func cpuSetup() error {
 			p, err := syscall.Wait4(-1, &s, 0, &r)
 			// Once per second, Wait 4 returns if there's nothing
 			// else to do.
-			if err != nil && err.Error () == "no child processes" {
+			if err != nil && err.Error() == "no child processes" {
 				continue
 			}
 			verbose("orphan reaper: returns with %v", p)
