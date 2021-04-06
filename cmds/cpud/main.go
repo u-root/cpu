@@ -224,6 +224,9 @@ func runRemote(cmd, port9p string) error {
 // single threaded.
 func init() {
 	flag.Parse()
+	if *runAsInit && *remote {
+		log.Fatal("Only use -remote or -init, not both")
+	}
 	if os.Getpid() == 1 {
 		pid1, *runAsInit, *debug = true, true, false
 	}
