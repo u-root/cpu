@@ -65,19 +65,20 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5ebc29d1cc14336de1da453dd6c934da6abe036dc3c0f379f0b9383cc8692ee9"
+  digest = "1:d03ebb12e3aff52cba5dacb05356c47cbac3529f347409265b9fb07fd660b4b3"
   name = "github.com/u-root/u-root"
   packages = [
     "pkg/cmdline",
     "pkg/kmodule",
     "pkg/libinit",
+    "pkg/mount",
     "pkg/shlex",
     "pkg/termios",
     "pkg/ulog",
     "pkg/upath",
   ]
   pruneopts = "UT"
-  revision = "8318289d28f247f4e923a6ceaee535dfaa6d6545"
+  revision = "b81eccb0c419d45255b534c0b3644a191748adf0"
 
 [[projects]]
   digest = "1:700049c743d00f6e6520c631f5056ec50f21c36e0f6cda34d97a55fd6c0dc355"
@@ -150,6 +151,7 @@
     "github.com/hugelgupf/p9/p9",
     "github.com/kr/pty",
     "github.com/u-root/u-root/pkg/libinit",
+    "github.com/u-root/u-root/pkg/mount",
     "github.com/u-root/u-root/pkg/termios",
     "github.com/u-root/u-root/pkg/ulog",
     "golang.org/x/crypto/ssh",
