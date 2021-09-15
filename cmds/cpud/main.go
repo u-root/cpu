@@ -218,6 +218,7 @@ func runRemote(cmd, port9p string) error {
 	c := exec.Command(f[0], f[1:]...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	err = c.Run()
+	v("CPUD:Run %v returns %v", c, err)
 	if err != nil {
 		if fail && len(*wtf) != 0 {
 			c := exec.Command(*wtf)
@@ -293,20 +294,32 @@ func setWinsize(f *os.File, w, h int) {
 		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})))
 }
 
+// errval can be used to examine errors that we don't consider errors
+func errval(err error) error {
+	if err == nil {
+		return err
+	}
+	// Our zombie reaper is occasionally sneaking in and grabbing the
+	// child's exit state. Looks like our process code still sux.
+	if strings.Contains(err.Error(), "no child process") {
+		return nil
+	}
+	return err
+}
+
 func handler(s ssh.Session) {
 	a := s.Command()
-	verbose("the handler is here, cmd is %v", a)
+	v("handler: cmd is %v", a)
 	cmd := exec.Command(a[0], a[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags: syscall.CLONE_NEWNS}
 	cmd.Env = append(cmd.Env, s.Environ()...)
 	ptyReq, winCh, isPty := s.Pty()
-	verbose("the command is %v", *cmd)
 	if isPty {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
 		f, err := pty.Start(cmd)
-		verbose("command started with pty")
+		v("command started with pty")
 		if err != nil {
-			log.Printf("CPUD:err %v", err)
+			v("CPUD:err %v", err)
 			return
 		}
 		go func() {
@@ -331,19 +344,19 @@ func handler(s ssh.Session) {
 		// competing with each other and the results are odd to say the least.
 		// If the command exits, leaving orphans behind, it is the job
 		// of the reaper to get them.
-		verbose("wait for %v", cmd)
+		v("wait for %v", cmd)
 		err = cmd.Wait()
-		verbose("cmd returns with %v", cmd.ProcessState)
-		if err != nil {
-			verbose("CPUD:child exited with  %v", err)
+		v("cmd %v returns with %v %v", err, cmd, cmd.ProcessState)
+		if errval(err) != nil {
+			v("CPUD:child exited with  %v", err)
 			s.Exit(cmd.ProcessState.ExitCode())
 		}
 
 	} else {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s
-		verbose("running command without pty")
-		if err := cmd.Run(); err != nil {
-			log.Printf("CPUD:err %v", err)
+		v("running command without pty")
+		if err := cmd.Run(); errval(err) != nil {
+			v("CPUD:err %v", err)
 			s.Exit(1)
 		}
 	}
@@ -392,7 +405,7 @@ func doInit() error {
 			cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 			verbose("Run %v", cmd)
 			if err := cmd.Start(); err != nil {
-				log.Printf("CPUD:Error starting %v: %v", v, err)
+				verbose("CPUD:Error starting %v: %v", v, err)
 				continue
 			}
 		}
