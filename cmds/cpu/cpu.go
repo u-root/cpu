@@ -359,7 +359,7 @@ func main() {
 	}
 	host := args[0]
 	a := strings.Join(args[1:], " ")
-	verbose("Running as client")
+	verbose("Running as client with server 9p deadline of %v", *timeout9P)
 	if a == "" {
 		a = os.Getenv("SHELL")
 	}
