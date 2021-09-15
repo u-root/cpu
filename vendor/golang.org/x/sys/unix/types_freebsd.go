@@ -141,6 +141,8 @@ type Timespec C.struct_timespec
 
 type Timeval C.struct_timeval
 
+type Time_t C.time_t
+
 // Processes
 
 type Rusage C.struct_rusage
@@ -374,9 +376,10 @@ type Winsize C.struct_winsize
 
 const (
 	AT_FDCWD            = C.AT_FDCWD
-	AT_REMOVEDIR        = C.AT_REMOVEDIR
-	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+	AT_EACCESS          = C.AT_EACCESS
 	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+	AT_REMOVEDIR        = C.AT_REMOVEDIR
 )
 
 // poll
