@@ -10,12 +10,12 @@
   revision = "38f4b401e2be5955e3e00b843d96e3c406f5094d"
 
 [[projects]]
-  digest = "1:376409c05d9e563e19815109c2b13776eb4e2529cbb006bae2d32a99877a6839"
+  digest = "1:4dae813f3c7c4a609a821328d7db7e7bc333b1407d7eed540fb8d68a85d9d342"
   name = "github.com/creack/pty"
   packages = ["."]
   pruneopts = "UT"
-  revision = "2a38352e8b4d7ab6c336eef107e42a55e72e7fbc"
-  version = "v1.1.11"
+  revision = "8ac0cc1360706eb8e5bcd8c0127c63fbdd9d338a"
+  version = "v1.1.15"
 
 [[projects]]
   digest = "1:0a01355005024757ae2a1f62e8fe68a30b4f5fde7a08ac88b3685e7999ac354b"
@@ -40,12 +40,12 @@
   version = "v0.1.0"
 
 [[projects]]
-  digest = "1:cba831074d20cde97b3cdf295e78cc94fecaa56d8fc5ec94d890396d4e0eee54"
+  digest = "1:d01a85889f166efab6acacd607f0316df85443dedc609516f97ad16f16acf4ec"
   name = "github.com/klauspost/compress"
   packages = ["flate"]
   pruneopts = "UT"
-  revision = "a3b7545c88eea469c2246bee0e6c130525d56190"
-  version = "v1.11.13"
+  revision = "38d4ba985ac157cb858763e016645e14e74c13c4"
+  version = "v1.13.6"
 
 [[projects]]
   digest = "1:4d4cab38f2e6a9f0f17fdbe03746c6c983ddacbd2bae4d49798d928d0aaad790"
@@ -65,20 +65,20 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d03ebb12e3aff52cba5dacb05356c47cbac3529f347409265b9fb07fd660b4b3"
+  digest = "1:747b8589195ff8213727283577992422184eebee3f1ee87c6bab61914de9637a"
   name = "github.com/u-root/u-root"
   packages = [
     "pkg/cmdline",
+    "pkg/cp",
     "pkg/kmodule",
     "pkg/libinit",
-    "pkg/mount",
     "pkg/shlex",
     "pkg/termios",
     "pkg/ulog",
     "pkg/upath",
   ]
   pruneopts = "UT"
-  revision = "b81eccb0c419d45255b534c0b3644a191748adf0"
+  revision = "8154487653e9286fe50312d9bf02ac67458ff650"
 
 [[projects]]
   digest = "1:700049c743d00f6e6520c631f5056ec50f21c36e0f6cda34d97a55fd6c0dc355"
@@ -114,12 +114,13 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:05b1d17f67fe3128cea4c4556b0f7ddcecc04c9b7ed3cf32ee1850fcee3432c2"
+  digest = "1:23a2783ebeccd61fefa7b1d3f3b68a0105d4abb6cb74d09538b98b098ad4426d"
   name = "golang.org/x/crypto"
   packages = [
     "blowfish",
     "chacha20",
     "curve25519",
+    "curve25519/internal/field",
     "ed25519",
     "ed25519/internal/edwards25519",
     "internal/subtle",
@@ -128,11 +129,11 @@
     "ssh/internal/bcrypt_pbkdf",
   ]
   pruneopts = "UT"
-  revision = "0c34fe9e7dc2486962ef9867e3edb3503537209f"
+  revision = "32db794688a5a24a23a43f2a984cecd5b3d8da58"
 
 [[projects]]
   branch = "master"
-  digest = "1:644b95e5582e0bd9de8560875ed61eac9f5abdcc32097b835c9d420e35e3376c"
+  digest = "1:dbaac335ce56bd333af3fe1cdb5ee65041336c9a92b0130fc314d3167c9e179c"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -140,7 +141,7 @@
     "unix",
   ]
   pruneopts = "UT"
-  revision = "5e06dd20ab57da35ef5928e610f228177c91df6e"
+  revision = "ed5796bab16455f104b6a384d51b7f9990cb9806"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -151,7 +152,6 @@
     "github.com/hugelgupf/p9/p9",
     "github.com/kr/pty",
     "github.com/u-root/u-root/pkg/libinit",
-    "github.com/u-root/u-root/pkg/mount",
     "github.com/u-root/u-root/pkg/termios",
     "github.com/u-root/u-root/pkg/ulog",
     "golang.org/x/crypto/ssh",
