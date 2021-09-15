@@ -23,7 +23,6 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
 	"github.com/kr/pty" // TODO: get rid of krpty
-	"github.com/u-root/u-root/pkg/mount"
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 	"golang.org/x/sys/unix"
@@ -123,21 +122,19 @@ func runRemote(cmd, port9p string) error {
 			log.Println(err)
 		}
 	}
+	v("CPUD:namespace is %q", bindover)
 	var fail bool
 	if len(bindover) != 0 {
-		if err := mount.FindFileSystem("9p"); err != nil {
-			log.Fatalf("Mounting namespace %q: must have 9p and it is not listed in /proc/filesystems", bindover)
-		}
 		// Connect to the socket, return the nonce.
 		a := net.JoinHostPort("127.0.0.1", port9p)
 		v("CPUD:Dial %v", a)
 		so, err := net.Dial("tcp4", a)
 		if err != nil {
-			log.Fatalf("Dial 9p port: %v", err)
+			log.Fatalf("CPUD:Dial 9p port: %v", err)
 		}
 		v("CPUD:Connected: write nonce %s\n", nonce)
 		if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
-			log.Fatalf("Write nonce: %v", err)
+			log.Fatalf("CPUD:Write nonce: %v", err)
 		}
 		v("CPUD:Wrote the nonce")
 
@@ -146,7 +143,7 @@ func runRemote(cmd, port9p string) error {
 		flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID)
 		cf, err := so.(*net.TCPConn).File()
 		if err != nil {
-			log.Fatalf("Cannot get fd for %v: %v", so, err)
+			log.Fatalf("CPUD:Cannot get fd for %v: %v", so, err)
 		}
 
 		fd := cf.Fd()
@@ -174,9 +171,25 @@ func runRemote(cmd, port9p string) error {
 		// bind *may* hide local resources but for now it's the least worst option.
 		dirs := strings.Split(bindover, ":")
 		for _, n := range dirs {
-			t := filepath.Join("/tmp/cpu", n)
+			l, r := n, n
+			// If the value is local=remote, len(c) will be 2.
+			// The value might be some weird degenerate form such as
+			// =name or name=. That is considered to be an error.
+			// The convention is to split on the first =. It is not up
+			// to this code to determine that more than one = is an error.
+			c := strings.SplitN(n, "=", 2)
+			if len(c) == 2 {
+				l, r = c[0], c[1]
+				if len(r) == 0 {
+					return fmt.Errorf("Bad name in %q: zero-length remote name", n)
+				}
+				if len(l) == 0 {
+					return fmt.Errorf("Bad name in %q: zero-length local name", n)
+				}
+			}
+			t := filepath.Join("/tmp/cpu", r)
 			v("CPUD: mount %v over %v", t, n)
-			if err := unix.Mount(t, n, "", syscall.MS_BIND, ""); err != nil {
+			if err := unix.Mount(t, l, "", syscall.MS_BIND, ""); err != nil {
 				fail = true
 				log.Printf("CPUD:Warning: mounting %v on %v failed: %v", t, n, err)
 			} else {
@@ -224,6 +237,9 @@ func runRemote(cmd, port9p string) error {
 // single threaded.
 func init() {
 	flag.Parse()
+	if *runAsInit && *remote {
+		log.Fatal("Only use -remote or -init, not both")
+	}
 	if os.Getpid() == 1 {
 		pid1, *runAsInit, *debug = true, true, false
 	}
