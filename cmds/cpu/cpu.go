@@ -263,13 +263,14 @@ func stdin(s *ossh.Session, w io.WriteCloser, r io.Reader) {
 
 func shell(client *ossh.Client, cmd string, envs ...string) error {
 	t, err := termios.New()
-	if err == nil {
-		r, err := t.Raw()
-		if err != nil {
-			return err
-		}
-		defer t.Set(r)
+	if err != nil {
+		return err
 	}
+	r, err := t.Raw()
+	if err != nil {
+		return err
+	}
+	defer t.Set(r)
 	if *bin == "" {
 		if *bin, err = exec.LookPath("cpu"); err != nil {
 			return err
@@ -411,13 +412,13 @@ func main() {
 	}
 	host := args[0]
 	a := strings.Join(args[1:], " ")
-	verbose("Running as client with server 9p deadline of %v", *timeout9P)
+	verbose("Running as client")
 	if a == "" {
 		a = os.Getenv("SHELL")
 	}
 	t, err := termios.GetTermios(0)
 	if err != nil {
-		log.Printf("Getting Termios: %v. No job control/raw mode in this shell. Don't type passwords!", err)
+		log.Fatal("Getting Termios")
 	}
 
 	kf := getKeyFile(host, *keyFile)
@@ -432,12 +433,10 @@ func main() {
 		}
 		defer os.Exit(e)
 	}
-	if t != nil {
-		if err := termios.SetTermios(0, t); err != nil {
-			// Never make this a log.Fatal, it might
-			// interfere with the exit handling
-			// for errors from the remote process.
-			log.Print(err)
-		}
+	if err := termios.SetTermios(0, t); err != nil {
+		// Never make this a log.Fatal, it might
+		// interfere with the exit handling
+		// for errors from the remote process.
+		log.Print(err)
 	}
 }
