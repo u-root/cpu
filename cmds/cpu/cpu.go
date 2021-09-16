@@ -25,6 +25,7 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 
 	// TODO: get rid of krpty
+	config "github.com/kevinburke/ssh_config"
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 
@@ -32,21 +33,24 @@ import (
 	ossh "golang.org/x/crypto/ssh"
 )
 
+const defaultPort = "23"
+
 // a nonce is a [32]byte containing only printable characters, suitable for use as a string
 type nonce [32]byte
 
 var (
+	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
 	// For the ssh server part
 	bin         = flag.String("bin", "cpud", "path of cpu binary")
 	debug       = flag.Bool("d", false, "enable debug prints")
 	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
 	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
-	keyFile     = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
+	keyFile     = flag.String("key", "", "key file")
 	mountopts   = flag.String("mountopts", "", "Extra options to add to the 9p mount")
 	msize       = flag.Int("msize", 1048576, "msize to use")
 	network     = flag.String("network", "tcp", "network to use")
-	port        = flag.String("sp", "23", "cpu default port")
+	port        = flag.String("sp", "", "cpu default port")
 	port9p      = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
@@ -84,7 +88,7 @@ func dial(n, a string, config *ossh.ClientConfig) (*ossh.Client, error) {
 	return client, nil
 }
 
-func config(kf string) (*ossh.ClientConfig, error) {
+func configSSH(kf string) (*ossh.ClientConfig, error) {
 	cb := ossh.InsecureIgnoreHostKey()
 	//var hostKey ssh.PublicKey
 	// A public key may be used to authenticate against the remote
@@ -140,12 +144,12 @@ func cmd(client *ossh.Client, s string) ([]byte, error) {
 }
 
 // To make sure defer gets run and you tty is sane on exit
-func runClient(host, a string) error {
-	c, err := config(*keyFile)
+func runClient(host, a, port, key string) error {
+	c, err := configSSH(key)
 	if err != nil {
 		return err
 	}
-	cl, err := dial(*network, net.JoinHostPort(host, *port), c)
+	cl, err := dial(*network, net.JoinHostPort(host, port), c)
 	if err != nil {
 		return err
 	}
@@ -313,10 +317,7 @@ func shell(client *ossh.Client, cmd string, envs ...string) error {
 	return session.Wait()
 }
 
-// We do flag parsing in init so we can
-// Unshare if needed while we are still
-// single threaded.
-func init() {
+func flags() {
 	flag.Parse()
 	if *dump && *debug {
 		log.Fatalf("You can only set either dump OR debug")
@@ -342,6 +343,57 @@ func setWinsize(f *os.File, w, h int) {
 		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})))
 }
 
+// getKeyFile picks a keyfile if none has been set.
+// It will use sshconfig, else use a default.
+func getKeyFile(host, kf string) string {
+	v("getKeyFile for %q", kf)
+	if len(kf) == 0 {
+		kf = config.Get(host, "IdentityFile")
+		v("key file from config is %q", kf)
+		if len(kf) == 0 {
+			kf = defaultKeyFile
+		}
+	}
+	// The kf will always be non-zero at this point.
+	if strings.HasPrefix(kf, "~") {
+		kf = filepath.Join(os.Getenv("HOME"), kf[1:])
+	}
+	v("getKeyFile returns %q", kf)
+	// this is a tad annoying, but the config package doesn't handle ~.
+	return kf
+}
+
+// getHostName reads the host name from the config file,
+// if needed. If it is not found, the host name is returned.
+func getHostName(host string) string {
+	h := config.Get(host, "HostName")
+	if len(h) != 0 {
+		host = h
+	}
+	return host
+}
+
+// getPort gets a port.
+// The rules here are messy, since config.Get will return "22" if
+// there is no entry in .ssh/config. 22 is not allowed. So in the case
+// of "22", convert to defaultPort
+func getPort(host, port string) string {
+	p := port
+	v("getPort(%q, %q)", host, port)
+	if len(port) == 0 {
+		if cp := config.Get(host, "Port"); len(cp) != 0 {
+			v("config.Get(%q,%q): %q", host, port, cp)
+			p = cp
+		}
+	}
+	if len(p) == 0 || p == "22" {
+		p = defaultPort
+		v("getPort: return default %q", p)
+	}
+	v("returns %q", p)
+	return p
+}
+
 // TODO: we've been tryinmg to figure out the right way to do usage for years.
 // If this is a good way, it belongs in the uroot package.
 func usage() {
@@ -352,6 +404,7 @@ func usage() {
 }
 
 func main() {
+	flags()
 	args := flag.Args()
 	if len(args) == 0 {
 		usage()
@@ -366,7 +419,12 @@ func main() {
 	if err != nil {
 		log.Printf("Getting Termios: %v. No job control/raw mode in this shell. Don't type passwords!", err)
 	}
-	if err := runClient(host, a); err != nil {
+
+	kf := getKeyFile(host, *keyFile)
+	p := getPort(host, *port)
+	hn := getHostName(host)
+
+	if err := runClient(hn, a, p, kf); err != nil {
 		e := 1
 		log.Printf("SSH error %s", err)
 		if x, ok := err.(*ossh.ExitError); ok {
