@@ -259,14 +259,13 @@ func stdin(s *ossh.Session, w io.WriteCloser, r io.Reader) {
 
 func shell(client *ossh.Client, cmd string, envs ...string) error {
 	t, err := termios.New()
-	if err != nil {
-		return err
+	if err == nil {
+		r, err := t.Raw()
+		if err != nil {
+			return err
+		}
+		defer t.Set(r)
 	}
-	r, err := t.Raw()
-	if err != nil {
-		return err
-	}
-	defer t.Set(r)
 	if *bin == "" {
 		if *bin, err = exec.LookPath("cpu"); err != nil {
 			return err
@@ -365,7 +364,7 @@ func main() {
 	}
 	t, err := termios.GetTermios(0)
 	if err != nil {
-		log.Fatal("Getting Termios")
+		log.Printf("Getting Termios: %v. No job control/raw mode in this shell. Don't type passwords!", err)
 	}
 	if err := runClient(host, a); err != nil {
 		e := 1
@@ -375,10 +374,12 @@ func main() {
 		}
 		defer os.Exit(e)
 	}
-	if err := termios.SetTermios(0, t); err != nil {
-		// Never make this a log.Fatal, it might
-		// interfere with the exit handling
-		// for errors from the remote process.
-		log.Print(err)
+	if t != nil {
+		if err := termios.SetTermios(0, t); err != nil {
+			// Never make this a log.Fatal, it might
+			// interfere with the exit handling
+			// for errors from the remote process.
+			log.Print(err)
+		}
 	}
 }
