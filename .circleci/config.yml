@@ -3,7 +3,7 @@ version: 2
 templates:
   golang-template: &golang-template
     docker:
-      - image: circleci/golang:1.13
+      - image: circleci/golang:1.17
     working_directory: /go/src/github.com/u-root/cpu
     environment:
       - GOPATH: "/go"
@@ -21,8 +21,23 @@ jobs:
     steps:
       - checkout
       - run: go env
+      - run:
+          name: Check vendored dependencies
+          environment:
+            - GO111MODULE: "auto"
+          command: |
+            sudo apt install gox
+            go mod tidy
+            go mod verify
+            go mod vendor -v
+            git status
+            if [[ -n "$(git status --porcelain vendor)" ]]; then
+              echo 'vendor/ is out-of-date: run `go mod tidy && go mod vendor` and then check in the changes'
+              echo 'If `go mod tidy && go mod vendor` results in no changes, make sure you are using the latest relase of Go'
+              git status --porcelain vendor
+              exit 1
+            fi
       - run: go build ./...
       - run: go test -timeout 15m -v ./...
       - run: |
-          go get github.com/mitchellh/gox
           gox -os="linux" -arch="amd64 arm arm64 ppc64 ppc64le s390x mips mipsle mips64 mips64le" ./...

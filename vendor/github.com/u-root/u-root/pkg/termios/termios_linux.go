@@ -16,8 +16,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// TTYIO contains state needed for controlling ttys.
-// On many systems, but not all, this is just an os.File
 type TTYIO struct {
 	f *os.File
 }
