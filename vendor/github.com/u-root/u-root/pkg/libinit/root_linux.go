@@ -7,17 +7,12 @@ package libinit
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/u-root/u-root/pkg/cmdline"
-	"github.com/u-root/u-root/pkg/cp"
-	"github.com/u-root/u-root/pkg/kmodule"
 	"github.com/u-root/u-root/pkg/ulog"
 	"golang.org/x/sys/unix"
 )
@@ -85,19 +80,6 @@ func (m mount) String() string {
 	return fmt.Sprintf("mount -t %q -o %s %q %q flags %#x", m.FSType, m.Opts, m.Source, m.Target, m.Flags)
 }
 
-type cpdir struct {
-	Source string
-	Target string
-}
-
-func (c cpdir) create() error {
-	return cp.CopyTree(c.Source, c.Target)
-}
-
-func (c cpdir) String() string {
-	return fmt.Sprintf("cp -a %q %q", c.Source, c.Target)
-}
-
 var (
 	// These have to be created / mounted first, so that the logging works correctly.
 	preNamespace = []creator{
@@ -140,9 +122,6 @@ var (
 		dir{Name: "/sys", Mode: 0555},
 		mount{Source: "sysfs", Target: "/sys", FSType: "sysfs"},
 		mount{Source: "securityfs", Target: "/sys/kernel/security", FSType: "securityfs"},
-
-		cpdir{Source: "/etc", Target: "/tmp/etc"},
-		mount{Source: "/tmp/etc", Target: "/etc", FSType: "tmpfs", Flags: unix.MS_BIND},
 	}
 
 	// cgroups are optional for most u-root users, especially
@@ -231,58 +210,4 @@ func CreateRootfs() {
 	if !present || boolErr != nil || !systemdEnabled {
 		create(cgroupsnamespace, true)
 	}
-}
-
-var (
-	excludedMods = map[string]bool{
-		"idpf":     true,
-		"idpf_imc": true,
-	}
-)
-
-// InstallAllModules installs kernel modules (.ko files) from /lib/modules.
-// Useful for modules that need to be loaded for boot (ie a network
-// driver needed for netboot). It skips over blacklisted modules in
-// excludedMods.
-func InstallAllModules() {
-	modulePattern := "/lib/modules/*.ko"
-	if err := InstallModules(modulePattern, excludedMods); err != nil {
-		log.Print(err)
-	}
-}
-
-// InstallModules installs kernel modules (.ko files) from /lib/modules that
-// match the given pattern, skipping those in the exclude list.
-func InstallModules(pattern string, exclude map[string]bool) error {
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		return err
-	}
-	if len(files) == 0 {
-		return fmt.Errorf("no modules found matching '%s'", pattern)
-	}
-
-	for _, filename := range files {
-		f, err := os.Open(filename)
-		if err != nil {
-			log.Printf("installModules: can't open %q: %v", filename, err)
-			continue
-		}
-		// Module flags are passed to the command line in the form modulename.flag=val
-		// And must be passed to FileInit as flag=val to be installed properly
-		moduleName := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
-		if _, ok := exclude[moduleName]; ok {
-			log.Printf("Skipping module %s", moduleName)
-			continue
-		}
-
-		flags := cmdline.FlagsForModule(moduleName)
-		err = kmodule.FileInit(f, flags, 0)
-		f.Close()
-		if err != nil {
-			log.Printf("installModules: can't install %q: %v", filename, err)
-		}
-	}
-
-	return nil
 }

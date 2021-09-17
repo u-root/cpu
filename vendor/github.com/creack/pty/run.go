@@ -1,5 +1,4 @@
-//go:build !windows
-//+build !windows
+// +build !windows
 
 package pty
 
@@ -14,8 +13,8 @@ import (
 // corresponding pty.
 //
 // Starts the process in a new session and sets the controlling terminal.
-func Start(cmd *exec.Cmd) (*os.File, error) {
-	return StartWithSize(cmd, nil)
+func Start(c *exec.Cmd) (pty *os.File, err error) {
+	return StartWithSize(c, nil)
 }
 
 // StartWithSize assigns a pseudo-terminal tty os.File to c.Stdin, c.Stdout,
@@ -24,13 +23,13 @@ func Start(cmd *exec.Cmd) (*os.File, error) {
 //
 // This will resize the pty to the specified size before starting the command.
 // Starts the process in a new session and sets the controlling terminal.
-func StartWithSize(cmd *exec.Cmd, ws *Winsize) (*os.File, error) {
-	if cmd.SysProcAttr == nil {
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
+func StartWithSize(c *exec.Cmd, sz *Winsize) (pty *os.File, err error) {
+	if c.SysProcAttr == nil {
+		c.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	cmd.SysProcAttr.Setsid = true
-	cmd.SysProcAttr.Setctty = true
-	return StartWithAttrs(cmd, ws, cmd.SysProcAttr)
+	c.SysProcAttr.Setsid = true
+	c.SysProcAttr.Setctty = true
+	return StartWithAttrs(c, sz, c.SysProcAttr)
 }
 
 // StartWithAttrs assigns a pseudo-terminal tty os.File to c.Stdin, c.Stdout,
@@ -42,16 +41,16 @@ func StartWithSize(cmd *exec.Cmd, ws *Winsize) (*os.File, error) {
 //
 // This should generally not be needed. Used in some edge cases where it is needed to create a pty
 // without a controlling terminal.
-func StartWithAttrs(c *exec.Cmd, sz *Winsize, attrs *syscall.SysProcAttr) (*os.File, error) {
+func StartWithAttrs(c *exec.Cmd, sz *Winsize, attrs *syscall.SysProcAttr) (pty *os.File, err error) {
 	pty, tty, err := Open()
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = tty.Close() }() // Best effort.
+	defer tty.Close()
 
 	if sz != nil {
 		if err := Setsize(pty, sz); err != nil {
-			_ = pty.Close() // Best effort.
+			pty.Close()
 			return nil, err
 		}
 	}
@@ -68,7 +67,7 @@ func StartWithAttrs(c *exec.Cmd, sz *Winsize, attrs *syscall.SysProcAttr) (*os.F
 	c.SysProcAttr = attrs
 
 	if err := c.Start(); err != nil {
-		_ = pty.Close() // Best effort.
+		_ = pty.Close()
 		return nil, err
 	}
 	return pty, err
