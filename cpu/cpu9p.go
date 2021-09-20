@@ -36,7 +36,9 @@ type cpu9p struct {
 
 // Attach implements p9.Attacher.Attach.
 func (l *cpu9p) Attach() (p9.File, error) {
-	return &cpu9p{path: l.path}, nil
+	p := &cpu9p{path: l.path}
+	V("Tattach %v", p)
+	return p, nil
 }
 
 var (
@@ -82,26 +84,26 @@ func (l *cpu9p) Walk(names []string) ([]p9.QID, p9.File, error) {
 	if len(names) == 0 {
 		c := &cpu9p{path: last.path}
 		qid, fi, err := c.info()
-		v("Walk to %v: %v, %v, %v", *c, qid, fi, err)
+		V("Walk to %v: %v, %v, %v", *c, qid, fi, err)
 		if err != nil {
 			return nil, nil, err
 		}
 		qids = append(qids, qid)
-		v("Walk: return %v, %v, nil", qids, last)
+		V("Walk: return %v, %v, nil", qids, last)
 		return qids, last, nil
 	}
-	v("Walk: %v", names)
+	V("Walk: %v", names)
 	for _, name := range names {
 		c := &cpu9p{path: filepath.Join(last.path, name)}
 		qid, fi, err := c.info()
-		v("Walk to %v: %v, %v, %v", *c, qid, fi, err)
+		V("Walk to %v: %v, %v, %v", *c, qid, fi, err)
 		if err != nil {
 			return nil, nil, err
 		}
 		qids = append(qids, qid)
 		last = c
 	}
-	v("Walk: return %v, %v, nil", qids, last)
+	V("Walk: return %v, %v, nil", qids, last)
 	return qids, last, nil
 }
 

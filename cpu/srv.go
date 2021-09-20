@@ -16,30 +16,31 @@ import (
 )
 
 // Made harder as you can't set a read deadline on ssh.Conn
-func srv(l net.Listener, root string, n nonce, deadline time.Duration) {
+func (c *Cmd) srv(l net.Listener) error {
 	// We only accept once
 	defer l.Close()
 	var (
 		errs = make(chan error)
-		c    net.Conn
+		s    net.Conn
 		err  error
 	)
 	go func() {
-		v("srv: try to accept")
-		c, err = l.Accept()
+		V("srv: try to accept l %v", l)
+		s, err = l.Accept()
+		V("Accept: %v %v", s, err)
 		if err != nil {
 			errs <- fmt.Errorf("accept 9p socket: %v", err)
 			return
 		}
-		v("srv got %v", c)
+		V("srv got %v", s)
 		var rn nonce
-		if _, err := io.ReadAtLeast(c, rn[:], len(rn)); err != nil {
+		if _, err := io.ReadAtLeast(s, rn[:], len(rn)); err != nil {
 			errs <- fmt.Errorf("Reading nonce from remote: %v", err)
 			return
 		}
-		v("srv: read the nonce back got %s", rn)
-		if n.String() != rn.String() {
-			errs <- fmt.Errorf("nonce mismatch: got %s but want %s", rn, n)
+		V("srv: read the nonce back got %s", rn)
+		if c.nonce.String() != rn.String() {
+			errs <- fmt.Errorf("nonce mismatch: got %s but want %s", rn, c.nonce)
 			return
 		}
 		errs <- nil
@@ -53,29 +54,34 @@ func srv(l net.Listener, root string, n nonce, deadline time.Duration) {
 	// conflicting usage of time with the ssh package. I'm past caring.
 	// To be continued ...
 	select {
-	case <-time.After(deadline):
-		log.Fatalf("cpud did not connect for more than %v", deadline)
+	case <-time.After(c.Timeout):
+		log.Fatalf("cpud did not connect for more than %v", c.Timeout)
 	case err := <-errs:
 		if err != nil {
 			log.Fatalf("srv: %v", err)
 		}
 	}
 	// If we are debugging, add the option to trace records.
+	V("Start serving on %v", c.Root)
 	if Debug9p {
 		if Dump9p {
 			log.SetOutput(DumpWriter)
 			log.SetFlags(log.Ltime | log.Lmicroseconds)
 			ulog.Log = log.New(DumpWriter, "9p", log.Ltime|log.Lmicroseconds)
 		}
-		if err := p9.NewServer(&cpu9p{path: root}, p9.WithServerLogger(ulog.Log)).Handle(c, c); err != nil {
+		if err := p9.NewServer(&cpu9p{path: c.Root}, p9.WithServerLogger(ulog.Log)).Handle(s, s); err != nil {
 			if err != io.EOF {
 				log.Printf("Serving cpu remote: %v", err)
+				return err
 			}
 		}
+		return nil
 	}
-	if err := p9.NewServer(&cpu9p{path: root}).Handle(c, c); err != nil {
+	if err := p9.NewServer(&cpu9p{path: c.Root}).Handle(s, s); err != nil {
 		if err != io.EOF {
 			log.Printf("Serving cpu remote: %v", err)
+			return err
 		}
 	}
+	return nil
 }
