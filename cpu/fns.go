@@ -5,13 +5,14 @@
 package cpu
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	// We use this ssh because it implements port redirection.
@@ -44,7 +45,7 @@ var (
 type nonce [32]byte
 
 func verbose(f string, a ...interface{}) {
-	v("\r\n"+f+"\r\n", a...)
+	V("\r\n"+f+"\r\n", a...)
 }
 
 // generateNonce returns a nonce, or an error if random reader fails.
@@ -63,64 +64,53 @@ func (n nonce) String() string {
 	return string(n[:])
 }
 
-// Config returns a ClientConfig for cpu.
-func Config(keyFile, hostKeyFile string) (*ClientConfig, error) {
-	cb := ssh.InsecureIgnoreHostKey()
-	//var hostKey ssh.PublicKey
-	// A public key may be used to authenticate against the remote
-	// server by using an unencrypted PEM-encoded private key file.
-	//
-	// If you have an encrypted private key, the crypto/x509 package
-	// can be used to decrypt it.
+// UserKeyConfig sets up authentication for a User Key.
+// It is required in almost all cases.
+func (c *Cmd) UserKeyConfig() error {
+	keyFile := c.PrivateKeyFile
 	key, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read private key %v: %v", keyFile, err)
+		return fmt.Errorf("unable to read private key %v: %v", keyFile, err)
 	}
 
-	// Create the Signer for this private key.
 	signer, err := ssh.ParsePrivateKey(key)
 	if err != nil {
-		return nil, fmt.Errorf("ParsePrivateKey %v: %v", keyFile, err)
+		return fmt.Errorf("ParsePrivateKey %v: %v", keyFile, err)
 	}
-	if len(hostKeyFile) != 0 {
-		hk, err := ioutil.ReadFile(hostKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read host key %v: %v", hostKeyFile, err)
-		}
-		pk, err := ssh.ParsePublicKey(hk)
-		if err != nil {
-			return nil, fmt.Errorf("host key %v: %v", string(hk), err)
-		}
-		cb = ssh.FixedHostKey(pk)
-	}
-	config := &ClientConfig{
-		SSH: &ssh.ClientConfig{
-			User: os.Getenv("USER"),
-			Auth: []ssh.AuthMethod{
-				// Use the PublicKeys method for remote authentication.
-				ssh.PublicKeys(signer),
-			},
-			HostKeyCallback: cb,
-		},
-	}
-	return config, nil
+	c.config.Auth = append(c.config.Auth, ssh.PublicKeys(signer))
+	return nil
 }
 
-// Env sets zero or more environment variables for a Session.
-func Env(s *Session, envs ...string) {
+// HostKeyConfig sets the host key. It is optional.
+func (c *Cmd) HostKeyConfig(hostKeyFile string) error {
+	hk, err := ioutil.ReadFile(hostKeyFile)
+	if err != nil {
+		return fmt.Errorf("unable to read host key %v: %v", hostKeyFile, err)
+	}
+	pk, err := ssh.ParsePublicKey(hk)
+	if err != nil {
+		return fmt.Errorf("host key %v: %v", string(hk), err)
+	}
+	c.config.HostKeyCallback = ssh.FixedHostKey(pk)
+	return nil
+}
+
+// SetEnv sets zero or more environment variables for a Session.
+func (c *Cmd) SetEnv(envs ...string) error {
 	for _, v := range append(os.Environ(), envs...) {
 		env := strings.SplitN(v, "=", 2)
 		if len(env) == 1 {
 			env = append(env, "")
 		}
-		if err := s.Setenv(env[0], env[1]); err != nil {
-			log.Printf("Warning: s.Setenv(%q, %q): %v", v, os.Getenv(v), err)
+		if err := c.session.Setenv(env[0], env[1]); err != nil {
+			return fmt.Errorf("Warning: c.session.Setenv(%q, %q): %v", v, os.Getenv(v), err)
 		}
 	}
+	return nil
 }
 
-// Stdin implements an ssh-like reader, honoring ~ commands.
-func Stdin(s *Session, w io.WriteCloser, r io.Reader) {
+// SSHStdin implements an ssh-like reader, honoring ~ commands.
+func (c *Cmd) SSHStdin(w io.WriteCloser, r io.Reader) {
 	var newLine, tilde bool
 	var t = []byte{'~'}
 	var b [1]byte
@@ -156,7 +146,7 @@ func Stdin(s *Session, w io.WriteCloser, r io.Reader) {
 			}
 		case '.':
 			if tilde {
-				s.Close()
+				c.session.Close()
 				return
 			}
 			if _, err := w.Write(b[:]); err != nil {
@@ -166,13 +156,13 @@ func Stdin(s *Session, w io.WriteCloser, r io.Reader) {
 	}
 }
 
-// getKeyFile picks a keyfile if none has been set.
-// It will use sshconfig, else use a default.
-func getKeyFile(host, kf string) string {
-	v("getKeyFile for %q", kf)
+// GetKeyFile picks a keyfile if none has been set.
+// It will use ssh config, else use a default.
+func GetKeyFile(host, kf string) string {
+	V("getKeyFile for %q", kf)
 	if len(kf) == 0 {
 		kf = config.Get(host, "IdentityFile")
-		v("key file from config is %q", kf)
+		V("key file from config is %q", kf)
 		if len(kf) == 0 {
 			kf = DefaultKeyFile
 		}
@@ -181,14 +171,14 @@ func getKeyFile(host, kf string) string {
 	if strings.HasPrefix(kf, "~") {
 		kf = filepath.Join(os.Getenv("HOME"), kf[1:])
 	}
-	v("getKeyFile returns %q", kf)
+	V("getKeyFile returns %q", kf)
 	// this is a tad annoying, but the config package doesn't handle ~.
 	return kf
 }
 
-// getHostName reads the host name from the config file,
+// GetHostName reads the host name from the ssh config file,
 // if needed. If it is not found, the host name is returned.
-func getHostName(host string) string {
+func GetHostName(host string) string {
 	h := config.Get(host, "HostName")
 	if len(h) != 0 {
 		host = h
@@ -196,23 +186,43 @@ func getHostName(host string) string {
 	return host
 }
 
-// getPort gets a port.
+// GetPort gets a port. It verifies that the port fits in 16-bit space.
 // The rules here are messy, since config.Get will return "22" if
 // there is no entry in .ssh/config. 22 is not allowed. So in the case
-// of "22", convert to defaultPort
-func getPort(host, port string) string {
+// of "22", convert to defaultPort.
+func GetPort(host, port string) (uint16, error) {
 	p := port
-	v("getPort(%q, %q)", host, port)
+	V("getPort(%q, %q)", host, port)
 	if len(port) == 0 {
 		if cp := config.Get(host, "Port"); len(cp) != 0 {
-			v("config.Get(%q,%q): %q", host, port, cp)
+			V("config.Get(%q,%q): %q", host, port, cp)
 			p = cp
 		}
 	}
 	if len(p) == 0 || p == "22" {
 		p = DefaultPort
-		v("getPort: return default %q", p)
+		V("getPort: return default %q", p)
 	}
-	v("returns %q", p)
-	return p
+	V("returns %q", p)
+	pn, err := strconv.ParseUint(p, 0, 16)
+	return uint16(pn), err
+}
+
+// Signal implements ssh.Signal
+func (c *Cmd) Signal(s ssh.Signal) error {
+	return c.session.Signal(s)
+}
+
+// Outputs returns a slice of bytes.Buffer for stdout and stderr,
+// and an error if either had trouble being read.
+func (c *Cmd) Outputs() ([]bytes.Buffer, error) {
+	var r [2]bytes.Buffer
+	var err error
+	if _, err := io.Copy(&r[0], c.Stdout); err != nil && err != io.EOF {
+		err = fmt.Errorf("Stdout: '%v'", err)
+	}
+	if _, err := io.Copy(&r[1], c.Stderr); err != nil && err != io.EOF {
+		err = fmt.Errorf("%sStderr: '%v'", err.Error(), err)
+	}
+	return r[:], err
 }
