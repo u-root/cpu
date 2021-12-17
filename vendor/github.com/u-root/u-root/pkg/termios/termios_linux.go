@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9
-
 package termios
 
 import (
@@ -16,85 +14,74 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type TTYIO struct {
+// TTY is a wrapper that only allows Read and Write.
+type TTY struct {
 	f *os.File
 }
 
-// Winsize embeds unix.Winsize.
-type Winsize struct {
-	unix.Winsize
-}
-
-// New creates a new TTYIO using /dev/tty
-func New() (*TTYIO, error) {
+// New creates a new TTY using /dev/tty
+func New() (*TTY, error) {
 	return NewWithDev("/dev/tty")
 }
 
-// NewWithDev creates a new TTYIO with the specified device
-func NewWithDev(device string) (*TTYIO, error) {
+// NewWithDev creates a new TTY with the specified device
+func NewWithDev(device string) (*TTY, error) {
 	f, err := os.OpenFile(device, os.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
-	return &TTYIO{f: f}, nil
+	return &TTY{f: f}, nil
 }
 
-// NewTTYS returns a new TTYIO.
-func NewTTYS(port string) (*TTYIO, error) {
+func NewTTYS(port string) (*TTY, error) {
 	f, err := os.OpenFile(filepath.Join("/dev", port), unix.O_RDWR|unix.O_NOCTTY|unix.O_NONBLOCK, 0620)
 	if err != nil {
 		return nil, err
 	}
-	return &TTYIO{f: f}, nil
+	return &TTY{f: f}, nil
 }
 
-// GetTermios returns a filled-in Termios, from an fd.
-func GetTermios(fd uintptr) (*Termios, error) {
-	t, err := unix.IoctlGetTermios(int(fd), unix.TCGETS)
-	if err != nil {
-		return nil, err
-	}
-	return &Termios{Termios: t}, nil
+func (t *TTY) Read(b []byte) (int, error) {
+	return t.f.Read(b)
 }
 
-// Get terms a Termios from a TTYIO.
-func (t *TTYIO) Get() (*Termios, error) {
+func (t *TTY) Write(b []byte) (int, error) {
+	return t.f.Write(b)
+}
+
+func GetTermios(fd uintptr) (*unix.Termios, error) {
+	return unix.IoctlGetTermios(int(fd), unix.TCGETS)
+}
+
+func (t *TTY) Get() (*unix.Termios, error) {
 	return GetTermios(t.f.Fd())
 }
 
-// SetTermios sets tty parameters for an fd from a Termios.
-func SetTermios(fd uintptr, ti *Termios) error {
-	return unix.IoctlSetTermios(int(fd), unix.TCSETS, ti.Termios)
+func SetTermios(fd uintptr, ti *unix.Termios) error {
+	return unix.IoctlSetTermios(int(fd), unix.TCSETS, ti)
 }
 
-// Set sets tty parameters for a TTYIO from a Termios.
-func (t *TTYIO) Set(ti *Termios) error {
+func (t *TTY) Set(ti *unix.Termios) error {
 	return SetTermios(t.f.Fd(), ti)
 }
 
-// GetWinSize gets window size from an fd.
-func GetWinSize(fd uintptr) (*Winsize, error) {
-	w, err := unix.IoctlGetWinsize(int(fd), unix.TIOCGWINSZ)
-	return &Winsize{Winsize: *w}, err
+func GetWinSize(fd uintptr) (*unix.Winsize, error) {
+	return unix.IoctlGetWinsize(int(fd), unix.TIOCGWINSZ)
 }
 
-// GetWinSize gets window size from a TTYIO.
-func (t *TTYIO) GetWinSize() (*Winsize, error) {
+func (t *TTY) GetWinSize() (*unix.Winsize, error) {
 	return GetWinSize(t.f.Fd())
 }
 
-// SetWinSize sets window size for an fd from a Winsize.
-func SetWinSize(fd uintptr, w *Winsize) error {
-	return unix.IoctlSetWinsize(int(fd), unix.TIOCSWINSZ, &w.Winsize)
+func SetWinSize(fd uintptr, w *unix.Winsize) error {
+	return unix.IoctlSetWinsize(int(fd), unix.TIOCSWINSZ, w)
 }
 
-// SetWinSize sets window size for a TTYIO from a Winsize.
-func (t *TTYIO) SetWinSize(w *Winsize) error {
+func (t *TTY) SetWinSize(w *unix.Winsize) error {
 	return SetWinSize(t.f.Fd(), w)
 }
 
-// Ctty sets the control tty into a Cmd, from a TTYIO.
-func (t *TTYIO) Ctty(c *exec.Cmd) {
+func (t *TTY) Ctty(c *exec.Cmd) {
 	c.Stdin, c.Stdout, c.Stderr = t.f, t.f, t.f
 	if c.SysProcAttr == nil {
 		c.SysProcAttr = &syscall.SysProcAttr{}
@@ -104,8 +91,7 @@ func (t *TTYIO) Ctty(c *exec.Cmd) {
 	c.SysProcAttr.Ctty = int(t.f.Fd())
 }
 
-// MakeRaw modifies Termio state so, if it used for an fd or tty, it will set it to raw mode.
-func MakeRaw(term *Termios) *Termios {
+func MakeRaw(term *unix.Termios) *unix.Termios {
 	raw := *term
 	raw.Iflag &^= unix.IGNBRK | unix.BRKINT | unix.PARMRK | unix.ISTRIP | unix.INLCR | unix.IGNCR | unix.ICRNL | unix.IXON
 	raw.Oflag &^= unix.OPOST
@@ -120,7 +106,7 @@ func MakeRaw(term *Termios) *Termios {
 }
 
 // MakeSerialBaud updates the Termios to set the baudrate
-func MakeSerialBaud(term *Termios, baud int) (*Termios, error) {
+func MakeSerialBaud(term *unix.Termios, baud int) (*unix.Termios, error) {
 	t := *term
 	rate, ok := baud2unixB[baud]
 	if !ok {
@@ -142,7 +128,7 @@ func MakeSerialBaud(term *Termios, baud int) (*Termios, error) {
 //   enabled (ERASE, KILL are supported)
 // - Local ECHO is added (and handled by line editing)
 // - Map newline to carriage return newline on output
-func MakeSerialDefault(term *Termios) *Termios {
+func MakeSerialDefault(term *unix.Termios) *unix.Termios {
 	t := *term
 	/* Clear all except baud, stop bit and parity settings */
 	t.Cflag &= unix.CBAUD | unix.CSTOPB | unix.PARENB | unix.PARODD
