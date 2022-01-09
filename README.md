@@ -105,6 +105,8 @@ as needed.
 ### Talks
 
 * [Open Source Firmware Conference Short Talk](https://docs.google.com/presentation/d/1ee8kxuLBJAyAi-xQqE75EMk-lNM5d8Z6CarWoYlO6Ws/edit?usp=sharing)
+  * [recording](https://www.youtube.com/watch?v=mxribsZFDQQ)
+  * [PDF from BARC2021](https://bostonarch.github.io/2021/presentations/U-root%20CPU%20command.pdf)
 
 * [Network Managed Processors at IoT World 2021](https://docs.google.com/presentation/d/1jREHiHci1EAMWdj--6uX9o0aVpeCPy21UQpnl1oTSwE/edit?usp=sharing)
 
