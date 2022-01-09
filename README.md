@@ -46,6 +46,8 @@ embedded system named camera, and I need to read the flash with the flashrom com
 cpu camera flashrom -r rom.img
 ```
 
+<img alt="IP camera robots" src="doc/img/ip-camera-robot.jpg" height="240px" />
+
 Breaking this down: cpu is the cpu command; camera is the host name; flashrom is the command
 to run; the options are to do a read (-r) into a file called rom.img.
 
