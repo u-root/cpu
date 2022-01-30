@@ -248,6 +248,8 @@ func runRemote(cmd, port9p string) error {
 // single threaded.
 // Note that we can't run tets, dammit, because you can not call flag.Parse() from init,
 // but we really need to b/c unshare etc. are broken in earlier versions of go.
+// I.e., an unshare in earlier Go only affects one process, not all processes constituting
+// the program.
 func init() {
 	flag.Parse()
 	if *runAsInit && *remote {
