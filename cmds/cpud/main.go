@@ -79,6 +79,16 @@ func dropPrivs() error {
 	return unix.Setregid(-1, gid)
 }
 
+func buildCmd(cmd string) []string {
+	if len(cmd) == 0 {
+		cmd = os.Getenv("SHELL")
+		if len(cmd) == 0 {
+			cmd = "/bin/sh"
+		}
+	}
+	return strings.Fields(cmd)
+}
+
 // start up a namespace. We must
 // mkdir /tmp/cpu on the remote machine
 // issue the mount command
@@ -214,7 +224,7 @@ func runRemote(cmd, port9p string) error {
 	}
 	// The unmount happens for free since we unshared.
 	v("CPUD:runRemote: command is %q", cmd)
-	f := strings.Fields(cmd)
+	f := buildCmd(cmd)
 	c := exec.Command(f[0], f[1:]...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	err = c.Run()
@@ -236,6 +246,8 @@ func runRemote(cmd, port9p string) error {
 // We do flag parsing in init so we can
 // Unshare if needed while we are still
 // single threaded.
+// Note that we can't run tets, dammit, because you can not call flag.Parse() from init,
+// but we really need to b/c unshare etc. are broken in earlier versions of go.
 func init() {
 	flag.Parse()
 	if *runAsInit && *remote {
@@ -368,7 +380,7 @@ func doInit() error {
 		if err := cpuSetup(); err != nil {
 			log.Printf("CPUD:CPU setup error with cpu running as init: %v", err)
 		}
-		cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-v"}}
+		cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-v", "--retry", "1000"}}
 		verbose("Try to run %v", cmds)
 
 		for _, v := range cmds {
