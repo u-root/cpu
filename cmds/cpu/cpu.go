@@ -412,9 +412,12 @@ func main() {
 	}
 	host := args[0]
 	a := strings.Join(args[1:], " ")
-	verbose("Running as client")
-	if a == "" {
+	verbose("Running as client, to host %q, args %q", host, a)
+	if len(a) == 0 {
 		a = os.Getenv("SHELL")
+		if len(a) == 0 {
+			a = "/bin/sh"
+		}
 	}
 	t, err := termios.GetTermios(0)
 	if err != nil {
