@@ -97,6 +97,43 @@ cpu server may run as root, but all file accesses happen locally as you. Hence,
 the cpu command does not grant greater access to the local machine than you already possess. 
 I.e., there is no privilege escalation.
 
+## cpu and Docker
+
+Maintaining file system images is inconvenient.
+We can use Docker containers on remote hosts instead.
+We can take a standard Docker container and, with suitable options, use docker
+to start the container with cpu as the first program it runs.
+
+That means we can use any Docker image, on any architecture, at any time; and
+we can even run more than one at a time, since the namespaces are private.
+
+In this example, we are starting a standard Ubuntu image:
+```
+docker run -v /home/rminnich:/home/rminnich -v /home/rminnich/.ssh:/root/.ssh -v /etc/hosts:/etc/hosts --entrypoint /home/rminnich/go/bin/cpu -it ubuntu@sha256:073e060cec31fed4a86fcd45ad6f80b1f135109ac2c0b57272f01909c9626486 h
+Unable to find image 'ubuntu@sha256:073e060cec31fed4a86fcd45ad6f80b1f135109ac2c0b57272f01909c9626486' locally
+docker.io/library/ubuntu@sha256:073e060cec31fed4a86fcd45ad6f80b1f135109ac2c0b57272f01909c9626486: Pulling from library/ubuntu
+a9ca93140713: Pull complete
+Digest: sha256:073e060cec31fed4a86fcd45ad6f80b1f135109ac2c0b57272f01909c9626486
+Status: Downloaded newer image for ubuntu@sha256:073e060cec31fed4a86fcd45ad6f80b1f135109ac2c0b57272f01909c9626486
+WARNING: The requested image's platform (linux/arm64/v8) does not match the detected host platform (linux/amd64) and no specific platform was requested
+1970/01/01 21:37:32 CPUD:Warning: mounting /tmp/cpu/lib64 on /lib64 failed: no such file or directory
+# ls
+bbin  buildbin	env  go    init     lib    proc  tcz  ubin  var
+bin   dev	etc  home  key.pub  lib64  sys	 tmp  usr
+#
+```
+
+Note that the image was updated and then started. The /lib64 mount fails, because there is no /lib64 directory in the image, but
+that is harmless.
+
+On the local host, on which we ran docker, this image will show up in docker ps:
+```rminnich@a300:~$ docker ps
+CONTAINER ID   IMAGE     COMMAND                  CREATED         STATUS         PORTS     NAMES
+b92a3576229b   ubuntu    "/home/rminnich/go/b…"   9 seconds ago   Up 9 seconds             inspiring_mcnulty
+````
+
+Even though the binaries themselves are running on the remote ARM system.
+
 ## Summary
 The cpu command makes using small embedded systems dramatically easier. There is no need to install
 a distro, or juggle distros; there is no need to scp files back and forth; just run commands
