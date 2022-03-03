@@ -15,6 +15,7 @@ require (
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/creack/pty v1.1.11 // indirect
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/klauspost/compress v1.10.6 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
 	github.com/u-root/uio v0.0.0-20210528114334-82958018845c // indirect

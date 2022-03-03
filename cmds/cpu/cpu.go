@@ -45,6 +45,7 @@ var (
 	debug       = flag.Bool("d", false, "enable debug prints")
 	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
 	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
+	fstab       = flag.String("fstab", "", "pass an fstab to the cpud")
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	keyFile     = flag.String("key", "", "key file")
 	mountopts   = flag.String("mountopts", "", "Extra options to add to the 9p mount")
@@ -203,16 +204,26 @@ func runClient(host, a, port, key string) error {
 	return nil
 }
 
-func env(s *ossh.Session, envs ...string) {
+func env(s *ossh.Session, envs ...string) error {
 	for _, v := range append(os.Environ(), envs...) {
 		env := strings.SplitN(v, "=", 2)
 		if len(env) == 1 {
 			env = append(env, "")
 		}
 		if err := s.Setenv(env[0], env[1]); err != nil {
-			log.Printf("Warning: s.Setenv(%q, %q): %v", v, os.Getenv(v), err)
+			return fmt.Errorf("Warning: s.Setenv(%q, %q): %v", v, os.Getenv(v), err)
 		}
 	}
+	if len(*fstab) > 0 {
+		b, err := ioutil.ReadFile(*fstab)
+		if err != nil {
+			return fmt.Errorf("Reading fstab: %w", err)
+		}
+		if err := s.Setenv("CPU_FSTAB", string(b)); err != nil {
+			return fmt.Errorf("Warning: s.Setenv(%q, %q): %v", "CPU_FSTAB", string(b), err)
+		}
+	}
+	return nil
 }
 
 func stdin(s *ossh.Session, w io.WriteCloser, r io.Reader) {
@@ -283,7 +294,9 @@ func shell(client *ossh.Client, cmd string, envs ...string) error {
 		return err
 	}
 	defer session.Close()
-	env(session, envs...)
+	if err := env(session, envs...); err != nil {
+		return err
+	}
 	// Set up terminal modes
 	modes := ossh.TerminalModes{
 		ossh.ECHO:          0,     // disable echoing
