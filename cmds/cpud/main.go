@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
+	"github.com/hashicorp/go-multierror"
 	"github.com/kr/pty" // TODO: get rid of krpty
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
@@ -42,7 +44,6 @@ var (
 	v         = func(string, ...interface{}) {}
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
 	network   = flag.String("network", "tcp", "network to use")
-	keyFile   = flag.String("key", filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa"), "key file")
 	bin       = flag.String("bin", "cpu", "path of cpu binary")
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	dbg9p     = flag.String("dbg9p", "0", "show 9p io")
@@ -87,6 +88,54 @@ func buildCmd(cmd string) []string {
 		}
 	}
 	return strings.Fields(cmd)
+}
+
+// fstab makes a best-case effort to mount the mounts passed in a
+// string formatted to the fstab standard.
+// Callers should not die on a returned error,
+// but be left in a situation in which further diagnostics are possible.
+// i.e, follow the "Boots not Bricks" principle.
+func fstab(t string) error {
+	var result error
+
+	var lineno int
+	s := bufio.NewScanner(strings.NewReader(t))
+	for s.Scan() {
+		lineno++
+		l := s.Text()
+		if strings.HasPrefix(l, "#") {
+			continue
+		}
+		f := strings.Fields(l)
+		// fstab is historical, pretty free format.
+		// Users may have dropped a random fstab in and we need
+		// to be forgiving.
+		// The last two fields no longer have any meaning or use.
+		if len(f) < 6 {
+			continue
+		}
+
+		// fstab fields:
+		// /dev/disk/by-uuid/c0d2b09d-5330-4d08-a787-6e0e95592bf3 /boot ext4 defaults 0 0
+		// what to mount, where to mount, fstype, options
+		// Note that flags are old school, binary numbers, and we're hoping to avoid them.
+		// We do need NOT to set MS_PRIVATE, since we've done a successful unshare.
+		// This note is here in case someone gets confused in the future.
+		// If you set this flag to MS_PRIVATE, on some file systems, you'll get an EINVAL.
+		var flags uintptr // = uintptr(unix.MS_PRIVATE)
+		dev, where, fstype, opts := f[0], f[1], f[2], f[3]
+		// The man page implies that the Linux kernel handles flags of "defaults"
+		// we do no further manipulation of opts.
+		v("Line %d: Try to mount %q(%q)", lineno, l, f)
+		if err := os.MkdirAll(where, 0666); err != nil && !os.IsExist(err) {
+			result = multierror.Append(result, err)
+			continue
+		}
+		if err := unix.Mount(dev, where, fstype, flags, opts); err != nil {
+			result = multierror.Append(result, fmt.Errorf("Mount(%q, %q, %q, %#x, %q): %v", dev, where, fstype, flags, opts, err))
+		}
+	}
+	return result
 }
 
 // start up a namespace. We must
@@ -209,6 +258,24 @@ func runRemote(cmd, port9p string) error {
 		}
 	}
 	v("CPUD: bind mounts done")
+
+	// The CPU_FSTAB environment variable is, literally, an fstab.
+	// Why an environment variable and not a file? We do not
+	// want to require any 9p mounts at all. People should be able
+	// to do this:
+	// CPU_NAMESPACE="" CPU_FSTAB=`cat fstab`
+	// and get the mounts they want. The first uses of this will
+	// be building namespaces with drive and virtiofs.
+	if s, ok := os.LookupEnv("CPU_FSTAB"); ok {
+		if err := fstab(s); err != nil {
+			v("CPUD: fstab mount failure: %v", err)
+			// Should we die if the mounts fail? For now, we think not;
+			// the user may be able to debug if they have a non-empty
+			// CPU_NAMESPACE. Just record that it failed.
+			fail = true
+		}
+	}
+
 	if fail && len(*wtf) != 0 {
 		c := exec.Command(*wtf)
 		c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, "/"
