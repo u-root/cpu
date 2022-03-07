@@ -277,6 +277,12 @@ func shell(client *ossh.Client, cmd string, envs ...string) error {
 	if err != nil {
 		return err
 	}
+	w, err := t.GetWinSize()
+	if err != nil {
+		log.Printf("Can not get winsize: %v; assuming 40x80", err)
+		w.Row = 40
+		w.Col = 80
+	}
 	r, err := t.Raw()
 	if err != nil {
 		return err
@@ -304,7 +310,7 @@ func shell(client *ossh.Client, cmd string, envs ...string) error {
 		ossh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
 	}
 	// Request pseudo terminal
-	if err := session.RequestPty("ansi", 40, 80, modes); err != nil {
+	if err := session.RequestPty("ansi", int(w.Row), int(w.Col), modes); err != nil {
 		log.Fatal("request for pseudo terminal failed: ", err)
 	}
 	i, err := session.StdinPipe()
