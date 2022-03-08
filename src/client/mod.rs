@@ -203,6 +203,3 @@ fn configure_session(session: &mut Session, params: &HostParams) {
     }
 }
 
-fn read_secret(prompt: &str) -> String {
-    rpassword::read_password_from_tty(Some(prompt)).expect("Failed to read from stdin")
-}
