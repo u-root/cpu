@@ -3,11 +3,12 @@ extern crate futures;
 extern crate thrussh;
 extern crate thrussh_keys;
 extern crate tokio;
+use anyhow::Result;
 use futures::Future;
 use std::io::{Read, Write};
 use std::sync::Arc;
 use thrussh::*;
-use thrussh::server::{Auth, Session};
+// use thrussh::server::{Auth, Session};
 use thrussh_keys::*;
 
 struct Client {}
@@ -55,6 +56,80 @@ impl client::Handler for Client {
     */
 }
 
+// from https://nest.pijul.com/pijul/thrussh/discussions/20
+pub struct Session {
+    session: client::Handle<Client>,
+}
+
+impl Session {
+    async fn connect(
+        key_file: &str,
+        user: impl Into<String>,
+        addr: impl std::net::ToSocketAddrs,
+    ) -> Result<Self> {
+        let key_pair = thrussh_keys::load_secret_key(key_file, None)?;
+        // TODO: import openssl for RSA key support
+        /*
+        let key_pair = key::KeyPair::RSA {
+            key: openssl::rsa::Rsa::private_key_from_pem(pem)?,
+            hash: key::SignatureHash::SHA2_512,
+        };
+        */
+        let config = client::Config::default();
+        let config = Arc::new(config);
+        let sh = Client {};
+        let mut agent = agent::client::AgentClient::connect_env().await?;
+        agent.add_identity(&key_pair, &[]).await?;
+        let mut identities = agent.request_identities().await?;
+        let mut session = client::connect(config, addr, sh).await?;
+        let pubkey = identities.pop().unwrap();
+        let (_, auth_res) = session.authenticate_future(user, pubkey, agent).await;
+        let _auth_res = auth_res?;
+        Ok(Self { session })
+    }
+
+    async fn call(&mut self, command: &str) -> Result<CommandResult> {
+        let mut channel = self.session.channel_open_session().await?;
+        channel.exec(true, command).await?;
+        let mut output = Vec::new();
+        let mut code = None;
+        while let Some(msg) = channel.wait().await {
+            match msg {
+                thrussh::ChannelMsg::Data { ref data } => {
+                    output.write_all(&data).unwrap();
+                }
+                thrussh::ChannelMsg::ExitStatus { exit_status } => {
+                    code = Some(exit_status);
+                }
+                _ => {}
+            }
+        }
+        Ok(CommandResult { output, code })
+    }
+
+    async fn close(&mut self) -> Result<()> {
+        self.session
+            .disconnect(Disconnect::ByApplication, "", "English")
+            .await?;
+        Ok(())
+    }
+}
+
+struct CommandResult {
+    output: Vec<u8>,
+    code: Option<u32>,
+}
+
+impl CommandResult {
+    fn output(&self) -> String {
+        String::from_utf8_lossy(&self.output).into()
+    }
+
+    fn success(&self) -> bool {
+        self.code == Some(0)
+    }
+}
+
 #[tokio::main]
 pub async fn ssh() {
     let host = "localhost:22";
@@ -69,29 +144,9 @@ pub async fn ssh() {
         }
     }
 
-    let config = thrussh::client::Config::default();
-    let config = Arc::new(config);
-    let sh = Client {};
-
-    // let key = thrussh_keys::key::KeyPair::generate_ed25519().unwrap();
-    let key = thrussh_keys::load_secret_key(key_file, None).unwrap();
-    println!("key: {:?}", key.public_key_base64());
-    let mut agent = thrussh_keys::agent::client::AgentClient::connect_env()
-        .await
-        .unwrap();
-    agent.add_identity(&key, &[]).await.unwrap();
-    let mut session = thrussh::client::connect(config, host, sh).await.unwrap();
-    if session
-        .authenticate_future(user, key.clone_public_key(), agent)
-        .await
-        .1
-        .unwrap()
-    {
-        let mut channel = session.channel_open_session().await.unwrap();
-        channel.exec(false, "ls").await.unwrap();
-        // channel.data(&b"Hello, world!"[..]).await.unwrap();
-        if let Some(msg) = channel.wait().await {
-            println!("{:?}", msg)
-        }
-    }
+    let mut ssh = Session::connect(key_file, user, host).await.unwrap();
+    let r = ssh.call("whoami").await.unwrap();
+    assert!(r.success());
+    println!("Who am I, anyway? {:?}", r.output());
+    ssh.close().await.unwrap();
 }
