@@ -57,7 +57,11 @@ pub fn client() {
     };
     // Open config file
     let config = read_config(config_path.as_path());
+    println!("Config file: {:?}", config);
+    
     let params = config.query(address.as_str());
+    println!("Params: {:?}", params);
+    
     connect(address.as_str(), &params);
 }
 
@@ -145,9 +149,10 @@ fn connect(host: &str, params: &HostParams) {
         line.clone()
      }
     };
-    let password = read_secret("Password: ");
-    if let Err(err) = session.userauth_password(username.as_str(), password.as_str()) {
-        panic!("Authentication failed: {}", err);
+    for i in (params.identity_file.as_ref()).unwrap().iter() {
+        if let Ok(_) = session.userauth_pubkey_file(&username, None, i, None) {
+            break;
+        }
     }
     if let Some(banner) = session.banner() {
         println!("{}", banner);
