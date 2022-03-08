@@ -131,7 +131,7 @@ impl CommandResult {
 }
 
 #[tokio::main]
-pub async fn ssh() {
+pub async fn ssh() -> Result<()> {
     let host = "localhost:22";
     let key_file = "/home/dama/.ssh/id_ed25519";
 
@@ -144,9 +144,10 @@ pub async fn ssh() {
         }
     }
 
-    let mut ssh = Session::connect(key_file, user, host).await.unwrap();
-    let r = ssh.call("whoami").await.unwrap();
+    let mut ssh = Session::connect(key_file, user, host).await?;
+    let r = ssh.call("whoami").await?;
     assert!(r.success());
     println!("Who am I, anyway? {:?}", r.output());
-    ssh.close().await.unwrap();
+    ssh.close().await?;
+    Ok(())
 }
