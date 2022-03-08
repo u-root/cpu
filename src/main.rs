@@ -1,4 +1,4 @@
 pub mod client;
-fn main(){
-    client::ssh()
+fn main() {
+    client::ssh().unwrap()
 }
