@@ -137,8 +137,13 @@ fn connect(host: &str, params: &HostParams) {
         Some(u) => {
             println!("Using username '{}'", u);
             u.clone()
-        }
-        None => read_secret("Username: "),
+        },
+        None =>  {
+        // reads until a \n is encountered
+        println!("User:");
+        let line: String = read!("{}\n");
+        line.clone()
+     }
     };
     let password = read_secret("Password: ");
     if let Err(err) = session.userauth_password(username.as_str(), password.as_str()) {
