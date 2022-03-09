@@ -164,7 +164,7 @@ func runRemote(cmd, port9p string) error {
 		}
 	}
 
-	bindover := "/lib:/lib64:/usr:/bin:/etc:/home"
+	var bindover string
 	if s, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
 		bindover = s
 	}
