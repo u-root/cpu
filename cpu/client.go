@@ -27,8 +27,9 @@ const (
 	// we would like to default to 100ms. This is a lot, considering that at this point,
 	// the sshd has forked a server for us and it's waiting to be
 	// told what to do.
-	defaultTimeOut = time.Duration(100 * time.Millisecond)
-	defaultPort    = "23"
+	defaultTimeOut   = time.Duration(100 * time.Millisecond)
+	defaultPort      = "23"
+	DefaultNameSpace = "/lib:/lib64:/usr:/bin:/etc:/home"
 )
 
 // V allows debug printing.
@@ -56,6 +57,8 @@ type Cmd struct {
 	Stdin          io.WriteCloser
 	Stdout         io.Reader
 	Stderr         io.Reader
+	// NameSpace is a string as defined in the cpu documentation.
+	NameSpace string
 
 	nonce   nonce
 	network string // This is a variable but we expect it will always be tcp
@@ -87,6 +90,15 @@ func Command(host string, args ...string) *Cmd {
 		// The command, always, at least, starts with "cpu"
 		cmd: "cpud -remote -bin cpud",
 	}
+}
+
+// WithNameSpace adds a namespace to Cmd. There is no default: having some default
+// violates the principle of least surprise for package users.
+// The word "none" is reserved to mean the package will not set the
+// CPU_NAMESPACE environment variable.
+func (c *Cmd) WithNameSpace(ns string) *Cmd {
+	c.NameSpace = ns
+	return c
 }
 
 // WithPrivateKeyFile adds a private key file to a Cmd
@@ -144,10 +156,6 @@ func (c *Cmd) Dial() error {
 	if len(c.Root) == 0 {
 		return nil
 	}
-	// If the namespace is empty, a nameserver won't be started
-	if _, ok := os.LookupEnv("CPU_NAMESPACE"); !ok {
-		return fmt.Errorf("Root is set to %q but there is no CPU_NAMESPACE", c.Root)
-	}
 
 	// Arrange port forwarding from remote ssh to our server.
 	// Request the remote side to open port 5640 on all interfaces.
@@ -175,6 +183,9 @@ func (c *Cmd) Dial() error {
 		log.Fatalf("Getting nonce: %v", err)
 	}
 	c.Env = append(c.Env, "CPUNONCE="+nonce.String())
+	if c.NameSpace != "none" {
+		c.Env = append(c.Env, "CPU_NAMESPACE="+c.NameSpace)
+	}
 	c.nonce = nonce
 	go c.srv(l)
 	return nil
