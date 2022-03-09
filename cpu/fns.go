@@ -66,15 +66,26 @@ func (n nonce) String() string {
 // UserKeyConfig sets up authentication for a User Key.
 // It is required in almost all cases.
 func (c *Cmd) UserKeyConfig() error {
-	keyFile := c.PrivateKeyFile
-	key, err := ioutil.ReadFile(keyFile)
+	kf := c.PrivateKeyFile
+	if len(kf) == 0 {
+		kf = config.Get(c.Host, "IdentityFile")
+		V("key file from config is %q", kf)
+		if len(kf) == 0 {
+			kf = DefaultKeyFile
+		}
+	}
+	// The kf will always be non-zero at this point.
+	if strings.HasPrefix(kf, "~/") {
+		kf = filepath.Join(os.Getenv("HOME"), kf[1:])
+	}
+	key, err := ioutil.ReadFile(kf)
 	if err != nil {
-		return fmt.Errorf("unable to read private key %v: %v", keyFile, err)
+		return fmt.Errorf("unable to read private key %q: %v", kf, err)
 	}
 
 	signer, err := ssh.ParsePrivateKey(key)
 	if err != nil {
-		return fmt.Errorf("ParsePrivateKey %v: %v", keyFile, err)
+		return fmt.Errorf("ParsePrivateKey %q: %v", kf, err)
 	}
 	c.config.Auth = append(c.config.Auth, ssh.PublicKeys(signer))
 	return nil
