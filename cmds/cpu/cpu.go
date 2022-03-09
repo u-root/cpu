@@ -446,7 +446,7 @@ func newCPU(host string, args ...string) error {
 	if err := c.Start(); err != nil {
 		return fmt.Errorf("Start: got %v, want nil", err)
 	}
-	if _, err := c.Stdin.Write([]byte("ls -l\n")); err != nil {
+	if _, err := c.Stdin.Write([]byte(strings.Join(args, " ") + "\n")); err != nil {
 		log.Printf("Write: %v", err)
 	}
 	if err := c.Stdin.Close(); err != nil {
