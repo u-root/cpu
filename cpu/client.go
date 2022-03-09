@@ -158,36 +158,36 @@ func (c *Cmd) Dial() error {
 	}
 
 	// Arrange port forwarding from remote ssh to our server.
-	// Request the remote side to open port 5640 on all interfaces.
-	// Note: cl.Listen returns a TCP listener with network is "tcp"
+	// Note: cl.Listen returns a TCP listener with network "tcp"
 	// or variants. This lets us use a listen deadline.
-	l, err := cl.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return fmt.Errorf("cpu client listen for forwarded 9p port %v", err)
-	}
-	V("ssh.listener %v", l.Addr().String())
-	ap := strings.Split(l.Addr().String(), ":")
-	if len(ap) == 0 {
-		return fmt.Errorf("Can't find a port number in %v", l.Addr().String())
-	}
-	port9p, err := strconv.ParseUint(ap[len(ap)-1], 0, 16)
-	if err != nil {
-		return fmt.Errorf("Can't find a 16-bit port number in %v", l.Addr().String())
-	}
-	c.port9p = uint16(port9p)
-
-	V("listener %T %v addr %v port %v", l, l, l.Addr().String(), port9p)
-
-	nonce, err := generateNonce()
-	if err != nil {
-		log.Fatalf("Getting nonce: %v", err)
-	}
-	c.Env = append(c.Env, "CPUNONCE="+nonce.String())
 	if c.NameSpace != "none" {
+		l, err := cl.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return fmt.Errorf("cpu client listen for forwarded 9p port %v", err)
+		}
+		V("ssh.listener %v", l.Addr().String())
+		ap := strings.Split(l.Addr().String(), ":")
+		if len(ap) == 0 {
+			return fmt.Errorf("Can't find a port number in %v", l.Addr().String())
+		}
+		port9p, err := strconv.ParseUint(ap[len(ap)-1], 0, 16)
+		if err != nil {
+			return fmt.Errorf("Can't find a 16-bit port number in %v", l.Addr().String())
+		}
+		c.port9p = uint16(port9p)
+
+		V("listener %T %v addr %v port %v", l, l, l.Addr().String(), port9p)
+
+		nonce, err := generateNonce()
+		if err != nil {
+			log.Fatalf("Getting nonce: %v", err)
+		}
+		c.nonce = nonce
+		c.Env = append(c.Env, "CPUNONCE="+nonce.String())
 		c.Env = append(c.Env, "CPU_NAMESPACE="+c.NameSpace)
+		go c.srv(l)
 	}
-	c.nonce = nonce
-	go c.srv(l)
+
 	return nil
 }
 
