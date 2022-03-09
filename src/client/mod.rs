@@ -58,10 +58,10 @@ pub fn client() {
     // Open config file
     let config = read_config(config_path.as_path());
     println!("Config file: {:?}", config);
-    
+
     let params = config.query(address.as_str());
     println!("Params: {:?}", params);
-    
+
     connect(address.as_str(), &params);
 }
 
@@ -141,13 +141,14 @@ fn connect(host: &str, params: &HostParams) {
         Some(u) => {
             println!("Using username '{}'", u);
             u.clone()
+        }
+        None => match std::env::var("USER") {
+            Ok(val) => val,
+            Err(e) => {
+                println!("No USER env variable and no user in .ssh/config (consider using %i in .config)");
+                exit(1)
+            }
         },
-        None =>  {
-        // reads until a \n is encountered
-        println!("User:");
-        let line: String = read!("{}\n");
-        line.clone()
-     }
     };
     for i in (params.identity_file.as_ref()).unwrap().iter() {
         if let Ok(_) = session.userauth_pubkey_file(&username, None, i, None) {
@@ -202,4 +203,3 @@ fn configure_session(session: &mut Session, params: &HostParams) {
         }
     }
 }
-
