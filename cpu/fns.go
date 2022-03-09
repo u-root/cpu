@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	// We use this ssh because it implements port redirection.
@@ -190,7 +189,7 @@ func GetHostName(host string) string {
 // The rules here are messy, since config.Get will return "22" if
 // there is no entry in .ssh/config. 22 is not allowed. So in the case
 // of "22", convert to defaultPort.
-func GetPort(host, port string) (uint16, error) {
+func GetPort(host, port string) (string, error) {
 	p := port
 	V("getPort(%q, %q)", host, port)
 	if len(port) == 0 {
@@ -204,8 +203,7 @@ func GetPort(host, port string) (uint16, error) {
 		V("getPort: return default %q", p)
 	}
 	V("returns %q", p)
-	pn, err := strconv.ParseUint(p, 0, 16)
-	return uint16(pn), err
+	return p, nil
 }
 
 // Signal implements ssh.Signal
