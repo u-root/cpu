@@ -26,14 +26,13 @@ import (
 
 	// TODO: get rid of krpty
 	config "github.com/kevinburke/ssh_config"
+	"github.com/u-root/cpu/cpu"
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 
 	// We use this ssh because it can unpack password-protected private keys.
 	ossh "golang.org/x/crypto/ssh"
 )
-
-const defaultPort = "23"
 
 // a nonce is a [32]byte containing only printable characters, suitable for use as a string
 type nonce [32]byte
@@ -52,11 +51,13 @@ var (
 	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
 	msize       = flag.Int("msize", 1048576, "msize to use")
 	network     = flag.String("network", "tcp", "network to use")
-	port        = flag.String("sp", "", "cpu default port")
+	port        = flag.String("sp", cpu.DefaultPort, "cpu default port")
 	port9p      = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 
+	// this is temporary until the package version is done.
+	old        = flag.Bool("old", true, "Use the old pre-package or the new version")
 	v          = func(string, ...interface{}) {}
 	pid1       bool
 	dumpWriter *os.File
@@ -411,7 +412,7 @@ func getPort(host, port string) string {
 		}
 	}
 	if len(p) == 0 || p == "22" {
-		p = defaultPort
+		p = cpu.DefaultPort
 		v("getPort: return default %q", p)
 	}
 	v("returns %q", p)
@@ -427,6 +428,39 @@ func usage() {
 	log.Fatalf("Usage: cpu [options] host [shell command]:\n%v", b.String())
 }
 
+func newCPU(host string, args ...string) error {
+	cpu.V = v
+	// From this test forward, at least try to get a port.
+	// For this test, there must be a key.
+
+	c := cpu.Command(host, args...).WithPrivateKeyFile(*keyFile).WithPort(*port).WithRoot(*root).WithNameSpace(*namespace)
+	if err := c.Dial(); err != nil {
+		return fmt.Errorf("Dial: got %v, want nil", err)
+	}
+	defer func(c *cpu.Cmd) {
+		if err := c.Close(); err != nil {
+			log.Printf("Close: got %v, want nil", err)
+		}
+	}(c)
+
+	if err := c.Start(); err != nil {
+		return fmt.Errorf("Start: got %v, want nil", err)
+	}
+	if _, err := c.Stdin.Write([]byte("ls -l\n")); err != nil {
+		log.Printf("Write: %v", err)
+	}
+	if err := c.Stdin.Close(); err != nil {
+		log.Printf("Close stdin: Got %v, want nil", err)
+	}
+	if err := c.Wait(); err != nil {
+		return fmt.Errorf("Wait: got %v, want nil", err)
+	}
+
+	r, err := c.Outputs()
+	log.Printf("c.Run: (%v, %q, %q)", err, r[0].String(), r[1].String())
+	return err
+}
+
 func main() {
 	flags()
 	args := flag.Args()
@@ -434,6 +468,13 @@ func main() {
 		usage()
 	}
 	host := args[0]
+	if *old == false {
+		if err := newCPU(host, args[1:]...); err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}
+
 	a := strings.Join(args[1:], " ")
 	verbose("Running as client, to host %q, args %q", host, a)
 	if len(a) == 0 {
