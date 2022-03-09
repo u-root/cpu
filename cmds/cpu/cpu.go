@@ -49,6 +49,7 @@ var (
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	keyFile     = flag.String("key", "", "key file")
 	mountopts   = flag.String("mountopts", "", "Extra options to add to the 9p mount")
+	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
 	msize       = flag.Int("msize", 1048576, "msize to use")
 	network     = flag.String("network", "tcp", "network to use")
 	port        = flag.String("sp", "", "cpu default port")
@@ -154,15 +155,12 @@ func runClient(host, a, port, key string) error {
 	if err != nil {
 		return err
 	}
-	// Special case: maybe we don't want a namespace. If so, we don't need
-	// to open up the socket.
-	wantNameSpace := true
-	if n, ok := os.LookupEnv("CPU_NAMESPACE"); ok && len(n) == 0 {
-		wantNameSpace = false
-	}
 
 	var env []string
 	cmd := fmt.Sprintf("%v -remote -bin %v", *bin, *bin)
+
+	_, wantNameSpace := os.LookupEnv("CPU_NAMESPACE")
+	wantNameSpace = wantNameSpace || *namespace != "none"
 	if wantNameSpace {
 		// From setting up the forward to having the nonce written back to us,
 		// we only allow 100ms. This is a lot, considering that at this point,
@@ -212,6 +210,12 @@ func env(s *ossh.Session, envs ...string) error {
 		}
 		if err := s.Setenv(env[0], env[1]); err != nil {
 			return fmt.Errorf("Warning: s.Setenv(%q, %q): %v", v, os.Getenv(v), err)
+		}
+	}
+	// N.B.: This will override CPU_NAMESPACE.
+	if *namespace != "none" {
+		if err := s.Setenv("CPU_NAMESPACE", *namespace); err != nil {
+			return fmt.Errorf("Warning: s.Setenv(%q, %q): %v", "CPU_NAMESPACE", *namespace, err)
 		}
 	}
 	if len(*fstab) > 0 {
