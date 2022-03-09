@@ -68,14 +68,14 @@ Host apu2
 	for _, test := range []struct {
 		host string
 		port string
-		want uint16
+		want string
 	}{
 		// Can't really test this atm.
 		//{"apu2", "", "2222"},
-		{"apu2", "23", 23},
+		{"apu2", "23", "23"},
 		// This test ensures we never default to port 22
-		{"bogus", "", 23},
-		{"bogus", "2222", 2222},
+		{"bogus", "", "23"},
+		{"bogus", "2222", "2222"},
 	} {
 		got, err := GetPort(test.host, test.port)
 		if err != nil {
@@ -110,7 +110,7 @@ func TestDialNoAuth(t *testing.T) {
 
 // hostkeyport looks up a host, key, port triple.
 // failure is not an option.
-func hostkeyport() (host string, key string, port uint16, err error) {
+func hostkeyport() (host string, key string, port string, err error) {
 	h := "cputest"
 	host = GetHostName(h)
 	if len(host) == 0 {
@@ -141,7 +141,12 @@ func TestDialAuth(t *testing.T) {
 
 	c := Command(h, "ls", "-l")
 	c.PrivateKeyFile = k
-	c.Port = p
+	if err := c.SetPort(""); err != nil {
+		t.Fatalf("c.SetPort(\"\"): %v != nil", err)
+	}
+	if c.Port != p {
+		t.Fatalf("c.Port(%v) != port(%v)", c.Port, p)
+	}
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)
 	}

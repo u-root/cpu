@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ const (
 	// the sshd has forked a server for us and it's waiting to be
 	// told what to do.
 	defaultTimeOut = time.Duration(100 * time.Millisecond)
-	defaultPort    = 23
+	defaultPort    = "23"
 )
 
 // V allows debug printing.
@@ -49,7 +50,7 @@ type Cmd struct {
 	Root           string
 	HostKeyFile    string
 	PrivateKeyFile string
-	Port           uint16
+	Port           string
 	Timeout        time.Duration
 	Env            []string
 	Stdin          io.WriteCloser
@@ -101,7 +102,7 @@ func (c *Cmd) WithHostKeyFile(key string) *Cmd {
 }
 
 // WithPort adds a port to a Cmd
-func (c *Cmd) WithPort(port uint16) *Cmd {
+func (c *Cmd) WithPort(port string) *Cmd {
 	c.Port = port
 	return c
 }
@@ -112,6 +113,15 @@ func (c *Cmd) WithRoot(root string) *Cmd {
 	return c
 }
 
+func (c *Cmd) SetPort(port string) error {
+	c.Port = port
+	p, err := GetPort(c.HostName, c.Port)
+	if err == nil {
+		c.Port = p
+	}
+	return err
+}
+
 // Dial implements ssh.Dial for cpu.
 // Additionaly, if Cmd.Root is not "", it
 // starts up a server for 9p requests.
@@ -119,7 +129,7 @@ func (c *Cmd) Dial() error {
 	if err := c.UserKeyConfig(); err != nil {
 		return err
 	}
-	addr := fmt.Sprintf("%s:%d", c.HostName, c.Port)
+	addr := net.JoinHostPort(c.HostName, c.Port)
 	cl, err := ssh.Dial(c.network, addr, &c.config)
 	V("cpu:ssh.Dial(%s, %s, %v): (%v, %v)", c.network, addr, c.config, cl, err)
 	if err != nil {
