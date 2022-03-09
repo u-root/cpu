@@ -42,7 +42,9 @@ type Cmd struct {
 	// CPU-specific options.
 	// As in exec.Command, these controls are exposed and can
 	// be set directly.
-	Host           string
+	Host string
+	// HostName as found in .ssh/config; set to Host if not found
+	HostName       string
 	Args           []string
 	Root           string
 	HostKeyFile    string
@@ -64,22 +66,16 @@ type Cmd struct {
 // The args arg args to $SHELL. If there are no args, then starting $SHELL
 // is assumed.
 func Command(host string, args ...string) *Cmd {
-	// TODO: use lookpath, or something like it, but
-	// such a test will need awareness of CPU_NAMESPACE
-	// n, err := exec.LookPath(cmd)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// By convention, if there are no args, then the remote
-	// command is the user's shell
 	if len(args) == 0 {
 		args = []string{os.Getenv("SHELL")}
 	}
+
 	return &Cmd{
-		Host:    host,
-		Args:    args,
-		Port:    defaultPort,
-		Timeout: defaultTimeOut,
+		Host:     host,
+		HostName: GetHostName(host),
+		Args:     args,
+		Port:     defaultPort,
+		Timeout:  defaultTimeOut,
 		config: ssh.ClientConfig{
 			User:            os.Getenv("USER"),
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -123,7 +119,7 @@ func (c *Cmd) Dial() error {
 	if err := c.UserKeyConfig(); err != nil {
 		return err
 	}
-	addr := fmt.Sprintf("%s:%d", c.Host, c.Port)
+	addr := fmt.Sprintf("%s:%d", c.HostName, c.Port)
 	cl, err := ssh.Dial(c.network, addr, &c.config)
 	V("cpu:ssh.Dial(%s, %s, %v): (%v, %v)", c.network, addr, c.config, cl, err)
 	if err != nil {
