@@ -113,6 +113,9 @@ func (c *Cmd) WithRoot(root string) *Cmd {
 	return c
 }
 
+// SetPort sets the port in the Cmd.
+// It calls GetPort with the passed-in port
+// before assigning it.
 func (c *Cmd) SetPort(port string) error {
 	c.Port = port
 	p, err := GetPort(c.HostName, c.Port)
