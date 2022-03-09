@@ -112,6 +112,14 @@ func (c *Cmd) WithRoot(root string) *Cmd {
 	return c
 }
 
+func (c *Cmd) SetPort(port string) error {
+	p, err := GetPort(c.HostName, port)
+	if err == nil {
+		c.Port = p
+	}
+	return err
+}
+
 // Dial implements ssh.Dial for cpu.
 // Additionaly, if Cmd.Root is not "", it
 // starts up a server for 9p requests.

@@ -141,7 +141,12 @@ func TestDialAuth(t *testing.T) {
 
 	c := Command(h, "ls", "-l")
 	c.PrivateKeyFile = k
-	c.Port = p
+	if err := c.SetPort(""); err != nil {
+		t.Fatalf("c.SetPort(\"\"): %v != nil", err)
+	}
+	if c.Port != p {
+		t.Fatalf("c.Port(%d) != port(%d)", c.Port, p)
+	}
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)
 	}
