@@ -13,3 +13,7 @@
 
 # Building for u-root generates directory .bb, we dont want that duplicate
 *.bb
+
+# Added by cargo
+
+/target
