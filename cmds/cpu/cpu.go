@@ -131,21 +131,6 @@ func configSSH(kf string) (*ossh.ClientConfig, error) {
 	return config, nil
 }
 
-func cmd(client *ossh.Client, s string) ([]byte, error) {
-	session, err := client.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create session: %v", err)
-	}
-	defer session.Close()
-
-	var b bytes.Buffer
-	session.Stdout = &b
-	if err := session.Run(s); err != nil {
-		return nil, fmt.Errorf("Failed to run %v: %v", s, err.Error())
-	}
-	return b.Bytes(), nil
-}
-
 // To make sure defer gets run and you tty is sane on exit
 func runClient(host, a, port, key string) error {
 	c, err := configSSH(key)
