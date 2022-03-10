@@ -126,9 +126,7 @@ func hostkeyport() (host string, key string, port string, err error) {
 }
 
 func TestDialAuth(t *testing.T) {
-	if _, ok := os.LookupEnv("CPU_NAMESPACE"); !ok {
-		t.Skipf("Skipping this test as CPU_NAMESPACE is not set; suggest '/lib:/lib64:/usr:/bin:/etc'")
-	}
+	t.Skipf("Figure out how to set up a cpud for this test")
 	h, k, p, err := hostkeyport()
 	if len(h) == 0 {
 		t.Skip()
@@ -139,7 +137,7 @@ func TestDialAuth(t *testing.T) {
 	// From this test forward, at least try to get a port.
 	// For this test, there must be a key.
 
-	c := Command(h, "ls", "-l")
+	c := Command(h, "ls", "-l").WithNameSpace(DefaultNameSpace)
 	c.PrivateKeyFile = k
 	if err := c.SetPort(""); err != nil {
 		t.Fatalf("c.SetPort(\"\"): %v != nil", err)
@@ -156,9 +154,7 @@ func TestDialAuth(t *testing.T) {
 }
 
 func TestDialRun(t *testing.T) {
-	if _, ok := os.LookupEnv("CPU_NAMESPACE"); !ok {
-		t.Skipf("Skipping this test as CPU_NAMESPACE is not set; suggest '/lib:/lib64:/usr:/bin:/etc'")
-	}
+	t.Skipf("Figure out how to set up a cpud for this test")
 	h, k, p, err := hostkeyport()
 	if len(h) == 0 {
 		t.Skip()
@@ -170,7 +166,7 @@ func TestDialRun(t *testing.T) {
 	// From this test forward, at least try to get a port.
 	// For this test, there must be a key.
 
-	c := Command(h, "ls", "-l").WithPrivateKeyFile(k).WithPort(p).WithRoot("/")
+	c := Command(h, "ls", "-l").WithPrivateKeyFile(k).WithPort(p).WithRoot("/").WithNameSpace(DefaultNameSpace)
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)
 	}
@@ -184,6 +180,47 @@ func TestDialRun(t *testing.T) {
 		t.Fatalf("Wait: got %v, want nil", err)
 	}
 
+	r, err := c.Outputs()
+	if err != nil {
+		t.Errorf("Outputs: got %v, want nil", err)
+	}
+	t.Logf("c.Run: (%v, %q, %q)", err, r[0].String(), r[1].String())
+	if err := c.Close(); err != nil {
+		t.Fatalf("Close: got %v, want nil", err)
+	}
+}
+
+// This requires a dial but not a run. It also requires
+// that /dev/tty be working.
+func TestSetupInteractive(t *testing.T) {
+	t.Skipf("Figure out how to set up a cpud for this test")
+	h, k, p, err := hostkeyport()
+	if len(h) == 0 {
+		t.Skip()
+	}
+	if err != nil {
+		t.Skipf("%v", err)
+	}
+	V = t.Logf
+	// From this test forward, at least try to get a port.
+	// For this test, there must be a key.
+
+	c := Command(h, "ls", "-l").WithPrivateKeyFile(k).WithPort(p).WithRoot("/").WithNameSpace(DefaultNameSpace)
+	if err := c.Dial(); err != nil {
+		t.Fatalf("Dial: got %v, want nil", err)
+	}
+	if err = c.Start(); err != nil {
+		t.Fatalf("Start: got %v, want nil", err)
+	}
+	if err = c.SetupInteractive(); err != nil {
+		t.Fatalf("SetupInteractive: got %v, want nil", err)
+	}
+	if err := c.Stdin.Close(); err != nil {
+		t.Errorf("Close stdin: Got %v, want nil", err)
+	}
+	if err := c.Wait(); err != nil {
+		t.Fatalf("Wait: got %v, want nil", err)
+	}
 	r, err := c.Outputs()
 	if err != nil {
 		t.Errorf("Outputs: got %v, want nil", err)

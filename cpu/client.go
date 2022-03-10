@@ -16,9 +16,9 @@ import (
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
-	// TODO: get rid of krpty
 	// We use this ssh because it can unpack password-protected private keys.
-
+	"github.com/hashicorp/go-multierror"
+	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -57,6 +57,9 @@ type Cmd struct {
 	Stdin          io.WriteCloser
 	Stdout         io.Reader
 	Stderr         io.Reader
+	Row            int
+	Col            int
+	t              *termios.TTYIO
 	// NameSpace is a string as defined in the cpu documentation.
 	NameSpace string
 
@@ -64,6 +67,7 @@ type Cmd struct {
 	network string // This is a variable but we expect it will always be tcp
 	port9p  uint16 // port on which we serve 9p
 	cmd     string // The command is built up, bit by bit, as we configure the client
+	closers []func() error
 }
 
 // Command implements exec.Command. The required parameter is a host.
@@ -71,7 +75,19 @@ type Cmd struct {
 // is assumed.
 func Command(host string, args ...string) *Cmd {
 	if len(args) == 0 {
-		args = []string{os.Getenv("SHELL")}
+		shell, ok := os.LookupEnv("SHELL")
+		// We've found in some cases SHELL is not set!
+		if !ok {
+			shell = "/bin/sh"
+		}
+		args = []string{shell}
+	}
+
+	col, row := 80, 40
+	if w, err := termios.GetWinSize(0); err != nil {
+		V("Can not get winsize: %v; assuming %dx%d", err, col, row)
+	} else {
+		col, row = int(w.Col), int(w.Row)
 	}
 
 	return &Cmd{
@@ -80,6 +96,8 @@ func Command(host string, args ...string) *Cmd {
 		Args:     args,
 		Port:     defaultPort,
 		Timeout:  defaultTimeOut,
+		Row:      row,
+		Col:      col,
 		config: ssh.ClientConfig{
 			User:            os.Getenv("USER"),
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -92,7 +110,7 @@ func Command(host string, args ...string) *Cmd {
 	}
 }
 
-// WithNameSpace adds a namespace to Cmd. There is no default: having some default
+// WithNameSpace sets the namespace to Cmd.There is no default: having some default
 // violates the principle of least surprise for package users.
 // The word "none" is reserved to mean the package will not set the
 // CPU_NAMESPACE environment variable.
@@ -247,12 +265,102 @@ func (c *Cmd) Run() error {
 	return c.Wait()
 }
 
-// Close ends a cpu session, doing whatever is needed.
-func (c *Cmd) Close() (errs []error) {
-	if c.session != nil {
-		if err := c.session.Close(); err != nil && err != io.EOF {
-			errs = append(errs, fmt.Errorf("Closing session: got %v, want nil", err))
+// TTYIn manages tty input for a cpu session.
+// It exists mainly to deal with ~.
+func (c *Cmd) TTYIn(s *ssh.Session, w io.WriteCloser, r io.Reader) {
+	var newLine, tilde bool
+	var t = []byte{'~'}
+	var b [1]byte
+	for {
+		if _, err := r.Read(b[:]); err != nil {
+			return
+		}
+		switch b[0] {
+		default:
+			newLine = false
+			if tilde {
+				if _, err := w.Write(t[:]); err != nil {
+					return
+				}
+				tilde = false
+			}
+			if _, err := w.Write(b[:]); err != nil {
+				return
+			}
+		case '\n', '\r':
+			newLine = true
+			if _, err := w.Write(b[:]); err != nil {
+				return
+			}
+		case '~':
+			if newLine {
+				newLine = false
+				tilde = true
+				break
+			}
+			if _, err := w.Write(t[:]); err != nil {
+				return
+			}
+		case '.':
+			if tilde {
+				s.Close()
+				return
+			}
+			if _, err := w.Write(b[:]); err != nil {
+				return
+			}
 		}
 	}
-	return errs
+}
+
+// SetupInteractive sets up a cpu client for interactive access.
+// It returns a function to be run when the session ends.
+func (c *Cmd) SetupInteractive() error {
+	t, err := termios.New()
+	if err != nil {
+		return err
+	}
+	r, err := t.Raw()
+	if err != nil {
+		return err
+	}
+	c.closers = append(c.closers, func() error {
+		return t.Set(r)
+	})
+
+	// Set up terminal modes
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          0,     // disable echoing
+		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+	}
+
+	// Request pseudo terminal
+	if err := c.session.RequestPty("ansi", c.Row, c.Col, modes); err != nil {
+		return fmt.Errorf("request for pseudo terminal failed: %v", err)
+	}
+	return nil
+}
+
+func (c *Cmd) Console(in io.WriteCloser, out, err io.Reader) error {
+	go c.TTYIn(c.session, in, os.Stdin)
+	go io.Copy(os.Stdout, out)
+	go io.Copy(os.Stderr, err)
+	return c.session.Wait()
+}
+
+// Close ends a cpu session, doing whatever is needed.
+func (c *Cmd) Close() error {
+	var err error
+	if c.session != nil {
+		if err := c.session.Close(); err != nil && err != io.EOF {
+			err = multierror.Append(err, fmt.Errorf("Closing session: got %v, want nil", err))
+		}
+	}
+	for _, f := range c.closers {
+		if e := f(); e != nil {
+			err = multierror.Append(err, e)
+		}
+	}
+	return err
 }
