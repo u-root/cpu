@@ -427,7 +427,7 @@ func handler(s ssh.Session) {
 		// of the reaper to get them.
 		v("wait for %v", cmd)
 		err = cmd.Wait()
-		v("cmd %v returns with %v %v", err, cmd, cmd.ProcessState)
+		v("cmd \"%v\" returns with %v %v", cmd, err, cmd.ProcessState)
 		if errval(err) != nil {
 			v("CPUD:child exited with  %v", err)
 			s.Exit(cmd.ProcessState.ExitCode())
