@@ -174,6 +174,8 @@ func runRemote(cmd, port9p string) error {
 		user = "nouser"
 	}
 
+	_, ignore_cmd_error := os.LookupEnv("CPUD_IGNORE_CMD_ERROR")
+
 	// It's true we are making this directory while still root.
 	// This ought to be safe as it is a private namespace mount.
 	for _, n := range []string{"/tmp/cpu", "/tmp/local", "/tmp/merge", "/tmp/root", "/home"} {
@@ -307,6 +309,10 @@ func runRemote(cmd, port9p string) error {
 			log.Printf("CPUD: WTF done")
 		}
 	}
+	if ignore_cmd_error {
+		v("CPUD: ignoring err %v", err)
+		err = nil
+	}
 	return err
 }
 
@@ -400,6 +406,7 @@ func handler(s ssh.Session) {
 	ptyReq, winCh, isPty := s.Pty()
 	if isPty {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
+		cmd.Env = append(cmd.Env, "CPUD_IGNORE_CMD_ERROR=1")
 		f, err := pty.Start(cmd)
 		v("command started with pty")
 		if err != nil {

@@ -47,8 +47,10 @@
 //     cp /etc/hosts /tmp/cpu/tmp
 //     to get the /etc/hosts on the remote machine to your local machine.
 //
-//     The cpu client makes this work by starting a cpu command on the
-//     remote machine with a -remote switch and several other arguments.
+//     The cpu client makes this work by starting a cpu command on the remote
+//     machine with a -remote switch and several other arguments and
+//     environment variables.
+//
 //     The local cpu starts a 9p server and, using ssh port forwarding,
 //     makes that server available to the remote. On the remote side, the
 //     cpu command establishes a private, unshared mount of tmpfs on /tmp;
@@ -95,6 +97,12 @@
 //           what server to run (default none; use internal)
 //     -timeout9p time.Duration
 //           How long to wait for the server to connect to 9p (default100ms)
+//
+// Cpud environment variables:
+//     - CPUD_IGNORE_CMD_ERROR: passed from cpud to cpud --remote.  If the
+//     command executed by cpud returns an error code, ignore it.  This is
+//     useful if we are running an interactive shell.
+//
 // Examples
 // In these examples, cpu runs with warning messages enabled.
 // The first message is a warning that cpu could not use overlayfs to build a
