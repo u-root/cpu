@@ -390,6 +390,9 @@ func errval(err error) error {
 
 func handler(s ssh.Session) {
 	a := s.Command()
+	if *debug {
+		a = append([]string{a[0], "-d"}, a[1:]...)
+	}
 	v("handler: cmd is %v", a)
 	cmd := exec.Command(a[0], a[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags: syscall.CLONE_NEWNS}
