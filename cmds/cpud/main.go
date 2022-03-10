@@ -400,7 +400,7 @@ func handler(s ssh.Session) {
 		f, err := pty.Start(cmd)
 		v("command started with pty")
 		if err != nil {
-			v("CPUD:err %v", err)
+			v("CPUD:pty.Start:err %v", err)
 			return
 		}
 		go func() {
@@ -435,9 +435,10 @@ func handler(s ssh.Session) {
 
 	} else {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s
-		v("running command without pty")
+		v("running command %q without pty", cmd.String())
+			v("CPUD(%q,\n %q,\n %q,\n %q\n): :%v.Run:", cmd.Path, cmd.Args, cmd.Env, cmd.Dir, cmd)
 		if err := cmd.Run(); errval(err) != nil {
-			v("CPUD:err %v", err)
+			v("CPUD(%q,\n %q,\n %q,\n %q\n): :%v.Run:err %v", cmd.Path, cmd.Args, cmd.Env, cmd.Dir, cmd, err)
 			s.Exit(1)
 		}
 	}
@@ -533,7 +534,7 @@ func doInit() error {
 	server.SetOption(ssh.HostKeyFile(*hostKeyFile))
 	log.Println("CPUD:starting ssh server on port " + *port)
 	if err := server.ListenAndServe(); err != nil {
-		log.Printf("CPUD:err %v", err)
+		log.Printf("CPUD:%s.ListenAndServer:err %v", server, err)
 	}
 	verbose("server.ListenAndServer returned")
 
@@ -552,6 +553,7 @@ func usage() {
 }
 
 func main() {
+	v = log.Printf
 	verbose("Args %v pid %d *runasinit %v *remote %v", os.Args, os.Getpid(), *runAsInit, *remote)
 	args := flag.Args()
 	switch {

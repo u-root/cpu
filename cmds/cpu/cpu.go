@@ -453,7 +453,7 @@ func newCPU(host string, args ...string) error {
 		log.Printf("Close stdin: Got %v, want nil", err)
 	}
 	if err := c.Wait(); err != nil {
-		return fmt.Errorf("Wait: got %v, want nil", err)
+		log.Printf("Wait: got %v, want nil", err)
 	}
 
 	r, err := c.Outputs()

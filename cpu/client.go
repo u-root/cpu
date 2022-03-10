@@ -201,7 +201,6 @@ func (c *Cmd) Start() error {
 		return err
 	}
 
-	c.Env = append(c.Env, "CPUNONCE="+c.nonce.String())
 	if err := c.SetEnv(c.Env...); err != nil {
 		return err
 	}
@@ -215,13 +214,19 @@ func (c *Cmd) Start() error {
 		return err
 	}
 
-	// Unlike the cpu command source, which assumes an SSH-like stdin, SSHStdin in this package will need to be set up explicitly.
-	//go c.SSHStdin(i, c.Stdin)
-	// N.B.: if a server was needed, it was
-	// started in Dial.
+	// Unlike the cpu command source, which assumes an SSH-like stdin,
+	// but very much like es/exec, users of Stdin in this package
+	// will need to set the IO.
+	// e.g.,
+	// go c.SSHStdin(i, c.Stdin)
+	// N.B.: if a 9p server was needed, it was started in Dial.
 
-	// assemble the command.
-	cmd := fmt.Sprintf("%s -port9p %v %q", c.cmd, c.port9p, strings.Join(c.Args, " "))
+	cmd := c.cmd
+	if c.port9p != 0 {
+		cmd += fmt.Sprintf(" -port9p %v", c.port9p)
+	}
+	cmd += fmt.Sprintf(" %q", strings.Join(c.Args, " "))
+
 	V("call session.Start(%s)", cmd)
 	if err := c.session.Start(cmd); err != nil {
 		return fmt.Errorf("Failed to run %v: %v", c, err.Error())
