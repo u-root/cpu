@@ -300,6 +300,7 @@ func shell(client *ossh.Client, cmd string, envs ...string) error {
 		ossh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
 	}
 	// Request pseudo terminal
+	v("c.session.RequestPty(\"ansi\", %v, %v, %#x", w.Row, w.Col, modes)
 	if err := session.RequestPty("ansi", int(w.Row), int(w.Col), modes); err != nil {
 		log.Fatal("request for pseudo terminal failed: ", err)
 	}
@@ -415,34 +416,21 @@ func usage() {
 
 func newCPU(host string, args ...string) error {
 	cpu.V = v
-	// From this test forward, at least try to get a port.
-	// For this test, there must be a key.
-
 	c := cpu.Command(host, args...).WithPrivateKeyFile(*keyFile).WithPort(*port).WithRoot(*root).WithNameSpace(*namespace)
 	if err := c.Dial(); err != nil {
 		return fmt.Errorf("Dial: got %v, want nil", err)
 	}
-	defer func(c *cpu.Cmd) {
-		if err := c.Close(); err != nil {
-			log.Printf("Close: got %v, want nil", err)
-		}
-	}(c)
-
+	v("CPU:start")
 	if err := c.Start(); err != nil {
 		return fmt.Errorf("Start: got %v, want nil", err)
 	}
-	if _, err := c.Stdin.Write([]byte(strings.Join(args, " ") + "\n")); err != nil {
-		log.Printf("Write: %v", err)
-	}
-	if err := c.Stdin.Close(); err != nil {
-		log.Printf("Close stdin: Got %v, want nil", err)
-	}
+	v("CPU:wait")
 	if err := c.Wait(); err != nil {
 		log.Printf("Wait: got %v, want nil", err)
 	}
-
-	r, err := c.Outputs()
-	log.Printf("c.Run: (%v, %q, %q)", err, r[0].String(), r[1].String())
+	log.Printf("CPU:close")
+	err := c.Close()
+	log.Printf("CPU:close done")
 	return err
 }
 

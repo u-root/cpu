@@ -60,6 +60,7 @@ type Cmd struct {
 	Row            int
 	Col            int
 	t              *termios.TTYIO
+	interactive    bool // Set if there are no arguments.
 	// NameSpace is a string as defined in the cpu documentation.
 	NameSpace string
 
@@ -74,7 +75,9 @@ type Cmd struct {
 // The args arg args to $SHELL. If there are no args, then starting $SHELL
 // is assumed.
 func Command(host string, args ...string) *Cmd {
+	var interactive bool
 	if len(args) == 0 {
+		interactive = true
 		shell, ok := os.LookupEnv("SHELL")
 		// We've found in some cases SHELL is not set!
 		if !ok {
@@ -102,7 +105,8 @@ func Command(host string, args ...string) *Cmd {
 			User:            os.Getenv("USER"),
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		},
-		network: "tcp",
+		interactive: interactive,
+		network:     "tcp",
 		// Safety first: if they want a namespace, they must say so
 		Root: "",
 		// The command, always, at least, starts with "cpu"
@@ -218,6 +222,25 @@ func (c *Cmd) Start() error {
 	if c.session, err = c.client.NewSession(); err != nil {
 		return err
 	}
+	// Set up terminal modes
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          0,     // disable echoing
+		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+	}
+
+	// Request pseudo terminal
+	V("c.session.RequestPty(\"ansi\", %v, %v, %#x", c.Row, c.Col, modes)
+	if err := c.session.RequestPty("ansi", c.Row, c.Col, modes); err != nil {
+		return fmt.Errorf("request for pseudo terminal failed: %v", err)
+	}
+
+	c.closers = append(c.closers, func() error {
+		if err := c.session.Close(); err != nil && err != io.EOF {
+			return fmt.Errorf("Closing session: got %v, want nil", err)
+		}
+		return nil
+	})
 
 	if err := c.SetEnv(c.Env...); err != nil {
 		return err
@@ -225,6 +248,11 @@ func (c *Cmd) Start() error {
 	if c.Stdin, err = c.session.StdinPipe(); err != nil {
 		return err
 	}
+	c.closers = append([]func() error{func() error {
+		c.Stdin.Close()
+		return nil
+	}}, c.closers...)
+
 	if c.Stdout, err = c.session.StdoutPipe(); err != nil {
 		return err
 	}
@@ -249,12 +277,20 @@ func (c *Cmd) Start() error {
 	if err := c.session.Start(cmd); err != nil {
 		return fmt.Errorf("Failed to run %v: %v", c, err.Error())
 	}
+	if err := c.SetupInteractive(); err != nil {
+		return err
+	}
+	go c.TTYIn(c.session, c.Stdin, os.Stdin)
+	go io.Copy(os.Stdout, c.Stdout)
+	go io.Copy(os.Stderr, c.Stderr)
+
 	return nil
 }
 
 // Wait waits for a Cmd to finish.
 func (c *Cmd) Wait() error {
-	return c.session.Wait()
+	err := c.session.Wait()
+	return err
 }
 
 // Run runs a command with Start, and waits for it to finish with Wait.
@@ -324,39 +360,24 @@ func (c *Cmd) SetupInteractive() error {
 	if err != nil {
 		return err
 	}
+	log.Printf("GOT A TERM t %v r %v", t, r)
 	c.closers = append(c.closers, func() error {
-		return t.Set(r)
+		log.Printf("LET's NOT RESET!!!! t %v r %v", t, r)
+		if false {
+			if err := t.Set(r); err != nil {
+				log.Printf("SET FAILED FUCK!!! %v", err)
+				return err
+			}
+		}
+		return nil
 	})
 
-	// Set up terminal modes
-	modes := ssh.TerminalModes{
-		ssh.ECHO:          0,     // disable echoing
-		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
-		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
-	}
-
-	// Request pseudo terminal
-	if err := c.session.RequestPty("ansi", c.Row, c.Col, modes); err != nil {
-		return fmt.Errorf("request for pseudo terminal failed: %v", err)
-	}
 	return nil
-}
-
-func (c *Cmd) Console(in io.WriteCloser, out, err io.Reader) error {
-	go c.TTYIn(c.session, in, os.Stdin)
-	go io.Copy(os.Stdout, out)
-	go io.Copy(os.Stderr, err)
-	return c.session.Wait()
 }
 
 // Close ends a cpu session, doing whatever is needed.
 func (c *Cmd) Close() error {
 	var err error
-	if c.session != nil {
-		if err := c.session.Close(); err != nil && err != io.EOF {
-			err = multierror.Append(err, fmt.Errorf("Closing session: got %v, want nil", err))
-		}
-	}
 	for _, f := range c.closers {
 		if e := f(); e != nil {
 			err = multierror.Append(err, e)
