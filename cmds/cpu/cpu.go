@@ -26,7 +26,7 @@ import (
 
 	// TODO: get rid of krpty
 	config "github.com/kevinburke/ssh_config"
-	"github.com/u-root/cpu/cpu"
+	"github.com/u-root/cpu/client"
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 
