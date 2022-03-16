@@ -82,47 +82,30 @@ fn read_config(p: &Path) -> SshConfig {
 
 fn connect(host: &str, params: &HostParams) {
     // Resolve host
-    let host = match params.host_name.as_deref() {
-        Some(h) => h,
-        None => host,
+    let host = params.host_name.as_deref().unwrap_or(host);
+    let port = params.port.unwrap_or(22);
+
+    let formatted_host : String;
+    let host: &str = if host.contains(':') {
+        host
+    } else {
+        formatted_host = format!("{}:{}", host, port);
+        &*formatted_host
     };
-    let port = match params.port {
-        None => 22,
-        Some(p) => p,
-    };
-    let host = match host.contains(':') {
-        true => host.to_string(),
-        false => format!("{}:{}", host, port),
-    };
+
     println!("Connecting to host {}...", host);
-    let socket_addresses: Vec<SocketAddr> = match host.to_socket_addrs() {
-        Ok(s) => s.collect(),
-        Err(err) => {
-            panic!("Could not parse host: {}", err);
-        }
-    };
-    let mut tcp: Option<TcpStream> = None;
+    let socket_addresses: Vec<_> = host.to_socket_addrs().expect("Could not parse host").collect();
     // Try addresses
-    for socket_addr in socket_addresses.iter() {
-        match TcpStream::connect_timeout(
-            socket_addr,
-            params.connect_timeout.unwrap_or(Duration::from_secs(30)),
-        ) {
-            Ok(stream) => {
+    let stream =
+        socket_addresses.iter().find_map(|socket_addr|
+            TcpStream::connect_timeout(
+                socket_addr,
+                params.connect_timeout.unwrap_or(Duration::from_secs(30)),
+            ).map(|s| {
                 println!("Established connection with {}", socket_addr);
-                tcp = Some(stream);
-                break;
-            }
-            Err(_) => continue,
-        }
-    }
-    // If stream is None, return connection timeout
-    let stream: TcpStream = match tcp {
-        Some(t) => t,
-        None => {
-            panic!("No suitable socket address found; connection timeout");
-        }
-    };
+                s
+            }).ok()).expect("No suitable socket address found; connection timeout");
+
     let mut session: Session = match Session::new() {
         Ok(s) => s,
         Err(err) => {
