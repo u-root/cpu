@@ -83,7 +83,7 @@ fn read_config(p: &Path) -> SshConfig {
 fn connect(host: &str, params: &HostParams) {
     // Resolve host
     let host = params.host_name.as_deref().unwrap_or(host);
-    let port = params.port.unwrap_or(22);
+    let port = params.port.unwrap_or(23);
 
     let formatted_host : String;
     let host: &str = if host.contains(':') {
