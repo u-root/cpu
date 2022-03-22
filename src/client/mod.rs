@@ -75,7 +75,8 @@ impl Session {
             hash: key::SignatureHash::SHA2_512,
         };
         */
-        let config = client::Config::default();
+        let mut config = client::Config::default();
+        config.connection_timeout = Some(std::time::Duration::from_secs(3));
         let config = Arc::new(config);
         let sh = Client {};
         let mut agent = agent::client::AgentClient::connect_env().await?;
@@ -132,8 +133,9 @@ impl CommandResult {
 
 #[tokio::main]
 pub async fn ssh() -> Result<()> {
-    let host = "localhost:22";
+    let host = "localhost:2342";
     let key_file = "/home/dama/.ssh/id_ed25519";
+    let command = "/bbin/ls";
 
     let user: String;
     match std::env::var("USER") {
@@ -144,8 +146,10 @@ pub async fn ssh() -> Result<()> {
         }
     }
 
+    println!("Let's connect {:?}", host);
     let mut ssh = Session::connect(key_file, user, host).await?;
-    let r = ssh.call("whoami").await?;
+    println!("Let's run a command {:?}", command);
+    let r = ssh.call(command).await?;
     assert!(r.success());
     println!("Who am I, anyway? {:?}", r.output());
     ssh.close().await?;
