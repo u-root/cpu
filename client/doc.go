@@ -12,4 +12,4 @@
 // the remote server reads SHELL and starts a shell.
 // Similarly, because the root for the client namespace is known only to the client.
 // it is settable in the Cmd struct.
-package cpu
+package client
