@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ssh2-config = "^0.1.1"
-ssh2 = "^0.9.1"
-dirs = "4.0.0"
-rpassword = "5.0.1"
-text_io = "0.1.10"
+thrussh = "0.33.5"
+thrussh-keys = "0.21.0"
+tokio = "1.17.0"
+futures = "0.3.21"
+env_logger = "0.9.0"
+anyhow = "1.0.55"

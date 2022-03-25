@@ -17,3 +17,6 @@
 # Added by cargo
 
 /target
+
+# whatever
+*~

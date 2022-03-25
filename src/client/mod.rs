@@ -1,188 +1,234 @@
-//! # client
-//!
-//! Ssh2-config implementation with a ssh2 client
+extern crate env_logger;
+extern crate futures;
+extern crate thrussh;
+extern crate thrussh_keys;
+extern crate tokio;
+use anyhow::Result;
+use futures::Future;
+use std::io::{Read, Write};
+use std::sync::Arc;
+use thrussh::*;
+// use thrussh::server::{Auth, Session};
+use thrussh_keys::*;
 
-/**
- * MIT License
- *
- * ssh2-config - Copyright (c) 2021 Christian Visintin
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-use dirs::home_dir;
-use ssh2::{MethodType, Session};
-use ssh2_config::{HostParams, SshConfig};
-use std::env::args;
-use std::fs::File;
-use std::io::BufReader;
-use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::path::{Path, PathBuf};
-use std::process::exit;
-use std::time::Duration;
+struct Client {}
 
-pub fn client() {
-    // get args
-    let args: Vec<String> = args().collect();
-    let address = match args.get(1) {
-        Some(addr) => addr.to_string(),
-        None => {
-            usage();
-            exit(255)
-        }
-    };
-    // check path
-    let config_path = match args.get(2) {
-        Some(p) => PathBuf::from(p),
-        None => {
-            let mut p = home_dir().expect("Failed to get home_dir for guest OS");
-            p.extend(Path::new(".ssh/config"));
-            p
-        }
-    };
-    // Open config file
-    let config = read_config(config_path.as_path());
-    println!("Config file: {:?}", config);
+impl client::Handler for Client {
+    type Error = thrussh::Error;
+    type FutureUnit = futures::future::Ready<Result<(Self, client::Session), Self::Error>>;
+    type FutureBool = futures::future::Ready<Result<(Self, bool), Self::Error>>;
 
-    let params = config.query(address.as_str());
-    println!("Params: {:?}", params);
-
-    connect(address.as_str(), &params);
-}
-
-fn usage() {
-    eprintln!("Usage: cargo run --example client -- <address:port> [config-path]");
-}
-
-fn read_config(p: &Path) -> SshConfig {
-    let mut reader = match File::open(p) {
-        Ok(f) => BufReader::new(f),
-        Err(err) => panic!("Could not open file '{}': {}", p.display(), err),
-    };
-    match SshConfig::default().parse(&mut reader) {
-        Ok(config) => config,
-        Err(err) => panic!("Failed to parse configuration: {}", err),
+    fn finished_bool(self, b: bool) -> Self::FutureBool {
+        futures::future::ready(Ok((self, b)))
     }
+    fn finished(self, session: client::Session) -> Self::FutureUnit {
+        println!("FINISHED");
+        futures::future::ready(Ok((self, session)))
+    }
+    fn check_server_key(self, server_public_key: &key::PublicKey) -> Self::FutureBool {
+        println!(
+            "check_server_key: {:?}",
+            server_public_key.public_key_base64()
+        );
+        // TODO: compare against preshared key?
+        self.finished_bool(true)
+    }
+    /*
+    // FIXME: this here makes the session hang
+    fn channel_open_confirmation(
+        self,
+        channel: ChannelId,
+        max_packet_size: u32,
+        window_size: u32,
+        session: client::Session,
+    ) -> Self::FutureUnit {
+        println!("channel_open_confirmation: {:?}", channel);
+        self.finished(session)
+    }
+    fn data(self, channel: ChannelId, data: &[u8], session: client::Session) -> Self::FutureUnit {
+        println!(
+            "data on channel {:?}: {:?}",
+            channel,
+            std::str::from_utf8(data)
+        );
+        self.finished(session)
+    }
+    */
 }
 
-fn connect(host: &str, params: &HostParams) {
-    // Resolve host
-    let host = params.host_name.as_deref().unwrap_or(host);
-    let port = params.port.unwrap_or(23);
+// from https://nest.pijul.com/pijul/thrussh/discussions/20
+pub struct Session {
+    session: client::Handle<Client>,
+}
 
-    let formatted_host : String;
-    let host: &str = if host.contains(':') {
-        host
-    } else {
-        formatted_host = format!("{}:{}", host, port);
-        &*formatted_host
-    };
-
-    println!("Connecting to host {}...", host);
-    let socket_addresses: Vec<_> = host.to_socket_addrs().expect("Could not parse host").collect();
-    // Try addresses
-    let stream =
-        socket_addresses.iter().find_map(|socket_addr|
-            TcpStream::connect_timeout(
-                socket_addr,
-                params.connect_timeout.unwrap_or(Duration::from_secs(30)),
-            ).map(|s| {
-                println!("Established connection with {}", socket_addr);
-                s
-            }).ok()).expect("No suitable socket address found; connection timeout");
-
-    let mut session: Session = match Session::new() {
-        Ok(s) => s,
-        Err(err) => {
-            panic!("Could not create session: {}", err);
-        }
-    };
-    // Configure session
-    configure_session(&mut session, params);
-    // Connect
-    session.set_tcp_stream(stream);
-    if let Err(err) = session.handshake() {
-        panic!("Handshake failed: {}", err);
+impl Session {
+    async fn connect(
+        key_file: &str,
+        user: impl Into<String>,
+        addr: impl std::net::ToSocketAddrs,
+    ) -> Result<Self> {
+        let key_pair = thrussh_keys::load_secret_key(key_file, None)?;
+        // TODO: import openssl for RSA key support
+        /*
+        let key_pair = key::KeyPair::RSA {
+            key: openssl::rsa::Rsa::private_key_from_pem(pem)?,
+            hash: key::SignatureHash::SHA2_512,
+        };
+        */
+        let mut config = client::Config::default();
+        config.connection_timeout = Some(std::time::Duration::from_secs(3));
+        let config = Arc::new(config);
+        let sh = Client {};
+        let mut agent = agent::client::AgentClient::connect_env().await?;
+        agent.add_identity(&key_pair, &[]).await?;
+        let mut identities = agent.request_identities().await?;
+        let mut session = client::connect(config, addr, sh).await?;
+        let pubkey = identities.pop().unwrap();
+        let (_, auth_res) = session.authenticate_future(user, pubkey, agent).await;
+        let _auth_res = auth_res?;
+        Ok(Self { session })
     }
-    // Get username
-    let username = match params.user.as_ref() {
-        Some(u) => {
-            println!("Using username '{}'", u);
-            u.clone()
-        }
-        None => match std::env::var("USER") {
-            Ok(val) => val,
-            Err(e) => {
-                println!("No USER env variable and no user in .ssh/config (consider using %i in .config)");
-                exit(1)
+
+    async fn call(&mut self, command: &str) -> Result<CommandResult> {
+        let mut channel = self.session.channel_open_session().await?;
+        channel.exec(true, command).await?;
+        let mut output = Vec::new();
+        let mut code = None;
+        while let Some(msg) = channel.wait().await {
+            match msg {
+                thrussh::ChannelMsg::Data { ref data } => {
+                    output.write_all(&data).unwrap();
+                }
+                thrussh::ChannelMsg::ExitStatus { exit_status } => {
+                    code = Some(exit_status);
+                }
+                _ => {}
             }
-        },
-    };
-    for i in (params.identity_file.as_ref()).unwrap().iter() {
-        if let Ok(_) = session.userauth_pubkey_file(&username, None, i, None) {
-            break;
         }
+        Ok(CommandResult { output, code })
     }
-    if let Some(banner) = session.banner() {
-        println!("{}", banner);
-    }
-    println!("Connection OK!");
-    if let Err(err) = session.disconnect(None, "mandi mandi!", None) {
-        panic!("Disconnection failed: {}", err);
+
+    async fn close(&mut self) -> Result<()> {
+        self.session
+            .disconnect(Disconnect::ByApplication, "", "English")
+            .await?;
+        Ok(())
     }
 }
 
-fn configure_session(session: &mut Session, params: &HostParams) {
-    println!("Configuring session...");
-    if let Some(compress) = params.compression {
-        println!("compression: {}", compress);
-        session.set_compress(compress);
+struct CommandResult {
+    output: Vec<u8>,
+    code: Option<u32>,
+}
+
+impl CommandResult {
+    fn output(&self) -> String {
+        String::from_utf8_lossy(&self.output).into()
     }
-    if params.tcp_keep_alive.unwrap_or(false) && params.server_alive_interval.is_some() {
-        let interval = params.server_alive_interval.unwrap().as_secs() as u32;
-        println!("keepalive interval: {} seconds", interval);
-        session.set_keepalive(true, interval);
-    }
-    // algos
-    if let Some(algos) = params.kex_algorithms.as_deref() {
-        if let Err(err) = session.method_pref(MethodType::Kex, algos.join(",").as_str()) {
-            panic!("Could not set KEX algorithms: {}", err);
-        }
-    }
-    if let Some(algos) = params.host_key_algorithms.as_deref() {
-        if let Err(err) = session.method_pref(MethodType::HostKey, algos.join(",").as_str()) {
-            panic!("Could not set host key algorithms: {}", err);
-        }
-    }
-    if let Some(algos) = params.ciphers.as_deref() {
-        if let Err(err) = session.method_pref(MethodType::CryptCs, algos.join(",").as_str()) {
-            panic!("Could not set crypt algorithms (client-server): {}", err);
-        }
-        if let Err(err) = session.method_pref(MethodType::CryptSc, algos.join(",").as_str()) {
-            panic!("Could not set crypt algorithms (server-client): {}", err);
-        }
-    }
-    if let Some(algos) = params.mac.as_deref() {
-        if let Err(err) = session.method_pref(MethodType::MacCs, algos.join(",").as_str()) {
-            panic!("Could not set MAC algorithms (client-server): {}", err);
-        }
-        if let Err(err) = session.method_pref(MethodType::MacSc, algos.join(",").as_str()) {
-            panic!("Could not set MAC algorithms (server-client): {}", err);
-        }
+
+    fn success(&self) -> bool {
+        self.code == Some(0)
     }
 }
+
+#[tokio::main]
+pub async fn ssh() -> Result<()> {
+    let host = "localhost:2342";
+    let key_file = "/home/dama/.ssh/id_ed25519";
+    let command = "/bbin/ls";
+
+    let user: String;
+    match std::env::var("USER") {
+        Ok(val) => user = val,
+        Err(e) => {
+            user = "root".to_string();
+            println!("No USER set({}); going with {}", e, user);
+        }
+    }
+
+    println!("Let's connect {:?}", host);
+    let mut ssh = Session::connect(key_file, user, host).await?;
+    println!("Let's run a command {:?}", command);
+    let r = ssh.call(command).await?;
+    assert!(r.success());
+    println!("Who am I, anyway? {:?}", r.output());
+    ssh.close().await?;
+    Ok(())
+}
+
+/*
+#[derive(Clone)]
+struct Server {
+    client_pubkey: Arc<thrussh_keys::key::PublicKey>,
+    clients: Arc<Mutex<HashMap<(usize, ChannelId), thrussh::server::Handle>>>,
+    id: usize,
+}
+
+impl server::Server for Server {
+    type Handler = Self;
+    fn new(&mut self, _: Option<std::net::SocketAddr>) -> Self {
+        let s = self.clone();
+        self.id += 1;
+        s
+    }
+}
+
+impl server::Handler for Server {
+    type Error = anyhow::Error;
+    type FutureAuth = futures::future::Ready<Result<(Self, server::Auth), anyhow::Error>>;
+    type FutureUnit = futures::future::Ready<Result<(Self, Session), anyhow::Error>>;
+    type FutureBool = futures::future::Ready<Result<(Self, Session, bool), anyhow::Error>>;
+
+    fn finished_auth(mut self, auth: Auth) -> Self::FutureAuth {
+        futures::future::ready(Ok((self, auth)))
+    }
+    fn finished_bool(self, b: bool, s: Session) -> Self::FutureBool {
+        futures::future::ready(Ok((self, s, b)))
+    }
+    fn finished(self, s: Session) -> Self::FutureUnit {
+        futures::future::ready(Ok((self, s)))
+    }
+    fn channel_open_session(self, channel: ChannelId, session: Session) -> Self::FutureUnit {
+        {
+            let mut clients = self.clients.lock().unwrap();
+            clients.insert((self.id, channel), session.handle());
+        }
+        self.finished(session)
+    }
+    fn auth_publickey(self, _: &str, _: &key::PublicKey) -> Self::FutureAuth {
+        self.finished_auth(server::Auth::Accept)
+    }
+    fn data(self, channel: ChannelId, data: &[u8], mut session: Session) -> Self::FutureUnit {
+        {
+            let mut clients = self.clients.lock().unwrap();
+            for ((id, channel), ref mut s) in clients.iter_mut() {
+                if *id != self.id {
+                    s.data(*channel, CryptoVec::from_slice(data));
+                }
+            }
+        }
+        session.data(channel, CryptoVec::from_slice(data));
+        self.finished(session)
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let client_key = thrussh_keys::key::KeyPair::generate_ed25519().unwrap();
+    let client_pubkey = Arc::new(client_key.clone_public_key());
+    let mut config = thrussh::server::Config::default();
+    config.connection_timeout = Some(std::time::Duration::from_secs(3));
+    config.auth_rejection_time = std::time::Duration::from_secs(3);
+    config.keys.push(thrussh_keys::key::KeyPair::generate_ed25519().unwrap());
+    let config = Arc::new(config);
+    let sh = Server{
+        client_pubkey,
+        clients: Arc::new(Mutex::new(HashMap::new())),
+        id: 0
+    };
+    tokio::time::timeout(
+       std::time::Duration::from_secs(1),
+       thrussh::server::run(config, "0.0.0.0:2222", sh)
+    ).await.unwrap_or(Ok(()));
+}
+*/
