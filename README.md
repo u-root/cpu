@@ -11,13 +11,13 @@ Unlike the Plan 9 command, this version uses the ssh protocol for the underlying
 features familiar to ssh users, such as support for the ssh config file.
 
 ## Overview
-The cpu command 
+The cpu command
 lets you log in from a local system to a remote system and see some or all of the files (how much is
-up to you) from the local system. 
+up to you) from the local system.
 
 This is wonderfully convenient for embedded systems programmers. Because some or all the files
-can come from your local machine, including binaries, the only thing you need installed 
-on the remote machine is the cpu daemon itself. 
+can come from your local machine, including binaries, the only thing you need installed
+on the remote machine is the cpu daemon itself.
 
 ### Motivation
 Consider the case of running a
@@ -26,16 +26,16 @@ We will need to either do a full install of some distro on that system, meaning 
 need USB ports and local storage; or we will need to run the program over the
 network.
 
-Installing distros can turn into a mess. Some programs only work under specific distros. 
+Installing distros can turn into a mess. Some programs only work under specific distros.
 In some cases, when two programs are needed in a pipeline, it can happen that they only work
 under different distros!
 Users are left juggling USB stucks and NVME cards, and this fails the first time there are
 two programs which need two different distros.
 
 Running over a network is usually done with ssh, but ssh can not supply the programs and files.
-We would need to either set up a network file system, meaning 
-finding a sysadmin willing to set it up, and keep it working; or, trying to figure out which 
-files the program needs, and using rsync or scp to get them there. In some cases, 
+We would need to either set up a network file system, meaning
+finding a sysadmin willing to set it up, and keep it working; or, trying to figure out which
+files the program needs, and using rsync or scp to get them there. In some cases,
 the target system might not have enough memory to hold those files!
 
 Cpu looks like ssh, but with an important difference: it also provides a file transport
@@ -52,18 +52,18 @@ Breaking this down: cpu is the cpu command; camera is the host name; flashrom is
 to run; the options are to do a read (-r) into a file called rom.img.
 
 Where does that file end up? In whatever of my home directories I ran the cpu command from. I need
-not worry about scp'ing it back, or any such thing; it's just there. 
+not worry about scp'ing it back, or any such thing; it's just there.
 
 ### cpu on heterogeneous systems.
 
 The cpu command sets up the various 9p mounts with a default namespace. Users can override this
 default by setting the CPU_NAMESPACE environment variable. This variable looks like most
 PATH variables, with comma-separated values, but with one extra option: users can, optionally,
-specify the local path and the remote path. This is useful when running ARM binaries 
-hosted from an x86 system. 
+specify the local path and the remote path. This is useful when running ARM binaries
+hosted from an x86 system.
 
 In the example below, we show starting up a bash on an ARM system (solidrun honeycomb) using
-a cpu command running on an x86 system. 
+a cpu command running on an x86 system.
 
 ```
 CPU_NAMESPACE=/home:/bin=`pwd`/bin:/lib=`pwd`/lib:/usr=`pwd`/usr cpu honeycomb /bin/bash
@@ -92,9 +92,9 @@ Host h
 	IdentityFile ~/.ssh/apu2_rsa
 ```
 
-Note that the cpu command is itself a 9p server; i.e., your instance of cpu runs your server. The remote 
-cpu server may run as root, but all file accesses happen locally as you. Hence, 
-the cpu command does not grant greater access to the local machine than you already possess. 
+Note that the cpu command is itself a 9p server; i.e., your instance of cpu runs your server. The remote
+cpu server may run as root, but all file accesses happen locally as you. Hence,
+the cpu command does not grant greater access to the local machine than you already possess.
 I.e., there is no privilege escalation.
 
 ## cpu and Docker
@@ -143,11 +143,18 @@ as needed.
 
 ### Talks
 
-* [Open Source Firmware Conference Short Talk](https://docs.google.com/presentation/d/1ee8kxuLBJAyAi-xQqE75EMk-lNM5d8Z6CarWoYlO6Ws/edit?usp=sharing)
-  * [recording](https://www.youtube.com/watch?v=mxribsZFDQQ)
-  * [PDF from BARC2021](https://bostonarch.github.io/2021/presentations/U-root%20CPU%20command.pdf)
-
+* Short Talk "building small stateless network-controlled appliances with
+  coreboot/linuxboot and u-root’s cpu command"
+  * at Open Source Firmware Conference 2019
+   [slides](https://docs.google.com/presentation/d/1ee8kxuLBJAyAi-xQqE75EMk-lNM5d8Z6CarWoYlO6Ws/edit?usp=sharing) /
+   [recording](https://www.youtube.com/watch?v=mxribsZFDQQ)
+  * at BARC2021
+   [slides (PDF)](https://bostonarch.github.io/2021/presentations/U-root%20CPU%20command.pdf)
 * [Network Managed Processors at IoT World 2021](https://docs.google.com/presentation/d/1jREHiHci1EAMWdj--6uX9o0aVpeCPy21UQpnl1oTSwE/edit?usp=sharing)
+* ["Plan 9 CPU command, in Go, for Linux - the network is the computer -- for real this time" at FOSDEM 2022
+  ](https://fosdem.org/2022/schedule/event/plan_9_cpu_cmd/)
+* ["Drivers From Outer Space at CLT 2022 - Fast, Simple Driver Development"
+  ](https://chemnitzer.linux-tage.de/2022/de/programm/beitrag/226)
 
 ### History
 
