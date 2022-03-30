@@ -195,7 +195,7 @@ func runClient(host, a, port, key string) error {
 		cmd = fmt.Sprintf("%s -port9p %v", cmd, port9p)
 		env = append(env, "CPUNONCE="+nonce.String())
 	}
-	cmd = fmt.Sprintf("%s %q", cmd, a)
+	cmd = fmt.Sprintf("%s %s", cmd, a)
 	if err := shell(cl, cmd, env...); err != nil {
 		return err
 	}
