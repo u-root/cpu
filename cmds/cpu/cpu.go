@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ import (
 
 	// TODO: get rid of krpty
 	config "github.com/kevinburke/ssh_config"
+	"github.com/u-root/cpu/client"
 	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 
@@ -42,6 +44,7 @@ var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
 	// For the ssh server part
 	bin         = flag.String("bin", "cpud", "path of cpu binary")
+	cpudCmd     = flag.String("cpudcmd", "", "cpud invocation to run at remote, e.g. cpud -d -bin cpud")
 	debug       = flag.Bool("d", false, "enable debug prints")
 	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
 	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
@@ -60,6 +63,9 @@ var (
 	v          = func(string, ...interface{}) {}
 	pid1       bool
 	dumpWriter *os.File
+
+	// temporary; remove when we remove old code
+	cpupackage = flag.Bool("new", false, "Use new cpu package for cpu client")
 )
 
 func verbose(f string, a ...interface{}) {
@@ -427,6 +433,29 @@ func usage() {
 	log.Fatalf("Usage: cpu [options] host [shell command]:\n%v", b.String())
 }
 
+func newCPU(host string, args ...string) error {
+	client.V = v
+	c := client.Command(host, args...).WithPrivateKeyFile(*keyFile).WithPort(*port).WithRoot(*root).WithNameSpace(*namespace)
+	if len(*cpudCmd) > 0 {
+		c.WithCpudCommand(*cpudCmd)
+	}
+	if err := c.Dial(); err != nil {
+		return fmt.Errorf("Dial: got %v, want nil", err)
+	}
+	v("CPU:start")
+	if err := c.Start(); err != nil {
+		return fmt.Errorf("Start: got %v, want nil", err)
+	}
+	v("CPU:wait")
+	if err := c.Wait(); err != nil {
+		log.Printf("Wait: got %v, want nil", err)
+	}
+	v("CPU:close")
+	err := c.Close()
+	v("CPU:close done")
+	return err
+}
+
 func main() {
 	flags()
 	args := flag.Args()
@@ -447,17 +476,30 @@ func main() {
 		log.Fatal("Getting Termios")
 	}
 
-	kf := getKeyFile(host, *keyFile)
-	p := getPort(host, *port)
+	*keyFile = getKeyFile(host, *keyFile)
+	*port = getPort(host, *port)
 	hn := getHostName(host)
 
-	if err := runClient(hn, a, p, kf); err != nil {
-		e := 1
-		log.Printf("SSH error %s", err)
-		if x, ok := err.(*ossh.ExitError); ok {
-			e = x.ExitStatus()
+	if *cpupackage {
+		v("Running package-based cpu command")
+		if err := newCPU(hn, a); err != nil {
+			e := 1
+			log.Printf("SSH error %s", err)
+			sshErr := &ossh.ExitError{}
+			if errors.As(err, &sshErr) {
+				e = sshErr.ExitStatus()
+			}
+			defer os.Exit(e)
 		}
-		defer os.Exit(e)
+	} else {
+		if err := runClient(hn, a, *port, *keyFile); err != nil {
+			e := 1
+			log.Printf("SSH error %s", err)
+			if x, ok := err.(*ossh.ExitError); ok {
+				e = x.ExitStatus()
+			}
+			defer os.Exit(e)
+		}
 	}
 	if err := termios.SetTermios(0, t); err != nil {
 		// Never make this a log.Fatal, it might

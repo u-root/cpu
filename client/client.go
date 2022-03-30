@@ -154,6 +154,18 @@ func (c *Cmd) WithRoot(root string) *Cmd {
 	return c
 }
 
+// WithCpudCommand sets the initial command to run on the
+// remote side. This is extremely helpful when testing new
+// implementations of cpud, of little use otherwise.
+// But, for example, when testing the new package-based
+// cpud, we can run:
+// cpu -cmd 'cpud -new=true -remote -bin cpud'
+// and cpu will use WithCpudCommand to set the command.
+func (c *Cmd) WithCpudCommand(cmd string) *Cmd {
+	c.cmd = cmd
+	return c
+}
+
 // SetPort sets the port in the Cmd.
 // It calls GetPort with the passed-in port
 // before assigning it.
