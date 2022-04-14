@@ -24,6 +24,12 @@ type mounter func(source string, target string, fstype string, flags uintptr, da
 // Mount takes a full fstab as a string and does whatever mounts are needed.
 // It ignores comment lines, and lines with less than 6 fields. In principal,
 // Mount should be able to do a full remount with the contents of /proc/mounts.
+// Mount makes a best-case effort to mount the mounts passed in a
+// string formatted to the fstab standard.  Callers should not die on
+// a returned error, but be left in a situation in which further
+// diagnostics are possible.  i.e, follow the "Boots not Bricks"
+// principle.
+
 func Mount(fstab string) error {
 	return mount(unix.Mount, fstab)
 }
@@ -62,7 +68,7 @@ func mount(m mounter, fstab string) error {
 			err = multierror.Append(err, e)
 			continue
 		}
-		if e := m(dev, where, fstype, flags, opts); e != nil {
+		if e := m(dev, where, fstype, flags, parse(opts)); e != nil {
 			err = multierror.Append(err, fmt.Errorf("Mount(%q, %q, %q, %#x, %q): %v", dev, where, fstype, flags, opts, e))
 		}
 	}

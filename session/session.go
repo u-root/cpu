@@ -15,6 +15,7 @@ import (
 	"os/exec"
 
 	"github.com/hashicorp/go-multierror" // TODO: get rid of krpty
+	"github.com/u-root/cpu/mount"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/sys/unix"
 )
@@ -163,7 +164,7 @@ func (s *Session) Run() error {
 	// and get the mounts they want. The first uses of this will
 	// be building namespaces with drive and virtiofs.
 	if tab, ok := os.LookupEnv("CPU_FSTAB"); ok {
-		if err := fstab(tab); err != nil {
+		if err := mount.Mount(tab); err != nil {
 			v("CPUD: fstab mount failure: %v", err)
 			// Should we die if the mounts fail? For now, we think not;
 			// the user may be able to debug if they have a non-empty

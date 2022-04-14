@@ -3,9 +3,3 @@
 // license that can be found in the LICENSE file.
 
 package session
-
-import "fmt"
-
-func fstab(t string) error {
-	return fmt.Errorf("fstab is not supported on Plan 9")
-}
