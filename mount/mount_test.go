@@ -60,8 +60,6 @@ func TestParse(t *testing.T) {
 		{in: "rw", flag: 0, opt: ""},
 		{in: "rw,nosuid,nodev", flag: unix.MS_NOSUID | unix.MS_NODEV, opt: ""},
 		{in: "rw,nosuid,nodev,noexec,relatime", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: ""},
-		{in: "rw,nosuid,nodev,noexec,relatime", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: ""},
-
 		{in: "rw,nosuid,nodev,noexec,relatime,cpu,cpuacct", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "cpu,cpuacct"},
 		{in: "rw,nosuid,nodev,noexec,relatime,cpuset", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "cpuset"},
 		{in: "rw,nosuid,nodev,noexec,relatime", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: ""},
@@ -89,10 +87,9 @@ func TestParse(t *testing.T) {
 		{in: "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro", flag: 0x200000, opt: "fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro"},
 		{in: "rw,relatime,pagesize=2M", flag: 0x200000, opt: "pagesize=2M"},
 	} {
-		opt, flag := parse(tt.in)
+		flag, opt := parse(tt.in)
 		if opt != tt.opt {
 			t.Errorf("Parsing %s(%d): got (%#x, %s), want (%#x, %s)", tt.in, i, flag, opt, tt.flag, tt.opt)
-			t.Errorf("{in: %q, flag: %#x, opt: %q,},", tt.in, flag, opt)
 		}
 
 	}

@@ -65,9 +65,9 @@ func mount(m mounter, fstab string) error {
 			err = multierror.Append(err, e)
 			continue
 		}
-		opt, flags := parse(opts)
-		if e := m(dev, where, fstype, flags, opt); e != nil {
-			err = multierror.Append(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %v", dev, where, fstype, opts, flags, opt, e))
+		flags, data := parse(opts)
+		if e := m(dev, where, fstype, flags, data); e != nil {
+			err = multierror.Append(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %v", dev, where, fstype, opts, flags, data, e))
 		}
 	}
 	return err
@@ -123,9 +123,9 @@ var ignore = map[string]interface{}{
 	"nouser": nil,
 }
 
-func parse(m string) (string, uintptr) {
-	var ret []string
-	var opt uintptr
+func parse(m string) (uintptr, string) {
+	var opts []string
+	var flags uintptr
 	for _, f := range strings.Split(strings.TrimSpace(m), ",") {
 		if f == "defaults" {
 			// "rw", "suid", "dev", "exec", "auto", "nouser", "async"
@@ -140,11 +140,11 @@ func parse(m string) (string, uintptr) {
 			continue
 		}
 		if v, ok := convert[f]; ok {
-			opt |= v
+			flags |= v
 		} else if _, ok := ignore[f]; !ok {
-			ret = append(ret, f)
+			opts = append(opts, f)
 		}
 	}
-	return strings.Join(ret, ","), opt
+	return flags, strings.Join(opts, ",")
 
 }
