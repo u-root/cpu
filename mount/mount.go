@@ -29,7 +29,6 @@ type mounter func(source string, target string, fstype string, flags uintptr, da
 // a returned error, but be left in a situation in which further
 // diagnostics are possible.  i.e, follow the "Boots not Bricks"
 // principle.
-
 func Mount(fstab string) error {
 	return mount(unix.Mount, fstab)
 }
@@ -56,11 +55,9 @@ func mount(m mounter, fstab string) error {
 		// fstab fields:
 		// /dev/disk/by-uuid/c0d2b09d-5330-4d08-a787-6e0e95592bf3 /boot ext4 defaults 0 0
 		// what to mount, where to mount, fstype, options
-		// Note that flags are old school, binary numbers, and we're hoping to avoid them.
 		// We do need NOT to set MS_PRIVATE, since we've done a successful unshare.
 		// This note is here in case someone gets confused in the future.
-		// If you set this flag to MS_PRIVATE, on some file systems, you'll get an EINVAL.
-		var flags uintptr
+		// Setting MS_PRIVATE will get an EINVAL.
 		dev, where, fstype, opts := f[0], f[1], f[2], f[3]
 		// The man page implies that the Linux kernel handles flags of "defaults"
 		// we do no further manipulation of opts.
@@ -68,26 +65,86 @@ func mount(m mounter, fstab string) error {
 			err = multierror.Append(err, e)
 			continue
 		}
-		if e := m(dev, where, fstype, flags, parse(opts)); e != nil {
-			err = multierror.Append(err, fmt.Errorf("Mount(%q, %q, %q, %#x, %q): %v", dev, where, fstype, flags, opts, e))
+		opt, flags := parse(opts)
+		if e := m(dev, where, fstype, flags, opt); e != nil {
+			err = multierror.Append(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %v", dev, where, fstype, opts, flags, opt, e))
 		}
 	}
 	return err
 }
 
-// parse takes a mount options string and transforms
-// elements as needed (e.g. 'defaults') so the kernel
-// will accept it.
-func parse(m string) string {
+// There are string args that must be converted to uintptr
+
+var convert = map[string]uintptr{
+	"active":       unix.MS_ACTIVE,
+	"async":        unix.MS_ASYNC,
+	"bind":         unix.MS_BIND,
+	"born":         unix.MS_BORN,
+	"dirsync":      unix.MS_DIRSYNC,
+	"invalidate":   unix.MS_INVALIDATE,
+	"i_version":    unix.MS_I_VERSION,
+	"kernmount":    unix.MS_KERNMOUNT,
+	"lazytime":     unix.MS_LAZYTIME,
+	"mandlock":     unix.MS_MANDLOCK,
+	"mgc_MSK":      unix.MS_MGC_MSK,
+	"mgc_val":      unix.MS_MGC_VAL,
+	"move":         unix.MS_MOVE,
+	"noatime":      unix.MS_NOATIME,
+	"nodev":        unix.MS_NODEV,
+	"nodiratime":   unix.MS_NODIRATIME,
+	"noexec":       unix.MS_NOEXEC,
+	"noremotelock": unix.MS_NOREMOTELOCK,
+	"nosec":        unix.MS_NOSEC,
+	"nosuid":       unix.MS_NOSUID,
+	"nosymfollow":  unix.MS_NOSYMFOLLOW,
+	// internal use only according to mount(2) "nouser":       unix.MS_NOUSER,
+	"posixacl":    unix.MS_POSIXACL,
+	"private":     unix.MS_PRIVATE,
+	"rdonly":      unix.MS_RDONLY,
+	"rec":         unix.MS_REC,
+	"relatime":    unix.MS_RELATIME,
+	"remount":     unix.MS_REMOUNT,
+	"rmt_mask":    unix.MS_RMT_MASK,
+	"ro":          unix.MS_RDONLY,
+	"rw":          0,
+	"shared":      unix.MS_SHARED,
+	"silent":      unix.MS_SILENT,
+	"slave":       unix.MS_SLAVE,
+	"strictatime": unix.MS_STRICTATIME,
+	"submount":    unix.MS_SUBMOUNT,
+	"sync":        unix.MS_SYNC,
+	"synchronous": unix.MS_SYNCHRONOUS,
+	"unbindable":  unix.MS_UNBINDABLE,
+	"verbose":     unix.MS_VERBOSE,
+}
+
+var ignore = map[string]interface{}{
+	"blkio":  nil,
+	"nouser": nil,
+}
+
+func parse(m string) (string, uintptr) {
 	var ret []string
+	var opt uintptr
 	for _, f := range strings.Split(strings.TrimSpace(m), ",") {
-		switch f {
-		case "defaults":
-			ret = append(ret, "rw", "suid", "dev", "exec", "auto", "nouser", "async")
-		default:
+		if f == "defaults" {
+			// "rw", "suid", "dev", "exec", "auto", "nouser", "async"
+			// rw is 0
+			// suid is 0
+			// exec is 0
+			// auto is 0
+			// nouser is internal to the kernel -- why does mount(1) document it as a default then?
+			// async is documented as default on mount(1) but does not show up in /proc/mounts
+			// So: defaults is just consumed ... opt remains unchanged, ret remains unchanged.
+			// weird. It's almost a noise word now.
+			continue
+		}
+		if v, ok := convert[f]; ok {
+			opt |= v
+		} else if _, ok := ignore[f]; !ok {
 			ret = append(ret, f)
 		}
 	}
-	return strings.Join(ret, ",")
+	return strings.Join(ret, ","), opt
 
 }
