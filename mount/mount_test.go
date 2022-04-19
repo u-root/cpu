@@ -12,6 +12,8 @@ import (
 	"os"
 	"syscall"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestMkdir(t *testing.T) {
@@ -46,45 +48,51 @@ func TestBadDev(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	for _, tt := range []struct {
-		in  string
-		out string
+	for i, tt := range []struct {
+		in   string
+		flag uintptr
+		opt  string
 	}{
-		{in: "defaults", out: "rw,suid,dev,exec,auto,nouser,async"},
-		{in: "ro,defaults", out: "ro,rw,suid,dev,exec,auto,nouser,async"},
-		{in: "ro,nodev,relatime", out: "ro,nodev,relatime"},
-		{in: "ro,nosuid,nodev,noexec,size=4096k,nr_inodes=1024,mode=755", out: "ro,nosuid,nodev,noexec,size=4096k,nr_inodes=1024,mode=755"},
-		{in: "rw", out: "rw"},
-		{in: "rw,nosuid,nodev", out: "rw,nosuid,nodev"},
-		{in: "rw,nosuid,nodev,noexec,relatime", out: "rw,nosuid,nodev,noexec,relatime"},
-		{in: "rw,nosuid,nodev,noexec,relatime,blkio", out: "rw,nosuid,nodev,noexec,relatime,blkio"},
-		{in: "rw,nosuid,nodev,noexec,relatime,cpu,cpuacct", out: "rw,nosuid,nodev,noexec,relatime,cpu,cpuacct"},
-		{in: "rw,nosuid,nodev,noexec,relatime,cpuset", out: "rw,nosuid,nodev,noexec,relatime,cpuset"},
-		{in: "rw,nosuid,nodev,noexec,relatime,devices", out: "rw,nosuid,nodev,noexec,relatime,devices"},
-		{in: "rw,nosuid,nodev,noexec,relatime,freezer", out: "rw,nosuid,nodev,noexec,relatime,freezer"},
-		{in: "rw,nosuid,nodev,noexec,relatime,hugetlb", out: "rw,nosuid,nodev,noexec,relatime,hugetlb"},
-		{in: "rw,nosuid,nodev,noexec,relatime,memory", out: "rw,nosuid,nodev,noexec,relatime,memory"},
-		{in: "rw,nosuid,nodev,noexec,relatime,mode=700", out: "rw,nosuid,nodev,noexec,relatime,mode=700"},
-		{in: "rw,nosuid,nodev,noexec,relatime,net_cls,net_prio", out: "rw,nosuid,nodev,noexec,relatime,net_cls,net_prio"},
-		{in: "rw,nosuid,nodev,noexec,relatime,nsdelegate", out: "rw,nosuid,nodev,noexec,relatime,nsdelegate"},
-		{in: "rw,nosuid,nodev,noexec,relatime,perf_event", out: "rw,nosuid,nodev,noexec,relatime,perf_event"},
-		{in: "rw,nosuid,nodev,noexec,relatime,pids", out: "rw,nosuid,nodev,noexec,relatime,pids"},
-		{in: "rw,nosuid,nodev,noexec,relatime,rdma", out: "rw,nosuid,nodev,noexec,relatime,rdma"},
-		{in: "rw,nosuid,nodev,noexec,relatime,size=3902136k,mode=755", out: "rw,nosuid,nodev,noexec,relatime,size=3902136k,mode=755"},
-		{in: "rw,nosuid,nodev,noexec,relatime,size=5120k", out: "rw,nosuid,nodev,noexec,relatime,size=5120k"},
-		{in: "rw,nosuid,nodev,noexec,relatime,xattr,name=systemd", out: "rw,nosuid,nodev,noexec,relatime,xattr,name=systemd"},
-		{in: "rw,nosuid,nodev,relatime,size=3902132k,nr_inodes=975533,mode=700,uid=1000,gid=1000", out: "rw,nosuid,nodev,relatime,size=3902132k,nr_inodes=975533,mode=700,uid=1000,gid=1000"},
-		{in: "rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000", out: "rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000"},
-		{in: "rw,nosuid,noexec,relatime,size=19429784k,nr_inodes=4857446,mode=755", out: "rw,nosuid,noexec,relatime,size=19429784k,nr_inodes=4857446,mode=755"},
-		{in: "rw,relatime", out: "rw,relatime"},
-		{in: "rw,relatime,fd=28,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=24647", out: "rw,relatime,fd=28,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=24647"},
-		{in: "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro", out: "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro"},
-		{in: "rw,relatime,pagesize=2M", out: "rw,relatime,pagesize=2M"},
-		{in: "sw", out: "sw"},
+		{in: "defaults", flag: 0, opt: ""},
+		{in: "ro,defaults", flag: unix.MS_RDONLY, opt: ""},
+		{in: "ro,nodev,relatime", flag: unix.MS_RELATIME | unix.MS_RDONLY | unix.MS_NODEV, opt: ""},
+		{in: "ro,nosuid,nodev,noexec,size=4096k,nr_inodes=1024,mode=755", flag: unix.MS_RDONLY | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "size=4096k,nr_inodes=1024,mode=755"},
+		{in: "rw", flag: 0, opt: ""},
+		{in: "rw,nosuid,nodev", flag: unix.MS_NOSUID | unix.MS_NODEV, opt: ""},
+		{in: "rw,nosuid,nodev,noexec,relatime", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: ""},
+		{in: "rw,nosuid,nodev,noexec,relatime", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: ""},
+
+		{in: "rw,nosuid,nodev,noexec,relatime,cpu,cpuacct", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "cpu,cpuacct"},
+		{in: "rw,nosuid,nodev,noexec,relatime,cpuset", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "cpuset"},
+		{in: "rw,nosuid,nodev,noexec,relatime", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: ""},
+		{in: "rw,nosuid,nodev,noexec,relatime", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: ""},
+		{in: "rw,nosuid,nodev,noexec,relatime,cpu,cpuacct", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "cpu,cpuacct"},
+		{in: "rw,nosuid,nodev,noexec,relatime,cpuset", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "cpuset"},
+		{in: "rw,nosuid,nodev,noexec,relatime,devices", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "devices"},
+		{in: "rw,nosuid,nodev,noexec,relatime,freezer", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "freezer"},
+		{in: "rw,nosuid,nodev,noexec,relatime,hugetlb", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "hugetlb"},
+		{in: "rw,nosuid,nodev,noexec,relatime,memory", flag: unix.MS_RELATIME | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "memory"},
+		{in: "rw,nosuid,nodev,noexec,relatime,mode=700", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "mode=700"},
+		{in: "rw,nosuid,nodev,noexec,relatime,net_cls,net_prio", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "net_cls,net_prio"},
+		{in: "rw,nosuid,nodev,noexec,relatime,nsdelegate", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "nsdelegate"},
+		{in: "rw,nosuid,nodev,noexec,relatime,perf_event", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "perf_event"},
+		{in: "rw,nosuid,nodev,noexec,relatime,pids", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "pids"},
+		{in: "rw,nosuid,nodev,noexec,relatime,rdma", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "rdma"},
+		{in: "rw,nosuid,nodev,noexec,relatime,size=3902136k,mode=755", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "size=3902136k,mode=755"},
+		{in: "rw,nosuid,nodev,noexec,relatime,size=5120k", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "size=5120k"},
+		{in: "rw,nosuid,nodev,noexec,relatime,xattr,name=systemd", flag: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC, opt: "xattr,name=systemd"},
+		{in: "rw,nosuid,nodev,relatime,size=3902132k,nr_inodes=975533,mode=700,uid=1000,gid=1000", flag: 0x200006, opt: "size=3902132k,nr_inodes=975533,mode=700,uid=1000,gid=1000"},
+		{in: "rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000", flag: unix.MS_NOSUID | unix.MS_NOEXEC, opt: "gid=5,mode=620,ptmxmode=000"},
+		{in: "rw,nosuid,noexec,relatime,size=19429784k,nr_inodes=4857446,mode=755", flag: 0x20000a, opt: "size=19429784k,nr_inodes=4857446,mode=755"},
+		{in: "rw,relatime", flag: 0x200000, opt: ""},
+		{in: "rw,relatime,fd=28,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=24647", flag: 0x200000, opt: "fd=28,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=24647"},
+		{in: "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro", flag: 0x200000, opt: "fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro"},
+		{in: "rw,relatime,pagesize=2M", flag: 0x200000, opt: "pagesize=2M"},
 	} {
-		out := parse(tt.in)
-		if out != tt.out {
-			t.Errorf("Parsing %s: got %s, want %s", tt.in, out, tt.out)
+		opt, flag := parse(tt.in)
+		if opt != tt.opt {
+			t.Errorf("Parsing %s(%d): got (%#x, %s), want (%#x, %s)", tt.in, i, flag, opt, tt.flag, tt.opt)
+			t.Errorf("{in: %q, flag: %#x, opt: %q,},", tt.in, flag, opt)
 		}
 
 	}
