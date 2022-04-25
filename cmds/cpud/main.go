@@ -562,7 +562,6 @@ func main() {
 
 	}
 
-	v = log.Printf
 	verbose("Args %v pid %d *runasinit %v *remote %v", os.Args, os.Getpid(), *runAsInit, *remote)
 	args := flag.Args()
 	switch {
