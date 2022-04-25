@@ -60,7 +60,7 @@ var (
 	wtf  = flag.String("wtf", "", "Command to run if setup (e.g. private name space mounts) fail")
 	pid1 bool
 	// This flag indicates we are running the package version of the server.
-	packageServer = flag.Bool("new", false, "use Package version of cpud")
+	packageServer = flag.Bool("new", true, "use Package version of cpud")
 )
 
 func verbose(f string, a ...interface{}) {
