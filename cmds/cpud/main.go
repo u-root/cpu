@@ -11,7 +11,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,9 +22,7 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
 	"github.com/kr/pty" // TODO: get rid of krpty
-	"github.com/u-root/cpu/mount"
 	"github.com/u-root/cpu/session"
-	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 	"golang.org/x/sys/unix"
 )
@@ -65,208 +62,6 @@ var (
 
 func verbose(f string, a ...interface{}) {
 	v("\r\nCPUD:"+f+"\r\n", a...)
-}
-
-func dropPrivs() error {
-	uid := unix.Getuid()
-	v("CPUD:dropPrives: uid is %v", uid)
-	if uid == 0 {
-		v("CPUD:dropPrivs: not dropping privs")
-		return nil
-	}
-	gid := unix.Getgid()
-	v("CPUD:dropPrivs: gid is %v", gid)
-	if err := unix.Setreuid(-1, uid); err != nil {
-		return err
-	}
-	return unix.Setregid(-1, gid)
-}
-
-func buildCmd(cmd string) []string {
-	if len(cmd) == 0 {
-		cmd = os.Getenv("SHELL")
-		if len(cmd) == 0 {
-			cmd = "/bin/sh"
-		}
-	}
-	return strings.Fields(cmd)
-}
-
-// start up a namespace. We must
-// mkdir /tmp/cpu on the remote machine
-// issue the mount command
-// test via an ls of /tmp/cpu
-// We enter here as uid 0 and once the mount is done, back down.
-func runRemote(cmd, port9p string) error {
-	// Get the nonce and remove it from the environment.
-	nonce := os.Getenv("CPUNONCE")
-	os.Unsetenv("CPUNONCE")
-	// for some reason echo is not set.
-	t, err := termios.New()
-	if err != nil {
-		log.Printf("CPUD:can't get a termios; oh well; %v", err)
-	} else {
-		term, err := t.Get()
-		if err != nil {
-			log.Printf("CPUD:can't get a termios; oh well; %v", err)
-		} else {
-			term.Lflag |= unix.ECHO | unix.ECHONL
-			if err := t.Set(term); err != nil {
-				log.Printf("CPUD:can't set a termios; oh well; %v", err)
-			}
-		}
-	}
-
-	var bindover string
-	if s, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
-		bindover = s
-	}
-
-	user := os.Getenv("USER")
-	if user == "" {
-		user = "nouser"
-	}
-
-	_, IgnoreCmdError := os.LookupEnv("CPUD_IGNORE_CMD_ERROR")
-
-	// It's true we are making this directory while still root.
-	// This ought to be safe as it is a private namespace mount.
-	for _, n := range []string{"/tmp/cpu", "/tmp/local", "/tmp/merge", "/tmp/root", "/home"} {
-		if err := os.MkdirAll(n, 0666); err != nil && !os.IsExist(err) {
-			log.Println(err)
-		}
-	}
-	v("CPUD:namespace is %q", bindover)
-	var fail bool
-	if len(bindover) != 0 {
-		// Connect to the socket, return the nonce.
-		a := net.JoinHostPort("127.0.0.1", port9p)
-		v("CPUD:Dial %v", a)
-		so, err := net.Dial("tcp4", a)
-		if err != nil {
-			log.Fatalf("CPUD:Dial 9p port: %v", err)
-		}
-		v("CPUD:Connected: write nonce %s\n", nonce)
-		if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
-			log.Fatalf("CPUD:Write nonce: %v", err)
-		}
-		v("CPUD:Wrote the nonce")
-
-		// the kernel takes over the socket after the Mount.
-		defer so.Close()
-		flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID)
-		cf, err := so.(*net.TCPConn).File()
-		if err != nil {
-			log.Fatalf("CPUD:Cannot get fd for %v: %v", so, err)
-		}
-
-		fd := cf.Fd()
-		v("CPUD:fd is %v", fd)
-		// The debug= option is here so you can see how to temporarily set it if needed.
-		// It generates copious output so use it sparingly.
-		// A useful compromise value is 5.
-		opts := fmt.Sprintf("version=9p2000.L,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, *msize)
-		if *mountopts != "" {
-			opts += "," + *mountopts
-		}
-		v("CPUD: mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
-		if err := unix.Mount("127.0.0.1", "/tmp/cpu", "9p", flags, opts); err != nil {
-			return fmt.Errorf("9p mount %v", err)
-		}
-		v("CPUD: mount done")
-
-		// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
-		if err := unix.Mount("/", "/tmp/local", "", syscall.MS_BIND, ""); err != nil {
-			log.Printf("CPUD:Warning: binding / over /tmp/cpu did not work: %v, continuing anyway", err)
-		}
-
-		// In some cases if you set LD_LIBRARY_PATH it is ignored.
-		// This is disappointing to say the least. We just bind a few things into /
-		// bind *may* hide local resources but for now it's the least worst option.
-		dirs := strings.Split(bindover, ":")
-		for _, n := range dirs {
-			l, r := n, n
-			// If the value is local=remote, len(c) will be 2.
-			// The value might be some weird degenerate form such as
-			// =name or name=. That is considered to be an error.
-			// The convention is to split on the first =. It is not up
-			// to this code to determine that more than one = is an error.
-			c := strings.SplitN(n, "=", 2)
-			if len(c) == 2 {
-				l, r = c[0], c[1]
-				if len(r) == 0 {
-					return fmt.Errorf("Bad name in %q: zero-length remote name", n)
-				}
-				if len(l) == 0 {
-					return fmt.Errorf("Bad name in %q: zero-length local name", n)
-				}
-			}
-			t := filepath.Join("/tmp/cpu", r)
-			v("CPUD: mount %v over %v", t, n)
-			if err := unix.Mount(t, l, "", syscall.MS_BIND, ""); err != nil {
-				fail = true
-				log.Printf("CPUD:Warning: mounting %v on %v failed: %v", t, n, err)
-			} else {
-				v("CPUD:Mounted %v on %v", t, n)
-			}
-
-		}
-	}
-	v("CPUD: bind mounts done")
-
-	// The CPU_FSTAB environment variable is, literally, an fstab.
-	// Why an environment variable and not a file? We do not
-	// want to require any 9p mounts at all. People should be able
-	// to do this:
-	// CPU_NAMESPACE="" CPU_FSTAB=`cat fstab`
-	// and get the mounts they want. The first uses of this will
-	// be building namespaces with drive and virtiofs.
-	if s, ok := os.LookupEnv("CPU_FSTAB"); ok {
-		if err := mount.Mount(s); err != nil {
-			v("CPUD: fstab mount failure: %v", err)
-			// Should we die if the mounts fail? For now, we think not;
-			// the user may be able to debug if they have a non-empty
-			// CPU_NAMESPACE. Just record that it failed.
-			fail = true
-		}
-	}
-
-	if fail && len(*wtf) != 0 {
-		c := exec.Command(*wtf)
-		c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, "/"
-		log.Printf("CPUD: WTF: try to run %v", c)
-		if err := c.Run(); err != nil {
-			log.Printf("CPUD: Running %q failed: %v", *wtf, err)
-		}
-		log.Printf("CPUD: WTF done")
-	}
-	// We don't want to run as the wrong uid.
-	if err := dropPrivs(); err != nil {
-		return err
-	}
-	// The unmount happens for free since we unshared.
-	v("CPUD:runRemote: command is %q", cmd)
-	f := buildCmd(cmd)
-	c := exec.Command(f[0], f[1:]...)
-	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
-	err = c.Run()
-	v("CPUD:Run %v returns %v", c, err)
-	if err != nil {
-		if fail && len(*wtf) != 0 {
-			c := exec.Command(*wtf)
-			c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, "/"
-			log.Printf("CPUD: WTF: try to run %v", c)
-			if err := c.Run(); err != nil {
-				log.Printf("CPUD: Running %q failed: %v", *wtf, err)
-			}
-			log.Printf("CPUD: WTF done")
-		}
-	}
-	if IgnoreCmdError {
-		v("CPUD: ignoring err %v", err)
-		err = nil
-	}
-	return err
 }
 
 var sawNew bool
@@ -571,18 +366,12 @@ func main() {
 			log.Fatalf("CPUD(as init):%v", err)
 		}
 	case *remote:
-		if sawNew {
-			verbose("server package: Running as remote: args %q, port9p %v", args, *port9p)
-			s := session.New(*port9p, args[0], args[1:]...)
-			if err := s.Run(); err != nil {
-				log.Fatalf("CPUD(as remote):%v", err)
-			}
-			break
-		}
-		verbose("Not server package: Running as remote: args %q, port9p %v", args, *port9p)
-		if err := runRemote(strings.Join(args, " "), *port9p); err != nil {
+		verbose("server package: Running as remote: args %q, port9p %v", args, *port9p)
+		s := session.New(*port9p, args[0], args[1:]...)
+		if err := s.Run(); err != nil {
 			log.Fatalf("CPUD(as remote):%v", err)
 		}
+		break
 	default:
 		log.Fatal("CPUD:can only run as remote or pid 1")
 	}
