@@ -65,7 +65,7 @@ var (
 	dumpWriter *os.File
 
 	// temporary; remove when we remove old code
-	cpupackage = flag.Bool("new", false, "Use new cpu package for cpu client")
+	cpupackage = flag.Bool("new", true, "Use new cpu package for cpu client")
 )
 
 func verbose(f string, a ...interface{}) {
