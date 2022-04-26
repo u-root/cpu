@@ -77,7 +77,7 @@ func Test9pUnix(t *testing.T) {
 	if err := c.SetAttr(sam, sa); err != nil {
 		t.Fatalf("Setattr with no change: %v != nil", err)
 	}
-	q, gm, ga2, err := c.GetAttr(m)
+	_, _, ga2, err := c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}
@@ -89,7 +89,7 @@ func Test9pUnix(t *testing.T) {
 	if err := c.SetAttr(sam, sa); err != nil {
 		t.Fatalf("Setattr with mode: %v != nil", err)
 	}
-	q, gm, ga2, err = c.GetAttr(m)
+	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}
@@ -101,7 +101,7 @@ func Test9pUnix(t *testing.T) {
 	if err := c.SetAttr(sam, sa); err != nil {
 		t.Fatalf("Setattr with size: %v != nil", err)
 	}
-	q, gm, ga2, err = c.GetAttr(m)
+	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}
@@ -113,7 +113,7 @@ func Test9pUnix(t *testing.T) {
 	if err := c.SetAttr(sam, sa); err != nil {
 		t.Fatalf("Setattr with UID: %v != nil", err)
 	}
-	q, gm, ga2, err = c.GetAttr(m)
+	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}
@@ -125,7 +125,7 @@ func Test9pUnix(t *testing.T) {
 	if err := c.SetAttr(sam, sa); err != nil {
 		t.Fatalf("Setattr with GID: %v != nil", err)
 	}
-	q, gm, ga2, err = c.GetAttr(m)
+	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}
@@ -151,7 +151,7 @@ func Test9pUnix(t *testing.T) {
 		t.Fatalf("Setattr with ATime, sam.ATimeNotSystemTime: %v != nil", err)
 	}
 
-	q, gm, ga2, err = c.GetAttr(m)
+	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}
@@ -165,7 +165,7 @@ func Test9pUnix(t *testing.T) {
 	if err := c.SetAttr(sam, sa); err != nil {
 		t.Fatalf("Setattr with MTime, sam.MTimeNotSystemTime: %v != nil", err)
 	}
-	q, gm, ga2, err = c.GetAttr(m)
+	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}
@@ -188,7 +188,7 @@ func Test9pUnix(t *testing.T) {
 	}
 
 	// But getattr should work.
-	q, gm, ga2, err = c.GetAttr(m)
+	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
 		t.Fatalf("Getattr: %v != nil", err)
 	}

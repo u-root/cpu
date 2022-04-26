@@ -55,10 +55,10 @@ func (c *Cmd) srv(l net.Listener) error {
 	// To be continued ...
 	select {
 	case <-time.After(c.Timeout):
-		log.Fatalf("cpud did not connect for more than %v", c.Timeout)
+		return fmt.Errorf("cpud did not connect for more than %v", c.Timeout)
 	case err := <-errs:
 		if err != nil {
-			log.Fatalf("srv: %v", err)
+			return fmt.Errorf("srv: %v", err)
 		}
 	}
 	// If we are debugging, add the option to trace records.

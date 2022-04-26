@@ -5,13 +5,9 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
-
-	"github.com/hashicorp/go-multierror"
-	"golang.org/x/sys/unix"
 )
 
 // cpud can run in one of three modes
@@ -43,22 +39,6 @@ func init() {
 	}
 }
 
-func osMounts() error {
-	var errors error
-	// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
-	if err := unix.Mount("/", "/tmp/local", "", syscall.MS_BIND, ""); err != nil {
-		errors = multierror.Append(fmt.Errorf("CPUD:Warning: binding / over /tmp/local did not work: %v, continuing anyway", err))
-	}
-	return errors
-}
-
-// func logopts() {
-// 	if *klog {
-// 		ulog.KernelLog.Reinit()
-// 		v = ulog.KernelLog.Printf
-// 	}
-// }
-
 func command(n string, args ...string) *exec.Cmd {
 	cmd := exec.Command(n, args...)
 	// N.B.: in the go runtime, after not long ago, CLONE_NEWNS in the Unshareflags
@@ -69,12 +49,4 @@ func command(n string, args ...string) *exec.Cmd {
 	// the support code from cpu. Oops.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 	return cmd
-}
-
-// runSetup performs kernel-specific operations for starting a Session.
-func runSetup() error {
-	if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
-		return fmt.Errorf(`unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); %v != nil`, err)
-	}
-	return nil
 }

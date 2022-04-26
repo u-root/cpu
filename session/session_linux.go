@@ -48,9 +48,6 @@ import (
 // ideas has been lost. As a result, they do not remotely represent
 // any kind of security boundary.
 func (s *Session) Namespace() (error, error) {
-	if len(s.binds) == 0 {
-		return nil, nil
-	}
 	// Get the nonce and remove it from the environment.
 	// N.B. We do not save the nonce in the cpu struct.
 	nonce, ok := os.LookupEnv("CPUNONCE")

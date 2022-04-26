@@ -63,6 +63,8 @@ type Cmd struct {
 	NameSpace string
 	// FSTab is an fstab(5)-format string
 	FSTab string
+	// Ninep determines if client will run a 9P server
+	Ninep     bool
 
 	nonce   nonce
 	network string // This is a variable but we expect it will always be tcp
@@ -121,12 +123,23 @@ func Command(host string, args ...string) *Cmd {
 	}
 }
 
+// With9P enables the 9P2000 server in cpu.
+// The server is by default disabled. Ninep is sticky; if set by,
+// e.g., WithNameSpace, the Principle of Least Confusion argues
+// that it should remain set. Hence, we || it with its current value.
+func (c *Cmd) With9P(p9 bool) *Cmd {
+	c.Ninep = p9 || c.Ninep
+	return c
+}
+
 // WithNameSpace sets the namespace to Cmd.There is no default: having some default
-// violates the principle of least surprise for package users.
-// The word "none" is reserved to mean the package will not set the
-// CPU_NAMESPACE environment variable.
+// violates the principle of least surprise for package users. If ns is non-empty
+// the Ninep is forced on.
 func (c *Cmd) WithNameSpace(ns string) *Cmd {
 	c.NameSpace = ns
+	if len(ns) > 0 {
+		c.Ninep = true
+	}
 	return c
 }
 
@@ -214,7 +227,7 @@ func (c *Cmd) Dial() error {
 	// Arrange port forwarding from remote ssh to our server.
 	// Note: cl.Listen returns a TCP listener with network "tcp"
 	// or variants. This lets us use a listen deadline.
-	if c.NameSpace != "none" {
+	if c.Ninep {
 		l, err := cl.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			return fmt.Errorf("cpu client listen for forwarded 9p port %v", err)
@@ -238,8 +251,15 @@ func (c *Cmd) Dial() error {
 		}
 		c.nonce = nonce
 		c.Env = append(c.Env, "CPUNONCE="+nonce.String())
-		c.Env = append(c.Env, "CPU_NAMESPACE="+c.NameSpace)
-		go c.srv(l)
+		if len(c.NameSpace) > 0 {
+			c.Env = append(c.Env, "CPU_NAMESPACE="+c.NameSpace)
+		}
+		V("Set NONCE; set NAMESPACE to %q", "CPU_NAMESPACE="+c.NameSpace)
+		go func(l net.Listener) {
+			if err := c.srv(l); err != nil {
+				log.Printf("9p server error: %v", err)
+			}
+		}(l)
 	}
 	if len(c.FSTab) > 0 {
 		c.Env = append(c.Env, "CPU_FSTAB="+c.FSTab)

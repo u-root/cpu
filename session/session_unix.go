@@ -6,4 +6,3 @@
 // +build !plan9,!windows
 
 package session
-

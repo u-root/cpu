@@ -65,6 +65,11 @@
 //     it is running from outside the ssh session
 //
 // Options:
+//     -9p bool
+//           enable the 9p server in the client (default enabled)
+//           Note that the 9p server is also enabled if the namespace
+//           is not empty. To ensure the 9p server is not set,
+//           cpu -9p=f -namespace=""
 //     -bin string
 //           path of cpu binary
 //     -d
@@ -81,6 +86,18 @@
 //           extra options for the 9p mount, default "". Lightly tested.
 //     -msize uint
 //           max size for 9p packets, default 1 MiB
+//     -namespace string
+//           namespace defines the bind mounts that are done by cpud.
+//           The format is of a : separated string, in the style of PATH
+//           variables, with one addition: one can define where on the
+//           host the bind is done.
+//           The default is /lib:/lib64:/usr:/bin:/etc:/home, which means
+//           these directories will be provided by the 9p server in the
+//           client. Sometimes, it is useful to be able to remap the names.
+//           On OSX, for example, /Users/rob would be rob's home directory,
+//           but we might want it to appears as /home/rob on Linux.
+//           This change is accomplished with
+//           -namespace /lib:/lib64:/usr:/bin:/etc:/home/rob=/Users/rob
 //     -network string
 //           network to use (default "tcp")
 //     -port9p string
