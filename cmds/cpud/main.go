@@ -7,28 +7,16 @@ package main
 import (
 	"bytes"
 	"flag"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
-	"syscall"
-	"unsafe"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
-	"github.com/gliderlabs/ssh"
-	"github.com/kr/pty" // TODO: get rid of krpty
-	"github.com/u-root/cpu/session"
-	"github.com/u-root/u-root/pkg/ulog"
-	"golang.org/x/sys/unix"
-)
+	// TODO: get rid of krpty
 
-// a nonce is a [32]byte containing only printable characters, suitable for use as a string
-type nonce [32]byte
+	"github.com/u-root/cpu/session"
+)
 
 var (
 	// For the ssh server part
@@ -36,7 +24,7 @@ var (
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
 	port        = flag.String("sp", "23", "cpu default port")
 
-	debug     = flag.Bool("d", false, "enable debug prints")
+	debug     = flag.Bool("d", true, "enable debug prints")
 	runAsInit = flag.Bool("init", false, "run as init (Debug only; normal test is if we are pid 1")
 	v         = func(string, ...interface{}) {}
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
@@ -57,101 +45,11 @@ var (
 	wtf  = flag.String("wtf", "", "Command to run if setup (e.g. private name space mounts) fail")
 	pid1 bool
 	// This flag indicates we are running the package version of the server.
-	packageServer = flag.Bool("new", false, "use Package version of cpud")
+	packageServer = flag.Bool("new", true, "use Package version of cpud")
 )
 
 func verbose(f string, a ...interface{}) {
 	v("\r\nCPUD:"+f+"\r\n", a...)
-}
-
-var sawNew bool
-
-// We do flag parsing in init so we can
-// Unshare if needed while we are still
-// single threaded.
-// Note that we can't run tets, dammit, because you can not call flag.Parse() from init,
-// but we really need to b/c unshare etc. are broken in earlier versions of go.
-// I.e., an unshare in earlier Go only affects one process, not all processes constituting
-// the program.
-//
-// n.b. for new package code. While we make the move to the new code, we default to the
-// original code, UNLESS the FIRST argument -- os.Args[1] -- is "-new=true"
-// That and only that.
-// In that case, init() runs differently and, in particular, won't do flag parsing,
-// which is not safe to do in init(). No shorthand, nothing else. This is temporary
-// and at some point will be gone!
-
-func init() {
-	// The goal here is to move away from flag parsing in init(), which we originally
-	// did to try to figure out correct unsharing.
-	// Step 1 is to figure out if we are pid 1, and due what needs doing from that.
-	if len(os.Args) > 1 && os.Args[1] == "-new=true" {
-		// All those thread-safe things we need to do in init are done by the package.
-		// As far as we know :-)
-		//
-		// Note that we don't set the variable for the -new flag:
-		// that will get set in main when we call flag.Parse().
-		//
-		// Note that namespace privatization (is that a word?) is done correctly
-		// now in the Go runtime if Unshareflags includes syscall.CLONE_NEWNS,
-		// but that does require a fork.
-		//
-		// Which means: cpud run with -remote assumes it has
-		// been started with a private name space, which either means it has to
-		// be forked out of a cpud or run via unshare -m.
-		// It would be nice if Linux had an equivalent of Plan 9's rfork(RFNAMEG)
-		// but Linux has never quite gotten namespaces right.
-		log.Printf("CPUD: running new package-based cpud")
-		sawNew = true
-		*runAsInit = os.Getpid() == 1
-		*remote = !*runAsInit
-		*debug = true
-		return
-	}
-	flag.Parse()
-	if *runAsInit && *remote {
-		log.Fatal("Only use -remote or -init, not both")
-	}
-	if os.Getpid() == 1 {
-		pid1, *runAsInit, *debug = true, true, false
-	}
-	if *debug {
-		v = log.Printf
-		if *klog {
-			ulog.KernelLog.Reinit()
-			v = ulog.KernelLog.Printf
-		}
-	}
-	if *remote {
-		// The unshare system call in Linux doesn't unshare mount points
-		// mounted with --shared. Systemd mounts / with --shared. For a
-		// long discussion of the pros and cons of this see debian bug 739593.
-		// The Go model of unsharing is more like Plan 9, where you ask
-		// to unshare and the namespaces are unconditionally unshared.
-		// To make this model work we must further mark / as MS_PRIVATE.
-		// This is what the standard unshare command does.
-		var (
-			none  = [...]byte{'n', 'o', 'n', 'e', 0}
-			slash = [...]byte{'/', 0}
-			flags = uintptr(unix.MS_PRIVATE | unix.MS_REC) // Thanks for nothing Linux.
-		)
-		// Make / private. This call *is* safe so far for reasons.
-		// Probably because, on many systems, we are lucky enough not to have a systemd
-		// there screwing up namespaces.
-		_, _, err1 := syscall.RawSyscall6(unix.SYS_MOUNT, uintptr(unsafe.Pointer(&none[0])), uintptr(unsafe.Pointer(&slash[0])), 0, flags, 0, 0)
-		if err1 != 0 {
-			log.Printf("CPUD:Warning: unshare failed (%v). There will be no private 9p mount if systemd is there", err1)
-		}
-		flags = 0
-		if err := unix.Mount("cpu", "/tmp", "tmpfs", flags, ""); err != nil {
-			log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
-		}
-	}
-}
-
-func setWinsize(f *os.File, w, h int) {
-	syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), uintptr(syscall.TIOCSWINSZ),
-		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})))
 }
 
 // errval can be used to examine errors that we don't consider errors
@@ -167,172 +65,7 @@ func errval(err error) error {
 	return err
 }
 
-func handler(s ssh.Session) {
-	a := s.Command()
-	if *debug {
-		a = append([]string{a[0], "-d"}, a[1:]...)
-	}
-	v("CPUD:handler: cmd is %q", a)
-	cmd := exec.Command(a[0], a[1:]...)
-	// N.B.: in the go runtime, after not long ago, CLONE_NEWNS in the CloneFlags
-	// also does two things: an unshare, and a remount of / to unshare mounts.
-	// see d8ed449d8eae5b39ffe227ef7f56785e978dd5e2 in the go tree for a discussion.
-	// This meant we could remove ALL calls of unshare and mount from cpud.
-	// Fun fact: I wrote that fix years ago, and then forgot to remove
-	// the support code from cpu. Oops.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags: syscall.CLONE_NEWNS}
-	cmd.Env = append(cmd.Env, s.Environ()...)
-	ptyReq, winCh, isPty := s.Pty()
-	if isPty {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
-		cmd.Env = append(cmd.Env, "CPUD_IGNORE_CMD_ERROR=1")
-		f, err := pty.Start(cmd)
-		v("command started with pty")
-		if err != nil {
-			v("CPUD:pty.Start:err %v", err)
-			return
-		}
-		go func() {
-			for win := range winCh {
-				setWinsize(f, win.Width, win.Height)
-			}
-		}()
-		go func() {
-			io.Copy(f, s) // stdin
-		}()
-		io.Copy(s, f) // stdout
-		// Stdout is closed, "there's no more to the show/
-		// If you all want to breath right/you all better go"
-		// This is going to seem a bit odd, but it is important to
-		// only wait for the process started here, not any orphans.
-		// In most cases, that process is either a singleton (so the wait
-		// will be all we need); a shell (which does all the waiting for
-		// its children); or the rare case of a detached process (in which
-		// case the reaper will get it).
-		// Seen in the wild: were this code to wait for orphans,
-		// and the main loop to wait for orphans, they end up
-		// competing with each other and the results are odd to say the least.
-		// If the command exits, leaving orphans behind, it is the job
-		// of the reaper to get them.
-		v("wait for %v", cmd)
-		err = cmd.Wait()
-		v("cmd \"%v\" returns with %v %v", cmd, err, cmd.ProcessState)
-		if errval(err) != nil {
-			v("CPUD:child exited with  %v", err)
-			s.Exit(cmd.ProcessState.ExitCode())
-		}
-
-	} else {
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s
-		v("running command %q without pty", cmd.String())
-		v("CPUD(%q,\n %q,\n %q,\n %q\n): :%v.Run:", cmd.Path, cmd.Args, cmd.Env, cmd.Dir, cmd)
-		if err := cmd.Run(); errval(err) != nil {
-			v("CPUD(%q,\n %q,\n %q,\n %q\n): :%v.Run:err %v", cmd.Path, cmd.Args, cmd.Env, cmd.Dir, cmd, err)
-			s.Exit(1)
-		}
-	}
-	verbose("handler exits")
-}
-
-func doInit() error {
-	if pid1 {
-		if err := cpuSetup(); err != nil {
-			log.Printf("CPUD:CPU setup error with cpu running as init: %v", err)
-		}
-		cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-v", "--retry", "1000"}}
-		verbose("Try to run %v", cmds)
-
-		for _, v := range cmds {
-			verbose("Let's try to run %v", v)
-			if _, err := os.Stat(v[0]); os.IsNotExist(err) {
-				verbose("it's not there")
-				continue
-			}
-
-			// I *love* special cases. Evaluate just the top-most symlink.
-			//
-			// In source mode, this would be a symlink like
-			// /buildbin/defaultsh -> /buildbin/elvish ->
-			// /buildbin/installcommand.
-			//
-			// To actually get the command to build, argv[0] has to end
-			// with /elvish, so we resolve one level of symlink.
-			if filepath.Base(v[0]) == "defaultsh" {
-				s, err := os.Readlink(v[0])
-				if err == nil {
-					v[0] = s
-				}
-				verbose("readlink of %v returns %v", v[0], s)
-				// and, well, it might be a relative link.
-				// We must go deeper.
-				d, b := filepath.Split(v[0])
-				d = filepath.Base(d)
-				v[0] = filepath.Join("/", os.Getenv("UROOT_ROOT"), d, b)
-				verbose("is now %v", v[0])
-			}
-
-			cmd := exec.Command(v[0], v[1:]...)
-			cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-			cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
-			verbose("Run %v", cmd)
-			if err := cmd.Start(); err != nil {
-				verbose("CPUD:Error starting %v: %v", v, err)
-				continue
-			}
-		}
-	}
-	verbose("Kicked off startup jobs, now serve ssh")
-	publicKeyOption := func(ctx ssh.Context, key ssh.PublicKey) bool {
-		// Glob the users's home directory for all the
-		// possible keys?
-		data, err := ioutil.ReadFile(*pubKeyFile)
-		if err != nil {
-			fmt.Print(err)
-			return false
-		}
-		allowed, _, _, _, _ := ssh.ParseAuthorizedKey(data)
-		return ssh.KeysEqual(key, allowed)
-	}
-
-	// Now we run as an ssh server, and each time we get a connection,
-	// we run that command after setting things up for it.
-	forwardHandler := &ssh.ForwardedTCPHandler{}
-	server := ssh.Server{
-		LocalPortForwardingCallback: ssh.LocalPortForwardingCallback(func(ctx ssh.Context, dhost string, dport uint32) bool {
-			log.Println("CPUD:Accepted forward", dhost, dport)
-			return true
-		}),
-		Addr:             ":" + *port,
-		PublicKeyHandler: publicKeyOption,
-		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-			log.Println("CPUD:attempt to bind", host, port, "granted")
-			return true
-		}),
-		RequestHandlers: map[string]ssh.RequestHandler{
-			"tcpip-forward":        forwardHandler.HandleSSHRequest,
-			"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
-		},
-		Handler: handler,
-	}
-
-	// start the process reaper
-	procs := make(chan uint)
-	verbose("Start the process reaper")
-	go cpuDone(procs)
-
-	server.SetOption(ssh.HostKeyFile(*hostKeyFile))
-	log.Println("CPUD:starting ssh server on port " + *port)
-	if err := server.ListenAndServe(); err != nil {
-		log.Printf("CPUD:ListenAndServer:err %v", err)
-	}
-	verbose("server.ListenAndServer returned")
-
-	numprocs := <-procs
-	verbose("Reaped %d procs", numprocs)
-	return nil
-}
-
-// TODO: we've been tryinmg to figure out the right way to do usage for years.
+// TODO: we've been trying to figure out the right way to do usage for years.
 // If this is a good way, it belongs in the uroot package.
 func usage() {
 	var b bytes.Buffer
@@ -342,28 +75,15 @@ func usage() {
 }
 
 func main() {
-	if sawNew {
-		flag.Parse()
-		if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
-			log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
-		}
-		if *debug {
-			v = log.Printf
-			if *klog {
-				ulog.KernelLog.Reinit()
-				v = ulog.KernelLog.Printf
-			}
-		}
-
-	}
-
-	verbose("Args %v pid %d *runasinit %v *remote %v", os.Args, os.Getpid(), *runAsInit, *remote)
+	flag.Parse()
+	pid1 = os.Getpid() == 1
+	*runAsInit = *runAsInit || pid1
+	verbose("Args %v pid %d *runasinit %v *remote %v env %v", os.Args, os.Getpid(), *runAsInit, *remote, os.Environ())
 	args := flag.Args()
 	switch {
 	case *runAsInit:
-		verbose("Running as Init")
-		if err := doInit(); err != nil {
-			log.Fatalf("CPUD(as init):%v", err)
+		if err := serve(); err != nil {
+			log.Fatal(err)
 		}
 	case *remote:
 		verbose("server package: Running as remote: args %q, port9p %v", args, *port9p)

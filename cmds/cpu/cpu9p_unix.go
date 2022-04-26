@@ -60,6 +60,7 @@ func (l *cpu9p) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 		// The Linux client sets CTime. I did not even know that was allowed.
 		// Change the create time of a file?
 		// if e := errors.New("Can not set CTime on Unix"); e != nil { err = multierror.Append(e)}
+		v("mask.CTime is set by client; ignoring")
 	}
 	if mask.Permissions {
 		if e := unix.Chmod(l.path, uint32(attr.Permissions)); e != nil {

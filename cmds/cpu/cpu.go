@@ -18,9 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
-	"unsafe"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
@@ -59,9 +57,9 @@ var (
 	port9p      = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
+	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
 
 	v          = func(string, ...interface{}) {}
-	pid1       bool
 	dumpWriter *os.File
 
 	// temporary; remove when we remove old code
@@ -134,21 +132,6 @@ func configSSH(kf string) (*ossh.ClientConfig, error) {
 		HostKeyCallback: cb,
 	}
 	return config, nil
-}
-
-func cmd(client *ossh.Client, s string) ([]byte, error) {
-	session, err := client.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create session: %v", err)
-	}
-	defer session.Close()
-
-	var b bytes.Buffer
-	session.Stdout = &b
-	if err := session.Run(s); err != nil {
-		return nil, fmt.Errorf("Failed to run %v: %v", s, err.Error())
-	}
-	return b.Bytes(), nil
 }
 
 // To make sure defer gets run and you tty is sane on exit
@@ -368,11 +351,6 @@ func flags() {
 	}
 }
 
-func setWinsize(f *os.File, w, h int) {
-	syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), uintptr(syscall.TIOCSWINSZ),
-		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})))
-}
-
 // getKeyFile picks a keyfile if none has been set.
 // It will use sshconfig, else use a default.
 func getKeyFile(host, kf string) string {
@@ -435,7 +413,8 @@ func usage() {
 
 func newCPU(host string, args ...string) error {
 	client.V = v
-	c := client.Command(host, args...).WithPrivateKeyFile(*keyFile).WithPort(*port).WithRoot(*root).WithNameSpace(*namespace)
+	// note that 9P is enabled if namespace is not empty OR if ninep is true
+	c := client.Command(host, args...).WithPrivateKeyFile(*keyFile).WithPort(*port).WithRoot(*root).WithNameSpace(*namespace).With9P(*ninep)
 	if len(*cpudCmd) > 0 {
 		c.WithCpudCommand(*cpudCmd)
 	}

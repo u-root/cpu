@@ -128,32 +128,30 @@ func (s *Session) Run() error {
 	if err := runSetup(); err != nil {
 		return err
 	}
-	// N.B. if the namespace variable is set,
-	// even if it is empty, server will try to do
-	// the 9p mount. That way programs can access files such
-	// as /tmp/cpu/home/username/whatever.
-	if b, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
-		v("Set up a namespace")
-		if err := s.TmpMounts(); err != nil {
-			s.fail = true
-			errors = multierror.Append(err)
-		}
+	if err := s.TmpMounts(); err != nil {
+		v("CPUD: TmpMounts error: %v", err)
+		s.fail = true
+		errors = multierror.Append(err)
+	}
 
+	v("CPUD: Set up a namespace")
+	if b, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
 		binds, err := ParseBinds(b)
 		if err != nil {
-			v("ParseBind failed: %v", err)
+			v("CPUD: ParseBind failed: %v", err)
 			s.fail = true
 			errors = multierror.Append(errors, err)
 		}
 
 		s.binds = binds
-		w, err := s.Namespace()
-		if err != nil {
-			return fmt.Errorf("CPUD:Namespace: warnings %v, err %v", w, multierror.Append(errors, err))
-		}
-		v("CPUD:warning: %v", w)
-
 	}
+	v("CPUD: call s.NameSpace")
+	w, err := s.Namespace()
+	if err != nil {
+		return fmt.Errorf("CPUD:Namespace: warnings %v, err %v", w, multierror.Append(errors, err))
+	}
+	v("CPUD:warning: %v", w)
+
 	v("CPUD: bind mounts done")
 
 	// The CPU_FSTAB environment variable is, literally, an fstab.
@@ -202,7 +200,7 @@ func (s *Session) Run() error {
 	v("CPUD:runRemote: command is %q", s.args)
 	c := exec.Command(s.cmd, s.args...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = s.Stdin, s.Stdout, s.Stderr, os.Getenv("PWD")
-	err := c.Run()
+	err = c.Run()
 	v("CPUD:Run %v returns %v", c, err)
 	if err != nil {
 		if s.fail && len(wtf) != 0 {

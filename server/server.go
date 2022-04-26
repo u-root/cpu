@@ -133,7 +133,7 @@ func New(publicKeyFile, hostKeyFile string) (*ssh.Server, error) {
 		}),
 		// Pick a reasonable default, which can be used for a call to listen and which
 		// will be overridden later from a listen.Addr
-		Addr:             ":23",
+		Addr:             ":" + defaultPort,
 		PublicKeyHandler: publicKeyOption,
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
 			v("CPUD:attempt to bind", host, port, "granted")
@@ -146,9 +146,8 @@ func New(publicKeyFile, hostKeyFile string) (*ssh.Server, error) {
 		Handler: handler,
 	}
 
-	if err := server.SetOption(ssh.HostKeyFile(hostKeyFile)); err != nil {
-		// We don't much care about this, what's the right thing to do here?
-		// just printint from this function is kind of icky.
-	}
+	// we ignore the SetOption error; if it does not work out, we
+	// actually don't care.
+	server.SetOption(ssh.HostKeyFile(hostKeyFile))
 	return server, nil
 }
