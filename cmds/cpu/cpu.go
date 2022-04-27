@@ -439,6 +439,11 @@ func newCPU(host string, args ...string) error {
 	if len(*cpudCmd) > 0 {
 		c.WithCpudCommand(*cpudCmd)
 	}
+	if len(*fstab) > 0 {
+		if err := c.AddFSTab(*fstab); err != nil {
+			log.Fatal(err)
+		}
+	}
 	if err := c.Dial(); err != nil {
 		return fmt.Errorf("Dial: got %v, want nil", err)
 	}
