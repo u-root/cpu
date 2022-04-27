@@ -7,6 +7,7 @@ package client
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -14,9 +15,6 @@ import (
 	"strings"
 	"time"
 
-	// We use this ssh because it implements port redirection.
-	// It can not, however, unpack password-protected keys yet.
-	// We use this ssh because it can unpack password-protected private keys.
 	"github.com/hashicorp/go-multierror"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/crypto/ssh"
@@ -63,6 +61,8 @@ type Cmd struct {
 	interactive    bool // Set if there are no arguments.
 	// NameSpace is a string as defined in the cpu documentation.
 	NameSpace string
+	// FSTab is an fstab(5)-format string
+	FSTab string
 
 	nonce   nonce
 	network string // This is a variable but we expect it will always be tcp
@@ -128,6 +128,19 @@ func Command(host string, args ...string) *Cmd {
 func (c *Cmd) WithNameSpace(ns string) *Cmd {
 	c.NameSpace = ns
 	return c
+}
+
+// AddFSTab reads a file for the FSTab member.
+func (c *Cmd) AddFSTab(fstab string) error {
+	if len(fstab) == 0 {
+		return nil
+	}
+	b, err := ioutil.ReadFile(fstab)
+	if err != nil {
+		return fmt.Errorf("Reading fstab: %w", err)
+	}
+	c.FSTab = string(b)
+	return nil
 }
 
 // WithPrivateKeyFile adds a private key file to a Cmd
@@ -227,6 +240,9 @@ func (c *Cmd) Dial() error {
 		c.Env = append(c.Env, "CPUNONCE="+nonce.String())
 		c.Env = append(c.Env, "CPU_NAMESPACE="+c.NameSpace)
 		go c.srv(l)
+	}
+	if len(c.FSTab) > 0 {
+		c.Env = append(c.Env, "CPU_FSTAB="+c.FSTab)
 	}
 
 	return nil
