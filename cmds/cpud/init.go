@@ -79,10 +79,3 @@ func cpuSetup() error {
 	runtime.UnlockOSThread()
 	return nil
 }
-
-func cpuDone(c chan uint) {
-	log.Printf("CPUD: All startup jobs exited")
-	log.Printf("CPUD: Syncing filesystems")
-	syscall.Sync()
-	c <- 1
-}

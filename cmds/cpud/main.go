@@ -5,11 +5,9 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"log"
 	"os"
-	"strings"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
@@ -29,49 +27,14 @@ var (
 	v         = func(string, ...interface{}) {}
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
 	network   = flag.String("network", "tcp", "network to use")
-	bin       = flag.String("bin", "cpu", "path of cpu binary")
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
-	dbg9p     = flag.String("dbg9p", "0", "show 9p io")
-	root      = flag.String("root", "/", "9p root")
 	klog      = flag.Bool("klog", false, "Log cpud messages in kernel log, not stdout")
 
-	mountopts = flag.String("mountopts", "", "Extra options to add to the 9p mount")
-	msize     = flag.Int("msize", 1048576, "msize to use")
-	// To get debugging when Things Go Wrong, you can run as, e.g., -wtf /bbin/elvish
-	// or change the value here to /bbin/elvish.
-	// This way, when Things Go Wrong, you'll be dropped into a shell and look around.
-	// This is sometimes your only way to debug if there is (e.g.) a Go runtime
-	// bug around unsharing. Which has happened.
-	wtf  = flag.String("wtf", "", "Command to run if setup (e.g. private name space mounts) fail")
 	pid1 bool
-	// This flag indicates we are running the package version of the server.
-	packageServer = flag.Bool("new", true, "use Package version of cpud")
 )
 
 func verbose(f string, a ...interface{}) {
 	v("\r\nCPUD:"+f+"\r\n", a...)
-}
-
-// errval can be used to examine errors that we don't consider errors
-func errval(err error) error {
-	if err == nil {
-		return err
-	}
-	// Our zombie reaper is occasionally sneaking in and grabbing the
-	// child's exit state. Looks like our process code still sux.
-	if strings.Contains(err.Error(), "no child process") {
-		return nil
-	}
-	return err
-}
-
-// TODO: we've been trying to figure out the right way to do usage for years.
-// If this is a good way, it belongs in the uroot package.
-func usage() {
-	var b bytes.Buffer
-	flag.CommandLine.SetOutput(&b)
-	flag.PrintDefaults()
-	log.Fatalf("Usage: cpu [options] host [shell command]:\n%v", b.String())
 }
 
 func main() {
@@ -91,7 +54,6 @@ func main() {
 		if err := s.Run(); err != nil {
 			log.Fatalf("CPUD(as remote):%v", err)
 		}
-		break
 	default:
 		log.Fatal("CPUD:can only run as remote or pid 1")
 	}

@@ -133,7 +133,7 @@ func TestDaemonSession(t *testing.T) {
 
 	t.Logf("HostName %q, IdentityFile %q, command %v", host, kf, os.Args[0])
 	client.V = t.Logf
-	c := client.Command(host, os.Args[0], "-remote", "-bin", os.Args[0], "ls", "-l").WithPrivateKeyFile(kf).WithPort(port).WithRoot(d).WithNameSpace(d)
+	c := client.Command(host, os.Args[0], "-remote", "ls", "-l").WithPrivateKeyFile(kf).WithPort(port).WithRoot(d).WithNameSpace(d)
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)
 	}
