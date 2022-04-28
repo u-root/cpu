@@ -64,7 +64,7 @@ type Cmd struct {
 	// FSTab is an fstab(5)-format string
 	FSTab string
 	// Ninep determines if client will run a 9P server
-	Ninep     bool
+	Ninep bool
 
 	nonce   nonce
 	network string // This is a variable but we expect it will always be tcp
@@ -153,6 +153,16 @@ func (c *Cmd) AddFSTab(fstab string) error {
 		return fmt.Errorf("Reading fstab: %w", err)
 	}
 	c.FSTab = string(b)
+	return nil
+}
+
+// SetTimeout sets the 9p timeout.
+func (c *Cmd) SetTimeout(timeout string) error {
+	d, err := time.ParseDuration(timeout)
+	if err != nil {
+		return err
+	}
+	c.Timeout = d
 	return nil
 }
 
