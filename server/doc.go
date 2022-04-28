@@ -37,11 +37,10 @@
 //
 // Each connection to the server results in the invocation of the
 // commands send from the client. The most common command is something
-// like: cpud -remote -bin cpud -port9p <9pportnumber> [command
+// like: cpud -remote -port9p <9pportnumber> [command
 // [arguments]].  If there is no command, servers typically run
 // $SHELL; that is up to whatever binary cpud is asked to run for each
-// session. The -bin cpud part of the args is no longer strictly
-// necessary but is left in for older cpud binaries.xs
+// session.
 //
 // This package also provides a Session type, created by a call to
 // NewSession.  Sessions are very similar to exec.Command, providing

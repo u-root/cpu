@@ -70,8 +70,6 @@
 //           Note that the 9p server is also enabled if the namespace
 //           is not empty. To ensure the 9p server is not set,
 //           cpu -9p=f -namespace=""
-//     -bin string
-//           path of cpu binary
 //     -d
 //           enable debug prints
 //     -dbg9p

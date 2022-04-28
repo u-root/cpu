@@ -10,8 +10,6 @@
 // Advisory:
 //
 // Options:
-//     -bin string
-//           path of cpu binary
 //     -d    enable debug prints
 //     -dbg9p
 //           show 9p io
