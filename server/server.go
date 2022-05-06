@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	v = log.Printf // func(string, ...interface{}) {}
+	v = func(string, ...interface{}) {}
 )
 
 func verbose(f string, a ...interface{}) {
