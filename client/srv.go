@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"time"
 
 	"github.com/hugelgupf/p9/p9"
 	"github.com/u-root/u-root/pkg/ulog"
@@ -46,20 +45,15 @@ func (c *Cmd) srv(l net.Listener) error {
 		errs <- nil
 	}()
 
-	// This is interesting. If we return an error from the timeout
-	// in this select, the Accept above *never* succeeds. It always hangs.
-	// If we return at all, for any reason, same result.
-	// I have no clue what's up here, since the usage exactly
-	// follows most other packages, but I suspect it's some
-	// conflicting usage of time with the ssh package. I'm past caring.
-	// To be continued ...
-	select {
-	case <-time.After(c.Timeout):
-		return fmt.Errorf("cpud did not connect for more than %v", c.Timeout)
-	case err := <-errs:
-		if err != nil {
-			return fmt.Errorf("srv: %v", err)
-		}
+	// We block here on the mount. If the user wanted the 9p mount, and it never
+	// occurs, we don't want to continue; files they may want to use might be
+	// aliased by local files. Similarly, on the cpud side, if the mount
+	// has an error, cpud will exit now. It used to soldier on, but we've
+	// realized that's a very bad idea; now that we have the -9p switch,
+	// we can now do a cpu session without the 9p server. The timeout
+	// is no longer important, since not all cpu sessions need 9p.
+	if err := <-errs; err != nil {
+		return fmt.Errorf("srv: %v", err)
 	}
 	// If we are debugging, add the option to trace records.
 	V("Start serving on %v", c.Root)

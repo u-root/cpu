@@ -136,7 +136,7 @@ func New(publicKeyFile, hostKeyFile string) (*ssh.Server, error) {
 		Addr:             ":" + defaultPort,
 		PublicKeyHandler: publicKeyOption,
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-			v("CPUD:attempt to bind", host, port, "granted")
+			v("CPUD:ReversePortForwardingCallback: attempt to bind %v %v granted", host, port)
 			return true
 		}),
 		RequestHandlers: map[string]ssh.RequestHandler{
