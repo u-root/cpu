@@ -54,6 +54,77 @@ to run; the options are to do a read (-r) into a file called rom.img.
 Where does that file end up? In whatever of my home directories I ran the cpu command from. I need
 not worry about scp'ing it back, or any such thing; it's just there.
 
+### docker container for trying out cpu (on x86 for now)
+
+We have created a docker container so you can try cpu client and server:
+```
+rminnich/cpu:latest
+```
+
+It includes both the cpud (server) and cpu (client) commands. In the
+container, you only have access to date and cat commands, but that is enough to get
+the idea.
+
+You will need keys. You can either use your own SSH keys that you use for
+other things, for example:
+```
+export KEY=~/.ssh/id_rsa
+export KEY=~/.ssh/a_special_key_for_this_docker
+```
+
+or generate one and use it.
+```
+ssh-keygen -f key -t rsa  -P ""
+export KEY=`pwd`/key
+```
+NOTE! The name KEY is not required. Instead of KEY, you
+can use any name you want, as long as you use it in the docker
+command below.
+
+To start the cpud, you need docker installed. Once that is done, you need to create
+a docker network and start the daemon, with public and private keys.
+The --mount option allows docker to provide the keys, using a bind mount
+for both the private and public key.
+That is how we avoid
+storing keys in the container itself.
+```
+docker network create cpud
+# If you ran docker before, you need to remove the
+# old identity.
+docker rm cpud_test
+docker run --mount type=bind,source=$KEY.pub,target=/key.pub --mount type=bind,source=$KEY,target=/key --name cpud_test --privileged=true -t -i -p 23:23 rminnich/cpu:latest
+```
+
+Note: once the container is done, if you want to run it again with the
+same named, cpud_test, you must:
+```
+docker rm cpud_test
+```
+
+Then you can try running a command or two:
+```
+docker exec -it  cpud_test  /bin/cpu -key /key localhost /bin/date
+```
+
+Remember, this cpu command is running in the container. You need to use the name /key in the
+container, not $KEY.
+
+To see the mounts:
+```
+docker exec -it  cpud_test  /bin/cpu -key /key localhost /bin/cat /proc/mounts
+```
+
+You might want to just get a cpu command to let you talk to the docker cpud
+directly:
+```
+go install github.com/u-root/cpu/cmds/cpu@latest
+```
+
+And now you can run
+```
+cpu -key $KEY localhost date
+```
+
 ### cpu on heterogeneous systems.
 
 The cpu command sets up the various 9p mounts with a default namespace. Users can override this
