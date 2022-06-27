@@ -14,7 +14,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/hashicorp/go-multierror" // TODO: get rid of krpty
+	"github.com/hashicorp/go-multierror"
 	"github.com/u-root/cpu/mount"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/sys/unix"

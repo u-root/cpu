@@ -11,7 +11,6 @@ import (
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
-	// TODO: get rid of krpty
 
 	"github.com/u-root/cpu/session"
 )

@@ -17,7 +17,7 @@ import (
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
-	"github.com/kr/pty" // TODO: get rid of krpty
+	"github.com/creack/pty"
 )
 
 const (
