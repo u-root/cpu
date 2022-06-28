@@ -5,6 +5,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -57,7 +58,6 @@ type Cmd struct {
 	Stderr         io.Reader
 	Row            int
 	Col            int
-	t              *termios.TTYIO
 	interactive    bool // Set if there are no arguments.
 	// NameSpace is a string as defined in the cpu documentation.
 	NameSpace string
@@ -361,8 +361,16 @@ func (c *Cmd) Start() error {
 		return err
 	}
 	go c.TTYIn(c.session, c.Stdin, os.Stdin)
-	go io.Copy(os.Stdout, c.Stdout)
-	go io.Copy(os.Stderr, c.Stderr)
+	go func() {
+		if _, err := io.Copy(os.Stdout, c.Stdout); err != nil && !errors.Is(err, io.EOF) {
+			log.Printf("stdout: %v", err)
+		}
+	}()
+	go func() {
+		if _, err := io.Copy(os.Stderr, c.Stderr); err != nil && !errors.Is(err, io.EOF) {
+			log.Printf("stderr: %v", err)
+		}
+	}()
 
 	return nil
 }
