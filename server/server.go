@@ -16,8 +16,8 @@ import (
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
-	"github.com/gliderlabs/ssh"
 	"github.com/creack/pty"
+	"github.com/gliderlabs/ssh"
 )
 
 const (
@@ -148,6 +148,6 @@ func New(publicKeyFile, hostKeyFile string) (*ssh.Server, error) {
 
 	// we ignore the SetOption error; if it does not work out, we
 	// actually don't care.
-	server.SetOption(ssh.HostKeyFile(hostKeyFile))
+	_ = server.SetOption(ssh.HostKeyFile(hostKeyFile))
 	return server, nil
 }
