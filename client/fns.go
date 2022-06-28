@@ -17,7 +17,6 @@ import (
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
 
-	// TODO: get rid of krpty
 	config "github.com/kevinburke/ssh_config"
 
 	// We use this ssh because it can unpack password-protected private keys.
