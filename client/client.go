@@ -346,7 +346,7 @@ func (c *Cmd) Start() error {
 	// a single arg. Why does this happen on cpu and not ssh?
 	// cpu, unlike ssh, does not pass the arguments to a shell.
 	// Unlike Plan 9 shells, Linux shells do gargantuan amounts
-	// of file IO for each command, and it's a very noticable
+	// of file IO for each command, and it's a very noticeable
 	// performance hit.
 	// TODO:
 	// Possibly the correct thing here is to loop over

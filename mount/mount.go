@@ -27,7 +27,7 @@ type mounter func(source string, target string, fstype string, flags uintptr, da
 // Mount makes a best-case effort to mount the mounts passed in a
 // string formatted to the fstab standard.  Callers should not die on
 // a returned error, but be left in a situation in which further
-// diagnostics are possible.  i.e, follow the "Boots not Bricks"
+// diagnostics are possible.  i.e., follow the "Boots not Bricks"
 // principle.
 func Mount(fstab string) error {
 	return mount(unix.Mount, fstab)
