@@ -40,6 +40,7 @@ var (
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	keyFile     = flag.String("key", "", "key file")
 	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
+	network     = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
 	port        = flag.String("sp", "", "cpu default port")
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
@@ -147,19 +148,20 @@ func newCPU(host string, args ...string) error {
 		client.With9P(*ninep),
 		client.WithFSTab(*fstab),
 		client.WithCpudCommand(*cpudCmd),
+		client.WithNetwork(*network),
 		client.WithTimeout(*timeout9P)); err != nil {
 		log.Fatal(err)
 	}
 	if err := c.Dial(); err != nil {
-		return fmt.Errorf("Dial: got %v, want nil", err)
+		return fmt.Errorf("Dial: %v", err)
 	}
 	v("CPU:start")
 	if err := c.Start(); err != nil {
-		return fmt.Errorf("Start: got %v, want nil", err)
+		return fmt.Errorf("Start: %v", err)
 	}
 	v("CPU:wait")
 	if err := c.Wait(); err != nil {
-		log.Printf("Wait: got %v, want nil", err)
+		log.Printf("Wait: %v", err)
 	}
 	v("CPU:close")
 	err := c.Close()
