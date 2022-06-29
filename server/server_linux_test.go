@@ -133,7 +133,10 @@ func TestDaemonSession(t *testing.T) {
 
 	t.Logf("HostName %q, IdentityFile %q, command %v", host, kf, os.Args[0])
 	client.V = t.Logf
-	c := client.Command(host, os.Args[0], "-remote", "ls", "-l").WithPrivateKeyFile(kf).WithPort(port).WithRoot(d).WithNameSpace(d)
+	c := client.Command(host, os.Args[0], "-remote", "ls", "-l")
+	if err := c.SetOptions(client.WithPrivateKeyFile(kf), client.WithPort(port), client.WithRoot(d), client.WithNameSpace(d)); err != nil {
+		t.Fatalf("SetOptions: %v != nil", err)
+	}
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)
 	}
@@ -218,7 +221,10 @@ func TestDaemonConnect(t *testing.T) {
 		t.Fatalf(`cfg.Get("server", "IdentityFile"): (%q, %v) != (afilename, nil`, kf, err)
 	}
 	t.Logf("HostName %q, IdentityFile %q", host, kf)
-	c := client.Command(host, os.Args[0]+" -test.run TestDaemonConnectHelper -test.v --", "date").WithPrivateKeyFile(kf).WithPort(port).WithRoot("/").WithNameSpace("")
+	c := client.Command(host, os.Args[0]+" -test.run TestDaemonConnectHelper -test.v --", "date")
+	if err := c.SetOptions(client.WithPrivateKeyFile(kf), client.WithPort(port), client.WithRoot("/"), client.WithNameSpace("")); err != nil {
+		t.Fatalf("SetOptions: %v != nil", err)
+	}
 	c.Env = append(c.Env, "GO_WANT_DAEMON_HELPER_PROCESS=1")
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)

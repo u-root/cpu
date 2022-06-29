@@ -137,24 +137,18 @@ func usage() {
 func newCPU(host string, args ...string) error {
 	client.V = v
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
-	c := client.Command(host, args...).
-		WithPrivateKeyFile(*keyFile).
-		WithHostKeyFile(*hostKeyFile).
-		WithPort(*port).
-		WithRoot(*root).
-		WithNameSpace(*namespace).
-		With9P(*ninep)
-
-	if err := c.SetTimeout(*timeout9P); err != nil {
+	c := client.Command(host, args...)
+	if err := c.SetOptions(
+		client.WithPrivateKeyFile(*keyFile),
+		client.WithHostKeyFile(*hostKeyFile),
+		client.WithPort(*port),
+		client.WithRoot(*root),
+		client.WithNameSpace(*namespace),
+		client.With9P(*ninep),
+		client.WithFSTab(*fstab),
+		client.WithCpudCommand(*cpudCmd),
+		client.WithTimeout(*timeout9P)); err != nil {
 		log.Fatal(err)
-	}
-	if len(*cpudCmd) > 0 {
-		c.WithCpudCommand(*cpudCmd)
-	}
-	if len(*fstab) > 0 {
-		if err := c.AddFSTab(*fstab); err != nil {
-			log.Fatal(err)
-		}
 	}
 	if err := c.Dial(); err != nil {
 		return fmt.Errorf("Dial: got %v, want nil", err)

@@ -137,10 +137,10 @@ func TestDialAuth(t *testing.T) {
 	// From this test forward, at least try to get a port.
 	// For this test, there must be a key.
 
-	c := Command(h, "ls", "-l").WithNameSpace(DefaultNameSpace)
+	c := Command(h, "ls", "-l")
 	c.PrivateKeyFile = k
-	if err := c.SetPort(""); err != nil {
-		t.Fatalf("c.SetPort(\"\"): %v != nil", err)
+	if c.SetOptions(WithNameSpace(DefaultNameSpace), WithPort("")); err != nil {
+		t.Fatalf("Options(): %v != nil", err)
 	}
 	if c.Port != p {
 		t.Fatalf("c.Port(%v) != port(%v)", c.Port, p)
@@ -166,7 +166,10 @@ func TestDialRun(t *testing.T) {
 	// From this test forward, at least try to get a port.
 	// For this test, there must be a key.
 
-	c := Command(h, "ls", "-l").WithPrivateKeyFile(k).WithPort(p).WithRoot("/").WithNameSpace(DefaultNameSpace)
+	c := Command(h, "ls", "-l")
+	if err := c.SetOptions(WithPrivateKeyFile(k), WithPort(p), WithRoot("/"), WithNameSpace(DefaultNameSpace)); err != nil {
+		t.Fatalf("SetOptions: %v != nil", err)
+	}
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)
 	}
@@ -205,7 +208,10 @@ func TestSetupInteractive(t *testing.T) {
 	// From this test forward, at least try to get a port.
 	// For this test, there must be a key.
 
-	c := Command(h, "ls", "-l").WithPrivateKeyFile(k).WithPort(p).WithRoot("/").WithNameSpace(DefaultNameSpace)
+	c := Command(h, "ls", "-l")
+	if err := c.SetOptions(WithPrivateKeyFile(k), WithPort(p), WithRoot("/"), WithNameSpace(DefaultNameSpace)); err != nil {
+		t.Fatalf("SetOptions: %v != nil ", err)
+	}
 	if err := c.Dial(); err != nil {
 		t.Fatalf("Dial: got %v, want nil", err)
 	}

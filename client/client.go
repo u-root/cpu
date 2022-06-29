@@ -73,6 +73,16 @@ type Cmd struct {
 	closers []func() error
 }
 
+// SetOptions sets various options into the Command.
+func (c *Cmd) SetOptions(opts ...Set) error {
+	for _, o := range opts {
+		if err := o(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Command implements exec.Command. The required parameter is a host.
 // The args arg args to $SHELL. If there are no args, then starting $SHELL
 // is assumed.
@@ -123,91 +133,113 @@ func Command(host string, args ...string) *Cmd {
 	}
 }
 
+type Set func(*Cmd) error
+
 // With9P enables the 9P2000 server in cpu.
 // The server is by default disabled. Ninep is sticky; if set by,
 // e.g., WithNameSpace, the Principle of Least Confusion argues
 // that it should remain set. Hence, we || it with its current value.
-func (c *Cmd) With9P(p9 bool) *Cmd {
-	c.Ninep = p9 || c.Ninep
-	return c
+func With9P(p9 bool) Set {
+	return func(c *Cmd) error {
+		c.Ninep = p9 || c.Ninep
+		return nil
+	}
 }
 
 // WithNameSpace sets the namespace to Cmd.There is no default: having some default
 // violates the principle of least surprise for package users. If ns is non-empty
 // the Ninep is forced on.
-func (c *Cmd) WithNameSpace(ns string) *Cmd {
-	c.NameSpace = ns
-	if len(ns) > 0 {
-		c.Ninep = true
+func WithNameSpace(ns string) Set {
+	return func(c *Cmd) error {
+		c.NameSpace = ns
+		if len(ns) > 0 {
+			c.Ninep = true
+		}
+		return nil
 	}
-	return c
 }
 
 // AddFSTab reads a file for the FSTab member.
-func (c *Cmd) AddFSTab(fstab string) error {
-	if len(fstab) == 0 {
+func WithFSTab(fstab string) Set {
+	return func(c *Cmd) error {
+		if len(fstab) == 0 {
+			return nil
+		}
+		b, err := ioutil.ReadFile(fstab)
+		if err != nil {
+			return fmt.Errorf("Reading fstab: %w", err)
+		}
+		c.FSTab = string(b)
 		return nil
 	}
-	b, err := ioutil.ReadFile(fstab)
-	if err != nil {
-		return fmt.Errorf("Reading fstab: %w", err)
-	}
-	c.FSTab = string(b)
-	return nil
 }
 
 // SetTimeout sets the 9p timeout.
-func (c *Cmd) SetTimeout(timeout string) error {
-	d, err := time.ParseDuration(timeout)
-	if err != nil {
-		return err
+func WithTimeout(timeout string) Set {
+	return func(c *Cmd) error {
+		d, err := time.ParseDuration(timeout)
+		if err != nil {
+			return err
+		}
+
+		c.Timeout = d
+		return nil
 	}
-	c.Timeout = d
-	return nil
 }
 
 // WithPrivateKeyFile adds a private key file to a Cmd
-func (c *Cmd) WithPrivateKeyFile(key string) *Cmd {
-	c.PrivateKeyFile = key
-	return c
+func WithPrivateKeyFile(key string) Set {
+	return func(c *Cmd) error {
+		c.PrivateKeyFile = key
+		return nil
+	}
 }
 
 // WithHostKeyFile adds a host key to a Cmd
-func (c *Cmd) WithHostKeyFile(key string) *Cmd {
-	c.HostKeyFile = key
-	return c
-}
-
-// WithPort adds a port to a Cmd
-func (c *Cmd) WithPort(port string) *Cmd {
-	c.Port = port
-	return c
+func WithHostKeyFile(key string) Set {
+	return func(c *Cmd) error {
+		c.HostKeyFile = key
+		return nil
+	}
 }
 
 // WithRoot adds a root to a Cmd
-func (c *Cmd) WithRoot(root string) *Cmd {
-	c.Root = root
-	return c
+func WithRoot(root string) Set {
+	return func(c *Cmd) error {
+		c.Root = root
+		return nil
+	}
 }
 
 // WithCpudCommand sets the initial command to run on the
 // remote side. This is extremely helpful when testing new
 // implementations of cpud, of little use otherwise.
-func (c *Cmd) WithCpudCommand(cmd string) *Cmd {
-	c.cmd = cmd
-	return c
+func WithCpudCommand(cmd string) Set {
+	return func(c *Cmd) error {
+		if len(cmd) > 0 {
+			c.cmd = cmd
+		}
+		return nil
+	}
 }
 
 // SetPort sets the port in the Cmd.
 // It calls GetPort with the passed-in port
 // before assigning it.
-func (c *Cmd) SetPort(port string) error {
-	c.Port = port
-	p, err := GetPort(c.HostName, c.Port)
-	if err == nil {
-		c.Port = p
+func WithPort(port string) Set {
+	return func(c *Cmd) error {
+		if len(port) == 0 {
+			p, err := GetPort(c.HostName, c.Port)
+			if err != nil {
+				return err
+			}
+			port = p
+		}
+
+		c.Port = port
+		return nil
 	}
-	return err
+
 }
 
 // Dial implements ssh.Dial for cpu.
