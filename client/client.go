@@ -223,6 +223,17 @@ func WithCpudCommand(cmd string) Set {
 	}
 }
 
+// WithNetwork sets the network. This almost never needs
+// to be set, save for vsock.
+func WithNetwork(network string) Set {
+	return func(c *Cmd) error {
+		if len(network) > 0 {
+			c.network = network
+		}
+		return nil
+	}
+}
+
 // SetPort sets the port in the Cmd.
 // It calls GetPort with the passed-in port
 // before assigning it.
@@ -330,7 +341,7 @@ func (c *Cmd) Start() error {
 
 	c.closers = append(c.closers, func() error {
 		if err := c.session.Close(); err != nil && err != io.EOF {
-			return fmt.Errorf("Closing session: got %v, want nil", err)
+			return fmt.Errorf("closing session: %v", err)
 		}
 		return nil
 	})
