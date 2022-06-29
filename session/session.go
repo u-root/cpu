@@ -97,7 +97,7 @@ func (s *Session) Terminal() error {
 // was started correctly with the namespace unshared (on Linux and
 // Plan 9; on *BSD or Windows no such guarantees can be made).
 //
-// See the longer comment (rant) in seesion_linux.go
+// See the longer comment (rant) in session_linux.go
 func (s *Session) TmpMounts() error {
 	// It's true we are making this directory while still root.
 	// This ought to be safe as it is a private namespace mount.
