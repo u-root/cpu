@@ -79,7 +79,7 @@ func initsetup() error {
 	if err := cpuSetup(); err != nil {
 		log.Printf("CPUD:CPU setup error with cpu running as init: %v", err)
 	}
-	cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-v", "--retry", "1000"}}
+	cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-ipv6=false", "-v", "--retry", "1000"}}
 	verbose("Try to run %v", cmds)
 
 	for _, v := range cmds {
