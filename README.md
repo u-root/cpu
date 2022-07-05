@@ -210,6 +210,11 @@ The cpu command makes using small embedded systems dramatically easier. There is
 a distro, or juggle distros; there is no need to scp files back and forth; just run commands
 as needed.
 
+## Development
+
+For debugging, `tcpdump` is very handy. Read [a short tutorial](
+https://danielmiessler.com/study/tcpdump/) to get familiar with it.
+
 ## Further reading
 
 ### Talks
