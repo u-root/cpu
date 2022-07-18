@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultPort = "23"
+	defaultPort = "17010"
 )
 
 var (

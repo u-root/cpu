@@ -72,9 +72,9 @@ Host apu2
 	}{
 		// Can't really test this atm.
 		//{"apu2", "", "2222"},
-		{"apu2", "23", "23"},
+		{"apu2", "17010", "17010"},
 		// This test ensures we never default to port 22
-		{"bogus", "", "23"},
+		{"bogus", "", "17010"},
 		{"bogus", "2222", "2222"},
 	} {
 		got, err := GetPort(test.host, test.port)

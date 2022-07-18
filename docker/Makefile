@@ -19,7 +19,7 @@ cat:
 
 rundocker:
 	-docker rm cpud_test
-	docker run --mount type=bind,source=$(PWD)/key.pub,target=/key.pub --mount type=bind,source=$(PWD)/key,target=/key --name cpud_test --privileged=true -t -i -p 23:23 $(IMAGE)
+	docker run --mount type=bind,source=$(PWD)/key.pub,target=/key.pub --mount type=bind,source=$(PWD)/key,target=/key --name cpud_test --privileged=true -t -i -p 17010:17010 $(IMAGE)
 
 run:
 	@echo ===================================================

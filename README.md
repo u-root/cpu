@@ -92,7 +92,7 @@ docker network create cpud
 # If you ran docker before, you need to remove the
 # old identity.
 docker rm cpud_test
-docker run --mount type=bind,source=$KEY.pub,target=/key.pub --mount type=bind,source=$KEY,target=/key --name cpud_test --privileged=true -t -i -p 23:23 rminnich/cpu:latest
+docker run --mount type=bind,source=$KEY.pub,target=/key.pub --mount type=bind,source=$KEY,target=/key --name cpud_test --privileged=true -t -i -p 17010:17010 rminnich/cpu:latest
 ```
 
 Note: once the container is done, if you want to run it again with the
@@ -158,7 +158,7 @@ for convenience):
 ```
 Host h
 	HostName honeycomb
-	Port 23
+	Port 17010
 	User root
 	IdentityFile ~/.ssh/apu2_rsa
 ```

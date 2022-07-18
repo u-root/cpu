@@ -25,7 +25,7 @@ import (
 
 const (
 	// DefaultPort is the default cpu port.
-	DefaultPort = "23"
+	DefaultPort = "17010"
 )
 
 var (
