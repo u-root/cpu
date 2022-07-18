@@ -27,7 +27,6 @@ const (
 	// the sshd has forked a server for us and it's waiting to be
 	// told what to do.
 	defaultTimeOut   = time.Duration(100 * time.Millisecond)
-	defaultPort      = "23"
 	DefaultNameSpace = "/lib:/lib64:/usr:/bin:/etc:/home"
 )
 
@@ -109,7 +108,7 @@ func Command(host string, args ...string) *Cmd {
 		Host:     host,
 		HostName: GetHostName(host),
 		Args:     args,
-		Port:     defaultPort,
+		Port:     DefaultPort,
 		Timeout:  defaultTimeOut,
 		Row:      row,
 		Col:      col,

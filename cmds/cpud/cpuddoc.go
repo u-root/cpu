@@ -40,7 +40,7 @@
 //
 // as a single process for one cpu session, i.e. the old plan 9 cpu -r model
 //
-// as a deamon, listening on port 23 or other well known port,
+// as a deamon, listening on port 17010 or other well known port,
 // forking single cpu sessions, as does sshd.
 //
 // as an init process, i.e. PID 1, which sets up local file systems,

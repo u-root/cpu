@@ -107,7 +107,7 @@
 //           If you are cpu'ing from, eg., x86 to arm, you might
 //           use, e.g., /amd64
 //     -sp string
-//          remote port, default 23
+//          remote port, default 17010
 //     -srv string
 //           what server to run (default none; use internal)
 //     -timeout9p time.Duration
@@ -132,7 +132,7 @@
 // We can turn these off at some point but for now, in early days, we may want them.
 // Note that these messages come from the remote side.
 // cpu to a machine with bash as your shell and run a command
-//   cpu -sp 23 date
+//   cpu -sp 17010 date
 //     2019/05/17 16:53:22 Overlayfs mount failed: invalid argument. Proceeding with selective mounts from /tmp/cpu into /
 //     2019/05/17 16:53:22 Mounted /tmp/cpu/lib on /lib
 //     2019/05/17 16:53:22 Mounted /tmp/cpu/lib64 on /lib64
@@ -144,7 +144,7 @@
 // cpu to a machine and run $SHELL (since no arguments were given)
 // NOTE: $SHELL is NOT installed on the remote machine! It (and all its .so's and . files)
 // come from the local machine.
-// cpu sp -23
+// cpu sp -17010
 //    2019/05/17 16:58:04 Overlayfs mount failed: invalid argument. Proceeding with selective mounts from /tmp/cpu into /
 //    2019/05/17 16:58:04 Mounted /tmp/cpu/lib on /lib
 //    2019/05/17 16:58:04 Mounted /tmp/cpu/lib64 on /lib64

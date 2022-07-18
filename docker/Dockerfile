@@ -8,7 +8,7 @@ COPY lib64 /lib64
 COPY root /root
 
 # Export necessary port
-EXPOSE 23
+EXPOSE 17010
 
 # Command to run
 ENTRYPOINT ["/bin/cpud"]

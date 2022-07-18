@@ -19,13 +19,13 @@ var (
 	// For the ssh server part
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
-	port        = flag.String("sp", "23", "cpu default port")
+	port        = flag.String("sp", "17010", "cpu default port")
 
 	debug     = flag.Bool("d", true, "enable debug prints")
 	runAsInit = flag.Bool("init", false, "run as init (Debug only; normal test is if we are pid 1")
 	v         = func(string, ...interface{}) {}
 	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
-	network   = flag.String("network", "tcp", "network to use")
+	network   = flag.String("net", "tcp", "network to use")
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	klog      = flag.Bool("klog", false, "Log cpud messages in kernel log, not stdout")
 

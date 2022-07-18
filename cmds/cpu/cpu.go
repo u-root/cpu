@@ -27,7 +27,7 @@ import (
 	ossh "golang.org/x/crypto/ssh"
 )
 
-const defaultPort = "23"
+const defaultPort = "17010"
 
 var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
