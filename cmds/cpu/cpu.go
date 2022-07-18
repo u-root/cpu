@@ -27,7 +27,7 @@ import (
 	ossh "golang.org/x/crypto/ssh"
 )
 
-const defaultPort = "23"
+const defaultPort = "17010"
 
 var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
@@ -40,6 +40,7 @@ var (
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	keyFile     = flag.String("key", "", "key file")
 	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
+	network     = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
 	port        = flag.String("sp", "", "cpu default port")
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
@@ -137,35 +138,30 @@ func usage() {
 func newCPU(host string, args ...string) error {
 	client.V = v
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
-	c := client.Command(host, args...).
-		WithPrivateKeyFile(*keyFile).
-		WithHostKeyFile(*hostKeyFile).
-		WithPort(*port).
-		WithRoot(*root).
-		WithNameSpace(*namespace).
-		With9P(*ninep)
-
-	if err := c.SetTimeout(*timeout9P); err != nil {
+	c := client.Command(host, args...)
+	if err := c.SetOptions(
+		client.WithPrivateKeyFile(*keyFile),
+		client.WithHostKeyFile(*hostKeyFile),
+		client.WithPort(*port),
+		client.WithRoot(*root),
+		client.WithNameSpace(*namespace),
+		client.With9P(*ninep),
+		client.WithFSTab(*fstab),
+		client.WithCpudCommand(*cpudCmd),
+		client.WithNetwork(*network),
+		client.WithTimeout(*timeout9P)); err != nil {
 		log.Fatal(err)
 	}
-	if len(*cpudCmd) > 0 {
-		c.WithCpudCommand(*cpudCmd)
-	}
-	if len(*fstab) > 0 {
-		if err := c.AddFSTab(*fstab); err != nil {
-			log.Fatal(err)
-		}
-	}
 	if err := c.Dial(); err != nil {
-		return fmt.Errorf("Dial: got %v, want nil", err)
+		return fmt.Errorf("Dial: %v", err)
 	}
 	v("CPU:start")
 	if err := c.Start(); err != nil {
-		return fmt.Errorf("Start: got %v, want nil", err)
+		return fmt.Errorf("Start: %v", err)
 	}
 	v("CPU:wait")
 	if err := c.Wait(); err != nil {
-		log.Printf("Wait: got %v, want nil", err)
+		log.Printf("Wait: %v", err)
 	}
 	v("CPU:close")
 	err := c.Close()

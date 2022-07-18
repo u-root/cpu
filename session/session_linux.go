@@ -18,7 +18,7 @@ import (
 // Namespace assembles a NameSpace for this cpud, iff CPU_NONCE
 // is set and len(s.binds) > 0.
 //
-// This code assumes you have a non-shared namesapce. This is
+// This code assumes you have a non-shared namespace. This is
 // archieved in go by setting exec.Cmd.SysprocAttr.Unshareflags to
 // CLONE_NEWNS; the go runtime will then do what is needed to
 // privatize a namespace. I can say this because I wrote that code 5
