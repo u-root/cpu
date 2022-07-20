@@ -54,6 +54,6 @@ func main() {
 			log.Fatalf("CPUD(as remote):%v", err)
 		}
 	default:
-		log.Fatal("CPUD:can only run as remote or pid 1")
+		log.Fatal("CPUD: I'm designed to run as remote or pid 1. Pass `-init` explicitly to run anyway, mostly suitable for debugging.")
 	}
 }
