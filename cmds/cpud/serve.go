@@ -6,19 +6,24 @@ package main
 
 import (
 	"log"
+	"math"
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 	"time"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
+	"github.com/mdlayher/vsock"
 	"github.com/u-root/cpu/server"
 	"github.com/u-root/u-root/pkg/ulog"
 	"golang.org/x/sys/unix"
 )
+
+const any = math.MaxUint32
 
 // hang hangs for a VERY long time.
 // This aids diagnosis, else you lose all messages in the
@@ -71,7 +76,19 @@ func serve() error {
 	}
 	v("Server is %v", s)
 
-	ln, err := net.Listen(*network, ":"+*port)
+	// Sadly, vsock is not in the standard Go net package.
+	// It should be but ...
+	var ln net.Listener
+
+	switch *network {
+	case "vsock":
+		p, err := strconv.ParseUint(*port, 0, 16)
+		if err == nil {
+			ln, err = vsock.ListenContextID(any, uint32(p), nil)
+		}
+	default:
+		ln, err = net.Listen(*network, ":"+*port)
+	}
 	if err != nil {
 		log.Printf("net.Listen(): %v != nil", err)
 		hang()

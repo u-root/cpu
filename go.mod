@@ -8,19 +8,25 @@ require (
 	github.com/kevinburke/ssh_config v1.1.0
 	github.com/u-root/u-root v0.8.0
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+	golang.org/x/sys v0.0.0-20220204135822-1c1b9b1eba6a
 )
 
-require github.com/hashicorp/errwrap v1.0.0 // indirect
+require (
+	github.com/creack/pty v1.1.11
+	github.com/hashicorp/go-multierror v1.1.1
+	github.com/mdlayher/vsock v1.1.1
+)
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
-	github.com/creack/pty v1.1.11
-	github.com/hashicorp/go-multierror v1.1.1
+	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/klauspost/compress v1.10.6 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
+	github.com/mdlayher/socket v0.2.0 // indirect
 	github.com/u-root/uio v0.0.0-20210528114334-82958018845c // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/vishvananda/netlink v1.1.1-0.20211118161826-650dca95af54 // indirect
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 )

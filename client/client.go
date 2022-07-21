@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/mdlayher/vsock"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/crypto/ssh"
 )
@@ -259,8 +260,34 @@ func (c *Cmd) Dial() error {
 	if err := c.UserKeyConfig(); err != nil {
 		return err
 	}
-	addr := net.JoinHostPort(c.HostName, c.Port)
-	cl, err := ssh.Dial(c.network, addr, &c.config)
+	// Sadly, no vsock in net package.
+	var (
+		conn net.Conn
+		err  error
+		addr string
+	)
+
+	switch c.network {
+	case "vsock":
+		id, port, err := vsockIdPort(c.HostName, c.Port)
+		V("vsock(%v, %v) = %v, %v, %v", c.HostName, c.Port, id, port, err)
+		if err != nil {
+			return err
+		}
+		addr = fmt.Sprintf("%#x:%d", id, port)
+		conn, err = vsock.Dial(id, port, nil)
+	default:
+		addr = net.JoinHostPort(c.HostName, c.Port)
+		conn, err = net.Dial(c.network, addr)
+	}
+	if err != nil {
+		return err
+	}
+	sshconn, chans, reqs, err := ssh.NewClientConn(conn, addr, &c.config)
+	if err != nil {
+		return err
+	}
+	cl := ssh.NewClient(sshconn, chans, reqs)
 	V("cpu:ssh.Dial(%s, %s, %v): (%v, %v)", c.network, addr, c.config, cl, err)
 	if err != nil {
 		return fmt.Errorf("Failed to dial: %v", err)

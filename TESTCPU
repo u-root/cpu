@@ -1,33 +1,63 @@
 #!/bin/bash
 set -e
-# You will need to put your host key and private key somewhere. They will be placed in the proper place in the image.
-u-root \
-	-build=bb \
-	-files  ssh_host_rsa_key:etc/ssh/ssh_host_rsa_key \
-	-initcmd=/bbin/cpud \
-	-files  ~/.ssh/cpu_rsa.pub:key.pub \
-	all \
-	github.com/u-root/cpu/cmds/cpud \
-	github.com/u-root/cpu/cmds/cpu
+SOURCE=${SOURCE:=$HOME/go/src/github.com/u-root/u-root}
+KERNEL=${KERNEL:=$HOME/linuxboot/mainboards/intel/generic/kernel-noinitramfs}
+VMN=${VMN:=42}
+KEY=${KEY:=~/.ssh/cpu_rsa.pub:key.pub}
 
+echo NOTE: WE USED TO RUN CPUD AUTOMAGICALLY
+echo That turned out to be inconvenient for testing
+echo Once the VM is up, you need to run cpud manually
+echo If you want to test cpud as the init, add this line
+echo to the u-root command, along with the other switches.
+echo -initcmd=/bbin/cpud \
+
+# You will need to put your host key and private key somewhere. They will be placed in the proper place in the image.
+#
+# $* is positioned where it is so you can use extra switches like -h or add files via, e.g., -files whatever
+# you can also add non-switch args too.
+# it allows you to configure the initramfs a bit more, with or without switches
+u-root \
+	-files   $KEY \
+	-uroot-source $SOURCE \
+	$* \
+	all \
+	cmds/cpud \
+	cmds/cpu \
+
+echo NOT adding a host key at -files  ssh_host_rsa_key:etc/ssh/ssh_host_rsa_key 
+
+set +e
 sudo /usr/bin/qemu-system-x86_64 -kernel \
-     /home/rminnich/projects/linuxboot/mainboards/intel/generic/kernel-noinitramfs \
+     $KERNEL \
 	-cpu  max \
      -s   \
      -m 1024m \
      -machine q35  \
      -initrd /tmp/initramfs.linux_amd64.cpio \
-    -object rng-random,filename=/dev/urandom,id=rng0 \
-    -device virtio-rng-pci,rng=rng0 \
-     -device e1000,netdev=n1 \
-     -netdev user,id=n1,hostfwd=tcp:127.0.0.1:23-:2222,net=192.168.1.0/24,host=192.168.1.1 \
-     -serial stdio  \
+     -object rng-random,filename=/dev/urandom,id=rng0 \
+     -device virtio-rng-pci,rng=rng0 \
+     -serial /dev/tty  \
      -append earlyprintk=ttyS0,115200\ console=ttyS0 \
+     -device vhost-vsock-pci,guest-cid=42 \
      -monitor /dev/null  \
+     -device virtio-net-pci,netdev=n1 \
+     -netdev user,id=n1,hostfwd=tcp:127.0.0.1:17010-:17010,net=192.168.1.0/24,host=192.168.1.1 \
+     -debugcon file:debug.log -global isa-debugcon.iobase=0x402 \
+     -nographic
      
+reset
      # note we will exit here so the trash below is not a problem
      exit 0
 
+     # two handy utils for testing vsock
+	-files vsock-server \
+	-files vsock-cat \
+
+     -device e1000,netdev=n1 \
+     -device virtio-net-pci,netdev=n1 \
+     -device virtio-net-pci,netdev=mynet0 \
+     -netdev user,id=mynet0,hostfwd=tcp::${VMN}0022-:22,hostfwd=tcp::${VMN}1024-:1024,hostfwd=tcp::${VMN}1234-:1234 \
      # junk
 
      /home/rminnich/projects/linuxboot/linux/arch/x86/boot/bzImage \

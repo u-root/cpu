@@ -205,6 +205,37 @@ b92a3576229b   ubuntu    "/home/rminnich/go/b…"   9 seconds ago   Up 9 seconds
 
 Even though the binaries themselves are running on the remote ARM system.
 
+## Testing with vsock
+
+Vsock is a useful transport layer available in Linux, and support by at least QEMU.
+
+We use the mdlayher/vsock package.
+
+In the cpu and cpud, the switch
+```
+-net vsock
+```
+will enable vsock.
+
+In the host kernel, you need ```vhost_vsock``` module:
+```
+sudo modprobe vhost_vsock
+```
+.
+
+When starting qemu, add
+```
+-device vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3
+```
+to the command line. The '3' is arbitrary; it just needs to be agreed upon on both sides.
+
+When running a cpu command, the host name is the vsock guest-cid you specified in qemu:
+```
+cpu -net vsock 3 date
+```
+
+If you want a different port, you can use the same -sp switch you use for other network types.
+
 ## Summary
 The cpu command makes using small embedded systems dramatically easier. There is no need to install
 a distro, or juggle distros; there is no need to scp files back and forth; just run commands
