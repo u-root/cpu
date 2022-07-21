@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	// We use this ssh because it implements port redirection.
@@ -214,6 +215,20 @@ func GetPort(host, port string) (string, error) {
 	}
 	V("returns %q", p)
 	return p, nil
+}
+
+// vsockIdPort gets a client id and a port from host and port
+// The id and port are uint32.
+func vsockIdPort(host, port string) (uint32, uint32, error) {
+	h, err := strconv.ParseUint(host, 0, 32)
+	if err != nil {
+		return 0, 0, err
+	}
+	p, err := strconv.ParseUint(port, 0, 32)
+	if err != nil {
+		return 0, 0, err
+	}
+	return uint32(h), uint32(p), nil
 }
 
 // Signal implements ssh.Signal

@@ -20,7 +20,7 @@
 //     -network string
 //           network to use (default "tcp")
 //     -p string
-//           port to use (default "22")
+//           port to use (default "17010")
 //     -port9p string
 //           port9p # on remote machine for 9p mount
 //     -remote
