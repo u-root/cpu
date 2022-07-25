@@ -278,7 +278,15 @@ func (c *Cmd) Dial() error {
 	if c.Ninep {
 		l, err := cl.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			return fmt.Errorf("cpu client listen for forwarded 9p port %v", err)
+			// If ipv4 isn't available, try ipv6.  It's not enough
+			// to use Listen("tcp", "localhost:0a)", since we (the
+			// cpu client) might have v4 (which the runtime will
+			// use if we say "localhost"), but the server (cpud)
+			// might not.
+			l, err = cl.Listen("tcp", "[::1]:0")
+			if err != nil {
+				return fmt.Errorf("cpu client listen for forwarded 9p port %v", err)
+			}
 		}
 		V("ssh.listener %v", l.Addr().String())
 		ap := strings.Split(l.Addr().String(), ":")
