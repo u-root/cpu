@@ -34,10 +34,7 @@ func hang() {
 	log.Printf("done hang")
 }
 
-func serve() error {
-	if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
-		log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
-	}
+func commonsetup() error {
 	if *debug {
 		v = log.Printf
 		if *klog {
@@ -45,7 +42,13 @@ func serve() error {
 			v = ulog.KernelLog.Printf
 		}
 	}
+	return nil
+}
 
+func initsetup() error {
+	if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
+		log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
+	}
 	if err := cpuSetup(); err != nil {
 		log.Printf("CPUD:CPU setup error with cpu running as init: %v", err)
 	}
@@ -68,7 +71,11 @@ func serve() error {
 			continue
 		}
 	}
-	verbose("Kicked off startup jobs, now serve ssh")
+	verbose("Kicked off startup jobs, now serve cpu sessions")
+	return nil
+}
+
+func serve() error {
 	s, err := server.New(*pubKeyFile, *hostKeyFile)
 	if err != nil {
 		log.Printf(`New(%q, %q): %v != nil`, *pubKeyFile, *hostKeyFile, err)

@@ -44,6 +44,12 @@ func main() {
 	args := flag.Args()
 	switch {
 	case *runAsInit:
+		if err := commonsetup(); err != nil {
+			log.Fatal(err)
+		}
+		if err := initsetup(); err != nil {
+			log.Fatal(err)
+		}
 		if err := serve(); err != nil {
 			log.Fatal(err)
 		}
@@ -54,6 +60,12 @@ func main() {
 			log.Fatalf("CPUD(as remote):%v", err)
 		}
 	default:
-		log.Fatal("CPUD: I'm designed to run as remote or pid 1. Pass `-init` explicitly to run anyway, mostly suitable for debugging.")
+		log.Printf("cpud: running as a server (a.k.a. starter of cpud's for sessions")
+		if err := commonsetup(); err != nil {
+			log.Fatal(err)
+		}
+		if err := serve(); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
