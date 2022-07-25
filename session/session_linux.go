@@ -58,7 +58,7 @@ func (s *Session) Namespace() (error, error) {
 	v("CPUD:namespace is %q", s.binds)
 
 	// Connect to the socket, return the nonce.
-	a := net.JoinHostPort("127.0.0.1", s.port9p)
+	a := net.JoinHostPort("localhost", s.port9p)
 	v("CPUD:Dial %v", a)
 	so, err := net.Dial("tcp4", a)
 	if err != nil {
@@ -96,8 +96,8 @@ func (s *Session) Namespace() (error, error) {
 	if len(s.mopts) > 0 {
 		opts += "," + s.mopts
 	}
-	v("CPUD: mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
-	if err := unix.Mount("127.0.0.1", "/tmp/cpu", "9p", flags, opts); err != nil {
+	v("CPUD: mount localhost on /tmp/cpu 9p %#x %s", flags, opts)
+	if err := unix.Mount("localhost", "/tmp/cpu", "9p", flags, opts); err != nil {
 		return nil, fmt.Errorf("9p mount %v", err)
 	}
 	v("CPUD: mount done")

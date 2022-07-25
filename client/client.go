@@ -276,7 +276,7 @@ func (c *Cmd) Dial() error {
 	// Note: cl.Listen returns a TCP listener with network "tcp"
 	// or variants. This lets us use a listen deadline.
 	if c.Ninep {
-		l, err := cl.Listen("tcp", "127.0.0.1:0")
+		l, err := cl.Listen("tcp", "localhost:0")
 		if err != nil {
 			return fmt.Errorf("cpu client listen for forwarded 9p port %v", err)
 		}
