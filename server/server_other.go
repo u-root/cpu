@@ -27,7 +27,7 @@ func (s *Session) Namespace() (error, error) {
 	v("CPUD:namespace is %q", s.binds)
 
 	// Connect to the socket, return the nonce.
-	a := net.JoinHostPort("127.0.0.1", s.port9p)
+	a := net.JoinHostPort("localhost", s.port9p)
 	v("CPUD:Dial %v", a)
 	so, err := net.Dial("tcp", a)
 	if err != nil {
