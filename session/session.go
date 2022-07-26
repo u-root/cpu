@@ -200,6 +200,11 @@ func (s *Session) Run() error {
 	v("CPUD:runRemote: command is %q", s.args)
 	c := exec.Command(s.cmd, s.args...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = s.Stdin, s.Stdout, s.Stderr, os.Getenv("PWD")
+	dirInfo, err := os.Stat(c.Dir)
+	if err != nil || !dirInfo.IsDir() {
+		log.Printf("CPUD: your $PWD %s is not in the remote namespace", c.Dir)
+		return os.ErrNotExist
+	}
 	err = c.Run()
 	v("CPUD:Run %v returns %v", c, err)
 	if err != nil {
