@@ -11,8 +11,6 @@ import (
 	"github.com/hugelgupf/p9/p9"
 )
 
-const osDefaultCpudCmd = "/proc/self/exe -remote"
-
 func osflags(fi os.FileInfo, mode p9.OpenFlags) int {
 	flags := int(mode)
 	if fi.IsDir() {
