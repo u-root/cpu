@@ -129,7 +129,7 @@ func Command(host string, args ...string) *Cmd {
 		// Also, there is the nagging concern that we're not
 		// totally proper yet on the security issues
 		// around letting users run arbitrary binaries.
-		cmd: osDefaultCpudCmd,
+		cmd: "cpud -remote",
 	}
 }
 
