@@ -58,7 +58,7 @@ type Cmd struct {
 	Stderr         io.Reader
 	Row            int
 	Col            int
-	interactive    bool // Set if there are no arguments.
+	hasTTY         bool // Set if we have a TTY
 	// NameSpace is a string as defined in the cpu documentation.
 	NameSpace string
 	// FSTab is an fstab(5)-format string
@@ -87,9 +87,8 @@ func (c *Cmd) SetOptions(opts ...Set) error {
 // The args arg args to $SHELL. If there are no args, then starting $SHELL
 // is assumed.
 func Command(host string, args ...string) *Cmd {
-	var interactive bool
+	var hasTTY bool
 	if len(args) == 0 {
-		interactive = true
 		shell, ok := os.LookupEnv("SHELL")
 		// We've found in some cases SHELL is not set!
 		if !ok {
@@ -100,12 +99,9 @@ func Command(host string, args ...string) *Cmd {
 
 	col, row := 80, 40
 	if w, err := termios.GetWinSize(0); err != nil {
-		// This means it is not a tty, and hence for all intents and
-		// purposes, not interactive.
-		interactive = false
 		log.Printf("Can not get winsize: %v; assuming %dx%d and non-interactive", err, col, row)
 	} else {
-		interactive = true
+		hasTTY = true
 		col, row = int(w.Col), int(w.Row)
 	}
 
@@ -121,8 +117,8 @@ func Command(host string, args ...string) *Cmd {
 			User:            os.Getenv("USER"),
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		},
-		interactive: interactive,
-		network:     "tcp",
+		hasTTY:  hasTTY,
+		network: "tcp",
 		// Safety first: if they want a namespace, they must say so
 		Root: "",
 		// The command, always, at least, starts with "cpu"
@@ -372,9 +368,11 @@ func (c *Cmd) Start() error {
 	}
 
 	// Request pseudo terminal
-	V("c.session.RequestPty(\"ansi\", %v, %v, %#x", c.Row, c.Col, modes)
-	if err := c.session.RequestPty("ansi", c.Row, c.Col, modes); err != nil {
-		return fmt.Errorf("request for pseudo terminal failed: %v", err)
+	if c.hasTTY {
+		V("c.session.RequestPty(\"ansi\", %v, %v, %#x", c.Row, c.Col, modes)
+		if err := c.session.RequestPty("ansi", c.Row, c.Col, modes); err != nil {
+			return fmt.Errorf("request for pseudo terminal failed: %v", err)
+		}
 	}
 
 	c.closers = append(c.closers, func() error {
@@ -438,21 +436,30 @@ func (c *Cmd) Start() error {
 	if err := c.session.Start(cmd); err != nil {
 		return fmt.Errorf("Failed to run %v: %v", c, err.Error())
 	}
-	if c.interactive {
+	if c.hasTTY {
 		V("Setup interactive input")
 		if err := c.SetupInteractive(); err != nil {
 			return err
 		}
+		go c.TTYIn(c.session, c.Stdin, os.Stdin)
+	} else {
+		go func() {
+			if _, err := io.Copy(c.Stdin, os.Stdin); err != nil && !errors.Is(err, io.EOF) {
+				log.Printf("copying stdin: %v", err)
+			}
+			if err := c.Stdin.Close(); err != nil {
+				log.Printf("Closing stdin: %v", err)
+			}
+		}()
 	}
-	go c.TTYIn(c.session, c.Stdin, os.Stdin)
 	go func() {
 		if _, err := io.Copy(os.Stdout, c.Stdout); err != nil && !errors.Is(err, io.EOF) {
-			log.Printf("stdout: %v", err)
+			log.Printf("copying stdout: %v", err)
 		}
 	}()
 	go func() {
 		if _, err := io.Copy(os.Stderr, c.Stderr); err != nil && !errors.Is(err, io.EOF) {
-			log.Printf("stderr: %v", err)
+			log.Printf("copying stderr: %v", err)
 		}
 	}()
 
