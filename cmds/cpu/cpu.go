@@ -20,7 +20,6 @@ import (
 
 	config "github.com/kevinburke/ssh_config"
 	"github.com/u-root/cpu/client"
-	"github.com/u-root/u-root/pkg/termios"
 	"github.com/u-root/u-root/pkg/ulog"
 
 	// We use this ssh because it can unpack password-protected private keys.
@@ -184,10 +183,6 @@ func main() {
 			a = "/bin/sh"
 		}
 	}
-	t, err := termios.GetTermios(0)
-	if err != nil {
-		log.Fatal("Getting Termios")
-	}
 
 	*keyFile = getKeyFile(host, *keyFile)
 	*port = getPort(host, *port)
@@ -202,11 +197,5 @@ func main() {
 			e = sshErr.ExitStatus()
 		}
 		defer os.Exit(e)
-	}
-	if err := termios.SetTermios(0, t); err != nil {
-		// Never make this a log.Fatal, it might
-		// interfere with the exit handling
-		// for errors from the remote process.
-		log.Print(err)
 	}
 }
