@@ -100,8 +100,12 @@ func Command(host string, args ...string) *Cmd {
 
 	col, row := 80, 40
 	if w, err := termios.GetWinSize(0); err != nil {
-		V("Can not get winsize: %v; assuming %dx%d", err, col, row)
+		// This means it is not a tty, and hence for all intents and
+		// purposes, not interactive.
+		interactive = false
+		log.Printf("Can not get winsize: %v; assuming %dx%d and non-interactive", err, col, row)
 	} else {
+		interactive = true
 		col, row = int(w.Col), int(w.Row)
 	}
 
@@ -434,8 +438,11 @@ func (c *Cmd) Start() error {
 	if err := c.session.Start(cmd); err != nil {
 		return fmt.Errorf("Failed to run %v: %v", c, err.Error())
 	}
-	if err := c.SetupInteractive(); err != nil {
-		return err
+	if c.interactive {
+		V("Setup interactive input")
+		if err := c.SetupInteractive(); err != nil {
+			return err
+		}
 	}
 	go c.TTYIn(c.session, c.Stdin, os.Stdin)
 	go func() {
@@ -521,9 +528,6 @@ func (c *Cmd) SetupInteractive() error {
 	if err != nil {
 		return err
 	}
-	// FIXME: getting a restorer from t.Raw doesn't work.
-	// Still not sure what I'm doing wrong.
-	// Always restores raw settings as traced in ioctl.
 	r, err := t.Get()
 	if err != nil {
 		return err
