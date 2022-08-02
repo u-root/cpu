@@ -276,6 +276,8 @@ func (c *Cmd) Dial() error {
 		}
 		addr = fmt.Sprintf("%#x:%d", id, port)
 		conn, err = vsock.Dial(id, port, nil)
+	case "unix", "unixgram", "unixpacket":
+		conn, err = net.Dial(c.network, c.Port)
 	default:
 		addr = net.JoinHostPort(c.HostName, c.Port)
 		conn, err = net.Dial(c.network, addr)
