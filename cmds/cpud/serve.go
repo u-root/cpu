@@ -93,6 +93,8 @@ func serve() error {
 		if err == nil {
 			ln, err = vsock.ListenContextID(any, uint32(p), nil)
 		}
+	case "unix", "unixgram", "unixpacket":
+		ln, err = net.Listen(*network, *port)
 	default:
 		ln, err = net.Listen(*network, ":"+*port)
 	}
