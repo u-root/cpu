@@ -56,11 +56,11 @@ func serve(network, addr string, pubKey, hostKey []byte) error {
 		hang()
 	}
 	v("Listening on %v", ln.Addr())
-	if err := s.Serve(ln); err != ssh.ErrServerClosed {
-		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)
-		hang()
-	}
-	v("Daemon returns")
-	hang()
+	go func(ln net.Listener) {
+		if err := s.Serve(ln); err != ssh.ErrServerClosed {
+			log.Printf("cpu Serve() returned %v which indicates a problem; %v is the expected return", err, ssh.ErrServerClosed)
+		}
+		v("Daemon returns")
+	}(ln)
 	return nil
 }

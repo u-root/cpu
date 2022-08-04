@@ -24,6 +24,7 @@ u-root \
 	all \
 	cmds/cpud \
 	cmds/cpu \
+	cmds/dut \
 
 echo NOT adding a host key at -files  ssh_host_rsa_key:etc/ssh/ssh_host_rsa_key 
 

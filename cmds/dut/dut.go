@@ -22,6 +22,9 @@ var (
 	addr    = flag.String("addr", "192.168.0.1:8080", "DUT addr in addr:port format")
 	network = flag.String("net", "tcp", "Network to use")
 	klog    = flag.Bool("klog", false, "Direct all logging to klog -- depends on debug")
+	pubKey  = flag.String("key", "key.pub", "public key file")
+	hostKey = flag.String("hostkey", "", "host key file -- usually empty")
+	cpuAddr = flag.String("cpuaddr", ":17010", "cpu address -- IANA port value is ncpu tcp/17010")
 
 	// for debug
 	v = func(string, ...interface{}) {}
@@ -88,8 +91,8 @@ func dutRPC(network, addr string) error {
 	return nil
 }
 
-func dutcpu(network, addr, pubkey, hostkey, cpuport string) error {
-	var req = &RPCCPU{Network: network, Addr: addr}
+func dutcpu(network, addr, pubkey, hostkey, cpuaddr string) error {
+	var req = &RPCCPU{Network: network, Addr: cpuaddr}
 	var err error
 
 	// we send the pubkey and hostkey as the value of the key, not the
@@ -137,7 +140,6 @@ func dutcpu(network, addr, pubkey, hostkey, cpuport string) error {
 }
 
 func main() {
-	// for CPU
 	flag.Parse()
 
 	if *debug {
@@ -159,23 +161,20 @@ func main() {
 	case "tester":
 		err = dutRPC(*network, *addr)
 	case "cpu":
-		// These flags are separated out as the only have meaning for the "cpu" client option
-		var (
-			pubKey  = flag.String("pubkey", "key.pub", "public key file")
-			hostKey = flag.String("hostkey", "", "host key file -- usually empty")
-			cpuPort = flag.String("cpuport", "17010", "cpu port -- IANA value is ncpu tcp/17010")
-		)
-		v("Parse %v", os.Args)
-		flag.Parse()
+		// In this case, we chain the cpu daemon and exit.
 		v("pubkey %v", *pubKey)
-		if err := dutcpu(*network, *addr, *pubKey, *hostKey, *cpuPort); err != nil {
+		if err = dutcpu(*network, *addr, *pubKey, *hostKey, *cpuAddr); err != nil {
 			log.Printf("cpu service: %v", err)
 		}
 	case "device":
 		err = uinit(*network, *addr)
 		// What to do after a return? Reboot I suppose.
 		log.Printf("Device returns with error %v", err)
-		if err := unix.Reboot(int(unix.LINUX_REBOOT_CMD_RESTART)); err != nil {
+		// We only reboot if there was an error.
+		if err == nil {
+			break
+		}
+		if err = unix.Reboot(int(unix.LINUX_REBOOT_CMD_RESTART)); err != nil {
 			log.Printf("Reboot failed, not sure what to do now.")
 		}
 	default:
