@@ -75,32 +75,45 @@ func initsetup() error {
 	return nil
 }
 
+func listen(network, port string) (net.Listener, error) {
+	// Sadly, vsock is not in the standard Go net package.
+	// It should be but ...
+	var (
+		ln  net.Listener
+		err error
+	)
+
+	switch network {
+	case "vsock":
+		var p uint64
+		p, err = strconv.ParseUint(port, 0, 16)
+		if err != nil {
+			return nil, err
+		}
+		ln, err = vsock.ListenContextID(any, uint32(p), nil)
+
+	case "unix", "unixgram", "unixpacket":
+		// net.JoinHostPort really ought to work for UDS, but it's very naive.
+		// It does not take the network type as a parameter.
+		ln, err = net.Listen(network, port)
+
+	default:
+		ln, err = net.Listen(network, net.JoinHostPort("", port))
+	}
+	return ln, err
+}
+
 func serve() error {
 	s, err := server.New(*pubKeyFile, *hostKeyFile)
 	if err != nil {
-		log.Printf(`New(%q, %q): %v != nil`, *pubKeyFile, *hostKeyFile, err)
+		log.Printf(`New(%q, %q): %v`, *pubKeyFile, *hostKeyFile, err)
 		hang()
 	}
 	v("Server is %v", s)
 
-	// Sadly, vsock is not in the standard Go net package.
-	// It should be but ...
-	var ln net.Listener
-
-	switch *network {
-	case "vsock":
-		p, err := strconv.ParseUint(*port, 0, 16)
-		if err == nil {
-			ln, err = vsock.ListenContextID(any, uint32(p), nil)
-		}
-	case "unix", "unixgram", "unixpacket":
-		ln, err = net.Listen(*network, *port)
-	default:
-		ln, err = net.Listen(*network, ":"+*port)
-	}
+	ln, err := listen(*network, *port)
 	if err != nil {
-		log.Printf("net.Listen(): %v != nil", err)
-		hang()
+		return err
 	}
 	v("Listening on %v", ln.Addr())
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
