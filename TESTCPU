@@ -37,7 +37,7 @@ sudo /usr/bin/qemu-system-x86_64 -kernel \
      -initrd /tmp/initramfs.linux_amd64.cpio \
      -object rng-random,filename=/dev/urandom,id=rng0 \
      -device virtio-rng-pci,rng=rng0 \
-     -serial /dev/tty  \
+     -serial mon:stdio \
      -append earlyprintk=ttyS0,115200\ console=ttyS0 \
      -device vhost-vsock-pci,guest-cid=42 \
      -monitor /dev/null  \
