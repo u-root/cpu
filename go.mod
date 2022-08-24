@@ -50,3 +50,6 @@ require (
 	golang.org/x/tools v0.12.0 // indirect
 	google.golang.org/grpc v1.56.3 // indirect
 )
+
+replace github.com/u-root/u-root => ../u-root
+replace github.com/hugelgupf/p9 => ../p9
