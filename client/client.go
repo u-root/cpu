@@ -253,6 +253,20 @@ func WithPort(port string) Set {
 
 }
 
+// It's a shame vsock is not in the net package (yet ... or ever?)
+func vsockDial(host, port string) (net.Conn, string, error) {
+	id, portid, err := vsockIdPort(host, port)
+	V("vsock(%v, %v) = %v, %v, %v", host, port, id, portid, err)
+	if err != nil {
+		return nil, "", err
+	}
+	addr := fmt.Sprintf("%#x:%d", id, portid)
+	conn, err := vsock.Dial(id, portid, nil)
+	V("vsock id %#x port %d addr %#x conn %v err %v", id, port, addr, conn, err)
+	return conn, addr, err
+
+}
+
 // Dial implements ssh.Dial for cpu.
 // Additionaly, if Cmd.Root is not "", it
 // starts up a server for 9p requests.
@@ -269,19 +283,16 @@ func (c *Cmd) Dial() error {
 
 	switch c.network {
 	case "vsock":
-		id, port, err := vsockIdPort(c.HostName, c.Port)
-		V("vsock(%v, %v) = %v, %v, %v", c.HostName, c.Port, id, port, err)
-		if err != nil {
-			return err
-		}
-		addr = fmt.Sprintf("%#x:%d", id, port)
-		conn, err = vsock.Dial(id, port, nil)
+		conn, addr, err = vsockDial(c.HostName, c.Port)
 	case "unix", "unixgram", "unixpacket":
+		// There is not port on a unix domain socket.
+		addr = c.network
 		conn, err = net.Dial(c.network, c.Port)
 	default:
 		addr = net.JoinHostPort(c.HostName, c.Port)
 		conn, err = net.Dial(c.network, addr)
 	}
+	V("connect: err %v", err)
 	if err != nil {
 		return err
 	}
