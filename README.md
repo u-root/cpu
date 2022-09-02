@@ -54,7 +54,26 @@ to run; the options are to do a read (-r) into a file called rom.img.
 Where does that file end up? In whatever of my home directories I ran the cpu command from. I need
 not worry about scp'ing it back, or any such thing; it's just there.
 
-### docker container for trying out cpu (on x86 for now)
+### Building your own docker container
+
+You can easily build your own docker container to try things out.
+
+```
+docker build -t "${USER}/cpu:latest" .
+```
+
+or if you have installed a version of docker buildx, you can build a multi-arch manifest container and push it to docker hub:
+```
+% docker login
+% docker buildx build --platform "linux/amd64,linux/arm64,linux/arm/v7" --progress plain --pull -t "${USER}/cpu:latest" .
+```
+
+There is a pre-built version of a multi-arch container here which you can substitute for the next section if you want to try out on arm (either arm64 or arm/v7): 
+```
+ericvh/cpu:latest
+```
+
+### Pre-build Docker container for trying out cpu (on x86 for now)
 
 We have created a docker container so you can try cpu client and server:
 ```
