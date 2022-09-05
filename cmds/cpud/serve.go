@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"net"
@@ -36,6 +37,7 @@ func hang() {
 
 func commonsetup() error {
 	if *debug {
+		server.EnableDebug()
 		v = log.Printf
 		if *klog {
 			ulog.KernelLog.Reinit()
@@ -114,6 +116,20 @@ func serve() error {
 	ln, err := listen(*network, *port)
 	if err != nil {
 		return err
+	}
+
+	if *dsEnabled {
+		v("Advertising w/dnssd ", dsTxt)
+		p, err := strconv.Atoi(*port)
+		if err != nil {
+			return fmt.Errorf("Could not parse port: %s, %w", *port, err)
+		}
+
+		err = server.DsRegister(*dsInstance, *dsDomain, *dsService, *dsInterface, p, dsTxt)
+		if err != nil {
+			return fmt.Errorf("Could not advertise with mdns: %w", err)
+		}
+		defer server.DsUnregister()
 	}
 	v("Listening on %v", ln.Addr())
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {

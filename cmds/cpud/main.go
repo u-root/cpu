@@ -8,6 +8,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
@@ -29,15 +30,41 @@ var (
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	klog      = flag.Bool("klog", false, "Log cpud messages in kernel log, not stdout")
 
-	pid1 bool
+	dsEnabled   = flag.Bool("dnssd", false, "advertise service using DNSSD")
+	dsInstance  = flag.String("dsInstance", "", "DNSSD instance name")
+	dsDomain    = flag.String("dsDomain", "local", "DNSSD domain")
+	dsService   = flag.String("dsService", "_ncpu._tcp", "DNSSD Service Type")
+	dsInterface = flag.String("dsInterface", "", "DNSSD Interface")
+	dsTxtStr    = flag.String("dsTxt", "", "DNSSD key-value pair string parameterizing advertisement")
+	dsTxt       map[string]string
+	pid1        bool
 )
 
 func verbose(f string, a ...interface{}) {
 	v("\r\nCPUD:"+f+"\r\n", a...)
 }
 
+func parseKv(arg string) map[string]string {
+	txt := make(map[string]string)
+	if len(arg) == 0 {
+		return txt
+	}
+	ss := strings.Split(*dsTxtStr, ",")
+	for _, pair := range ss {
+		z := strings.SplitN(pair, "=", 2)
+		if len(z) > 1 {
+			txt[z[0]] = z[1]
+		} else {
+			txt[z[0]] = "true"
+		}
+	}
+
+	return txt
+}
+
 func main() {
 	flag.Parse()
+	dsTxt = parseKv(*dsTxtStr)
 	pid1 = os.Getpid() == 1
 	*runAsInit = *runAsInit || pid1
 	verbose("Args %v pid %d *runasinit %v *remote %v env %v", os.Args, os.Getpid(), *runAsInit, *remote, os.Environ())
