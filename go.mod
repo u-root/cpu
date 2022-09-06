@@ -17,6 +17,8 @@ require (
 	github.com/mdlayher/vsock v1.1.1
 )
 
+require github.com/cenkalti/backoff/v4 v4.0.2
+
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
