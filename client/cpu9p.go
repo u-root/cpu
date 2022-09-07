@@ -253,3 +253,20 @@ func (l *cpu9p) Flush() error {
 func (l *cpu9p) Renamed(parent p9.File, newName string) {
 	l.path = filepath.Join(parent.(*cpu9p).path, newName)
 }
+
+// Remove implements p9.File.Remove
+func (l *cpu9p) Remove() error {
+	err := os.Remove(l.path)
+	verbose("Remove(%q): (%v)", l.path, err)
+	return err
+}
+
+// UnlinkAt implements p9.File.UnlinkAt.
+// The flags docs are not very clear, but we
+// always block on the unlink anyway.
+func (l *cpu9p) UnlinkAt(name string, flags uint32) error {
+	f := filepath.Join(l.path, name)
+	err := os.Remove(f)
+	verbose("UnlinkAt(%q=(%q, %q), %#x): (%v)", f, l.path, name, flags, err)
+	return err
+}

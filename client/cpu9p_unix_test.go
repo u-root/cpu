@@ -9,6 +9,7 @@ package client
 
 import (
 	"io/ioutil"
+	"os"
 	"reflect"
 
 	"path/filepath"
@@ -196,4 +197,42 @@ func Test9pUnix(t *testing.T) {
 		t.Errorf("Permissions: %o != %o", ga2.Mode&p9.AllPermissions, sa.Permissions)
 	}
 
+}
+
+func Test9pRemove(t *testing.T) {
+	d := t.TempDir()
+	f := filepath.Join(d, "a")
+	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
+		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
+	}
+	c := &cpu9p{
+		path: f,
+	}
+
+	err := c.Remove()
+	if err != nil {
+		t.Errorf("Remove: %v != nil", err)
+	}
+	if _, err := os.Stat(f); err == nil {
+		t.Errorf("After removing file: os.Stat(%q): got nil, want err", f)
+	}
+}
+
+func Test9pUnlinkat(t *testing.T) {
+	d := t.TempDir()
+	f := filepath.Join(d, "a")
+	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
+		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
+	}
+	c := &cpu9p{
+		path: d,
+	}
+
+	err := c.UnlinkAt("a", 0)
+	if err != nil {
+		t.Errorf("UnlinkAt: %v != nil", err)
+	}
+	if _, err := os.Stat(f); err == nil {
+		t.Errorf("After UnlinkAt file: os.Stat(%q): got nil, want err", f)
+	}
 }
