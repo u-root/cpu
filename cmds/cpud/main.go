@@ -82,7 +82,11 @@ func main() {
 		}
 	case *remote:
 		verbose("server package: Running as remote: args %q, port9p %v", args, *port9p)
-		s := session.New(*port9p, args[0], args[1:]...)
+		tmpMnt, ok := os.LookupEnv("CPU_TMPMNT")
+		if !ok || len(tmpMnt) == 0 {
+			tmpMnt = "/tmp"
+		}
+		s := session.New(*port9p, tmpMnt, args[0], args[1:]...)
 		if err := s.Run(); err != nil {
 			log.Fatalf("CPUD(as remote):%v", err)
 		}

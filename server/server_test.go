@@ -33,7 +33,7 @@ func TestRemoteNoNameSpace(t *testing.T) {
 		t.Skipf("Skipping as we are not root")
 	}
 	v = t.Logf
-	s := session.New("", "date")
+	s := session.New("", "/tmp", "date")
 	o, e := &bytes.Buffer{}, &bytes.Buffer{}
 	s.Stdin, s.Stdout, s.Stderr = nil, o, e
 	if err := s.Run(); err != nil {
@@ -102,7 +102,7 @@ func TestDaemonConnectHelper(t *testing.T) {
 		return
 	}
 	t.Logf("As a helper, we are supposed to run %q", args)
-	s := session.New(port9p, args[0], args[1:]...)
+	s := session.New(port9p, "/tmp", args[0], args[1:]...)
 	// Step through the things a server is supposed to do with a session
 	if err := s.Run(); err != nil {
 		log.Fatalf("CPUD(as remote):%v", err)
