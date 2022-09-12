@@ -45,8 +45,10 @@ var (
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
 	mdns        = flag.Bool("mdns", false, "I want to use default mdns query (no specified hostname)")
-	v           = func(string, ...interface{}) {}
-	dumpWriter  *os.File
+	tmpMnt      = flag.String("tmpMnt", "/tmp", "Mount point of the private namespace.")
+
+	v          = func(string, ...interface{}) {}
+	dumpWriter *os.File
 )
 
 func verbose(f string, a ...interface{}) {
@@ -149,6 +151,7 @@ func newCPU(host string, args ...string) error {
 		client.WithFSTab(*fstab),
 		client.WithCpudCommand(*cpudCmd),
 		client.WithNetwork(*network),
+		client.WithTempMount(*tmpMnt),
 		client.WithTimeout(*timeout9P)); err != nil {
 		log.Fatal(err)
 	}

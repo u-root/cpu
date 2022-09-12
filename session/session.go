@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/u-root/cpu/mount"
@@ -43,6 +44,7 @@ type Session struct {
 	port9p string
 	cmd    string
 	args   []string
+	tmpMnt string
 }
 
 var (
@@ -102,13 +104,18 @@ func (s *Session) TmpMounts() error {
 	// It's true we are making this directory while still root.
 	// This ought to be safe as it is a private namespace mount.
 	// (or we are started with a clean namespace in Plan 9).
-	for _, n := range []string{"/tmp/cpu", "/tmp/local", "/tmp/merge", "/tmp/root", "/home"} {
+	for _, n := range []string{
+		filepath.Join(s.tmpMnt, "cpu"),
+		filepath.Join(s.tmpMnt, "local"),
+		filepath.Join(s.tmpMnt, "merge"),
+		filepath.Join(s.tmpMnt, "root"),
+		"/home"} {
 		if err := os.MkdirAll(n, 0666); err != nil && !os.IsExist(err) {
 			log.Println(err)
 		}
 	}
 
-	if err := osMounts(); err != nil {
+	if err := osMounts(s.tmpMnt); err != nil {
 		log.Println(err)
 	}
 	return nil
@@ -125,7 +132,7 @@ func (s *Session) TmpMounts() error {
 func (s *Session) Run() error {
 	var errors error
 
-	if err := runSetup(); err != nil {
+	if err := runSetup(s.tmpMnt); err != nil {
 		return err
 	}
 	if err := s.TmpMounts(); err != nil {
@@ -224,6 +231,6 @@ func (s *Session) Run() error {
 // New returns a New session with defaults set. It requires a port for
 // 9p (which can be the empty string, but is usually not) and a
 // command name.
-func New(port9p, cmd string, args ...string) *Session {
-	return &Session{msize: 8192, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, cmd: cmd, args: args}
+func New(port9p, tmpMnt, cmd string, args ...string) *Session {
+	return &Session{msize: 8192, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, tmpMnt: tmpMnt, cmd: cmd, args: args}
 }

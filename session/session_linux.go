@@ -96,8 +96,9 @@ func (s *Session) Namespace() (error, error) {
 	if len(s.mopts) > 0 {
 		opts += "," + s.mopts
 	}
-	v("CPUD: mount 127.0.0.1 on /tmp/cpu 9p %#x %s", flags, opts)
-	if err := unix.Mount("localhost", "/tmp/cpu", "9p", flags, opts); err != nil {
+	mountTarget := filepath.Join(s.tmpMnt, "cpu")
+	v("CPUD: mount 127.0.0.1 on %s 9p %#x %s", mountTarget, flags, opts)
+	if err := unix.Mount("localhost", mountTarget, "9p", flags, opts); err != nil {
 		return nil, fmt.Errorf("9p mount %v", err)
 	}
 	v("CPUD: mount done")
@@ -107,7 +108,7 @@ func (s *Session) Namespace() (error, error) {
 	// bind *may* hide local resources but for now it's the least worst option.
 	var warning error
 	for _, n := range s.binds {
-		t := filepath.Join("/tmp/cpu", n.Remote)
+		t := filepath.Join(mountTarget, n.Remote)
 		v("CPUD: mount %v over %v", t, n.Local)
 		if err := unix.Mount(t, n.Local, "", syscall.MS_BIND, ""); err != nil {
 			s.fail = true
@@ -120,19 +121,22 @@ func (s *Session) Namespace() (error, error) {
 	return warning, nil
 }
 
-func osMounts() error {
+func osMounts(tmpMnt string) error {
 	var errors error
 	// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
-	if err := unix.Mount("/", "/tmp/local", "", syscall.MS_BIND, ""); err != nil {
-		errors = multierror.Append(fmt.Errorf("CPUD:Warning: binding / over /tmp/local did not work: %v, continuing anyway", err))
+	if err := unix.Mount("/", filepath.Join(tmpMnt, "local"), "", syscall.MS_BIND, ""); err != nil {
+		errors = multierror.Append(fmt.Errorf("CPUD:Warning: binding / over %s did not work: %v, continuing anyway", filepath.Join(tmpMnt, "local"), err))
 	}
 	return errors
 }
 
 // runSetup performs kernel-specific operations for starting a Session.
-func runSetup() error {
-	if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
-		return fmt.Errorf(`unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); %v != nil`, err)
+func runSetup(tmpMnt string) error {
+	if err := os.MkdirAll(tmpMnt, 0666); err != nil && !os.IsExist(err) {
+		return fmt.Errorf("cannot create %s: %v", tmpMnt, err)
+	}
+	if err := unix.Mount("cpu", tmpMnt, "tmpfs", 0, ""); err != nil {
+		return fmt.Errorf(`unix.Mount("cpu", %s, "tmpfs", 0, ""); %v != nil`, tmpMnt, err)
 	}
 	return nil
 }
