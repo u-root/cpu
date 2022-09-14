@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package cpu provides an exec.Command and ssh like interface for cpu sessions.
+// Package client provides an exec.Command and ssh like interface for cpu sessions.
 // It attempts to cleave as much as possible to the original.
 // The choice between options and environment variables mirrors this effort.
 // For example, the namespace for the remote process is an environment variable,
