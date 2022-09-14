@@ -236,3 +236,27 @@ func Test9pUnlinkat(t *testing.T) {
 		t.Errorf("After UnlinkAt file: os.Stat(%q): got nil, want err", f)
 	}
 }
+
+func Test9pRenameAt(t *testing.T) {
+	d := t.TempDir()
+	f := filepath.Join(d, "a")
+	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
+		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
+	}
+	c := &cpu9p{
+		path: filepath.Join(d, "nd"),
+	}
+	if err := os.Mkdir(c.path, 0777); err != nil {
+		t.Fatalf("Mkdir(%q, 0777): %v != nil", c.path, err)
+	}
+	oldPath := &cpu9p {
+		path: d,
+	}
+	if err := oldPath.RenameAt("a", c, "z"); err != nil {
+		t.Errorf("RenameAt(%q, %q, \"z\"): %v != nil", f, c.path, err)
+	}
+	newFile := filepath.Join(c.path, "z")
+	if _, err := os.Stat(newFile); err != nil {
+		t.Errorf("os.Stat(%q): %v != nil", newFile, err)
+	}
+}

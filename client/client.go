@@ -27,7 +27,10 @@ const (
 	// we would like to default to 100ms. This is a lot, considering that at this point,
 	// the sshd has forked a server for us and it's waiting to be
 	// told what to do.
-	defaultTimeOut   = time.Duration(100 * time.Millisecond)
+	defaultTimeOut = time.Duration(100 * time.Millisecond)
+
+	// DefaultNameSpace is the default used if the user does not request
+	// something else.
 	DefaultNameSpace = "/lib:/lib64:/usr:/bin:/etc:/home"
 )
 
@@ -99,7 +102,7 @@ func Command(host string, args ...string) *Cmd {
 
 	col, row := 80, 40
 	if w, err := termios.GetWinSize(0); err != nil {
-		log.Printf("Can not get winsize: %v; assuming %dx%d and non-interactive", err, col, row)
+		verbose("Can not get winsize: %v; assuming %dx%d and non-interactive", err, col, row)
 	} else {
 		hasTTY = true
 		col, row = int(w.Col), int(w.Row)
@@ -133,6 +136,7 @@ func Command(host string, args ...string) *Cmd {
 	}
 }
 
+// Set is the type of function used to set options in SetOptions.
 type Set func(*Cmd) error
 
 // With9P enables the 9P2000 server in cpu.
@@ -159,7 +163,7 @@ func WithNameSpace(ns string) Set {
 	}
 }
 
-// AddFSTab reads a file for the FSTab member.
+// WithFSTab reads a file for the FSTab member.
 func WithFSTab(fstab string) Set {
 	return func(c *Cmd) error {
 		if len(fstab) == 0 {
@@ -174,7 +178,7 @@ func WithFSTab(fstab string) Set {
 	}
 }
 
-// SetTimeout sets the 9p timeout.
+// WithTimeout sets the 9p timeout.
 func WithTimeout(timeout string) Set {
 	return func(c *Cmd) error {
 		d, err := time.ParseDuration(timeout)
@@ -234,7 +238,7 @@ func WithNetwork(network string) Set {
 	}
 }
 
-// SetPort sets the port in the Cmd.
+// WithPort sets the port in the Cmd.
 // It calls GetPort with the passed-in port
 // before assigning it.
 func WithPort(port string) Set {

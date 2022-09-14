@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -282,9 +283,19 @@ func (*cpu9p) Rename(directory p9.File, name string) error {
 }
 
 // RenameAt implements p9.File.RenameAt.
-func (*cpu9p) RenameAt(oldname string, newdir p9.File, newname string) error {
-	verbose("RenameAt: not implemented")
-	return syscall.ENOSYS
+// There is no guarantee that there is not a zipslip issue.
+func (l *cpu9p) RenameAt(oldName string, newDir p9.File, newName string) error {
+	oldPath := path.Join(l.path, oldName)
+	nd, ok := newDir.(*cpu9p)
+	if ! ok {
+		// This is extremely serious and points to an internal error.
+		// Hence the non-optional log.Printf. It should not ever happen.
+		log.Printf("Can not happen: cast of newDir to %T failed; it is type %T", l, newDir)
+		return os.ErrInvalid
+	}
+	newPath := path.Join(nd.path, newName)
+
+	return os.Rename(oldPath, newPath)
 }
 
 // StatFS implements p9.File.StatFS.
