@@ -22,14 +22,12 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/hugelgupf/p9/fsimpl/templatefs"
 	"github.com/hugelgupf/p9/p9"
 )
 
 // cpu9p is a p9.Attacher.
 type cpu9p struct {
 	p9.DefaultWalkGetAttr
-	templatefs.NoopFile
 
 	path string
 	file *os.File
@@ -269,4 +267,30 @@ func (l *cpu9p) UnlinkAt(name string, flags uint32) error {
 	err := os.Remove(f)
 	verbose("UnlinkAt(%q=(%q, %q), %#x): (%v)", f, l.path, name, flags, err)
 	return err
+}
+
+// Mknod implements p9.File.Mknod.
+func (*cpu9p) Mknod(name string, mode p9.FileMode, major uint32, minor uint32, _ p9.UID, _ p9.GID) (p9.QID, error) {
+	verbose("Mknod: not implemented")
+	return p9.QID{}, syscall.ENOSYS
+}
+
+// Rename implements p9.File.Rename.
+func (*cpu9p) Rename(directory p9.File, name string) error {
+	verbose("Rename: not implemented")
+	return syscall.ENOSYS
+}
+
+// RenameAt implements p9.File.RenameAt.
+func (*cpu9p) RenameAt(oldname string, newdir p9.File, newname string) error {
+	verbose("RenameAt: not implemented")
+	return syscall.ENOSYS
+}
+
+// StatFS implements p9.File.StatFS.
+//
+// Not implemented.
+func (*cpu9p) StatFS() (p9.FSStat, error) {
+	verbose("StatFS: not implemented")
+	return p9.FSStat{}, syscall.ENOSYS
 }
