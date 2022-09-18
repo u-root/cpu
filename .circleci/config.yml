@@ -3,10 +3,9 @@ version: 2
 templates:
   golang-template: &golang-template
     docker:
-      - image: circleci/golang:1.17
-    working_directory: /go/src/github.com/u-root/cpu
+      - image: cimg/go:1.19.1
+    working_directory: /home/circleci/go/src/github.com/u-root/cpu
     environment:
-      - GOPATH: "/go"
       - CGO_ENABLED: 0
 
 workflows:
@@ -26,7 +25,7 @@ jobs:
           environment:
             - GO111MODULE: "on"
           command: |
-            sudo apt install gox
+            sudo apt update && sudo apt install gox
             go mod tidy
             go mod verify
             git status
