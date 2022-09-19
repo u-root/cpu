@@ -91,8 +91,8 @@ func (c *Cmd) SetOptions(opts ...Set) error {
 	return nil
 }
 
-func SetVerbose() {
-	V = log.Printf
+func SetVerbose(f func(string, ...interface{})) {
+	V = f
 }
 
 // Command implements exec.Command. The required parameter is a host.
