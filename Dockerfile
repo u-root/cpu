@@ -5,7 +5,7 @@ WORKDIR /app
 RUN mkdir -p /app/root
 RUN mkdir -p /app/lib64 
 RUN CGO_ENABLED=0 go build -o cpud ./cmds/cpud/.
-RUN CGO_ENABLED=0 GOBIN=`pwd` go install github.com/u-root/cpu/cmds/cpu
+RUN CGO_ENABLED=0 go build -o cpu ./cmds/cpu/.
 RUN CGO_ENABLED=0 GOBIN=`pwd` go install  github.com/u-root/u-root/cmds/core/date
 RUN CGO_ENABLED=0 GOBIN=`pwd` go install  github.com/u-root/u-root/cmds/core/cat
 
