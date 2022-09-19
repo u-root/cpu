@@ -34,8 +34,8 @@ var (
 	cancelMdns = func() {}
 )
 
-func EnableDebug() {
-	v = log.Printf
+func SetVerbose(f func(string, ...interface{})) {
+	v = f
 }
 
 func verbose(f string, a ...interface{}) {

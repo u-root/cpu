@@ -37,7 +37,7 @@ func hang() {
 
 func commonsetup() error {
 	if *debug {
-		server.EnableDebug()
+		server.SetVerbose(log.Printf)
 		v = log.Printf
 		if *klog {
 			ulog.KernelLog.Reinit()

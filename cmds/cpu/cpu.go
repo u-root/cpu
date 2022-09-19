@@ -60,7 +60,7 @@ func flags() {
 	}
 	if *debug {
 		v = log.Printf
-		client.SetVerbose()
+		client.SetVerbose(log.Printf)
 	}
 	if *dump {
 		var err error
