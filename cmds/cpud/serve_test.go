@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"os"
+	"syscall"
 	"testing"
 )
 
@@ -34,14 +37,18 @@ func TestListen(t *testing.T) {
 		{"tcp", "17010"},
 		{"tcp4", "17010"},
 		{"tcp6", "17010"},
-		// Damn. Can't easily test this b/c environments vary so much.
-		//{"vsock", "17010"},
+		{"vsock", "17010"},
 		{"unix", "@foobar"},
 	}
 
 	for _, tt := range oktests {
 		ln, err := listen(tt.network, tt.port)
 		if err != nil {
+			var sysErr *os.SyscallError
+			if errors.As(err, &sysErr) && sysErr.Err == syscall.EAFNOSUPPORT {
+				// e.g. no ipv4 or vsock
+				continue;
+			}
 			t.Errorf("Listen(%v, %v): err != nil", tt.network, tt.port)
 			continue
 		}
