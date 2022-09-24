@@ -147,12 +147,12 @@ func dsUpdateSysInfo(txtFlag map[string]string) {
 		return
 	}
 
-	txtFlag["mem_avail"] = strconv.FormatUint(sysinfo.Freeram, 10)
-	txtFlag["mem_total"] = strconv.FormatUint(sysinfo.Totalram, 10)
+	txtFlag["mem_avail"] = strconv.FormatUint(uint64(sysinfo.Freeram), 10)
+	txtFlag["mem_total"] = strconv.FormatUint(uint64(sysinfo.Totalram), 10)
 	txtFlag["mem_unit"] = strconv.FormatUint(uint64(sysinfo.Unit), 10)
-	txtFlag["load1"] = strconv.FormatUint(sysinfo.Loads[0], 10)
-	txtFlag["load5"] = strconv.FormatUint(sysinfo.Loads[1], 10)
-	txtFlag["load15"] = strconv.FormatUint(sysinfo.Loads[2], 10)
+	txtFlag["load1"] = strconv.FormatUint(uint64(sysinfo.Loads[0]), 10)
+	txtFlag["load5"] = strconv.FormatUint(uint64(sysinfo.Loads[1]), 10)
+	txtFlag["load15"] = strconv.FormatUint(uint64(sysinfo.Loads[2]), 10)
 	txtFlag["tenants"] = strconv.Itoa(tenants)
 
 	v(" dsUpdateSysInfo ", txtFlag)
