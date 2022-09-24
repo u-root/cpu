@@ -293,8 +293,50 @@ func vsockDial(host, port string) (net.Conn, string, error) {
 // check that mdns response has all required attributes
 func mdns_required(src map[string]string, req map[string][]string) bool {
 	for k, _ := range req {
-		if !slices.Contains(req[k], src[k]) {
-			return false
+		// ignore sort criteria since they are optional
+		switch req[k][0][0] {
+		case '<':
+			fallthrough
+		case '>':
+			if len(req[k][0]) < 2 {
+				V("error: poorly formed comparison in requirements")
+				return false
+			}
+			reqval, err := strconv.ParseFloat(req[k][0][1:], 10)
+			if err != nil {
+				V("error: non-numeric comparison in requirement")
+				return false
+			}
+			if len(src[k]) == 0 { // key not present, so requirement not met
+				return false
+			}
+			val, err := strconv.ParseFloat(src[k], 10)
+			if err != nil {
+				V("error: non-numeric comparison in providing meta-data")
+				return false
+			}
+			switch req[k][0][0] {
+			case '<':
+				if val > reqval {
+					return false
+				}
+			case '>':
+				if val < reqval {
+					return false
+				}
+			}
+		case '!':
+			if len(req[k][0]) < 2 {
+				V("error: poorly formed comparison in requirements")
+				return false
+			}
+			if req[k][0][1:] == src[k] {
+				return false
+			}
+		default:
+			if !slices.Contains(req[k], src[k]) {
+				return false
+			}
 		}
 	}
 	return true
