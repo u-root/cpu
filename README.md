@@ -2,6 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/u-root/cpu.svg?style=svg)](https://circleci.com/gh/u-root/cpu)
 [![Go Report Card](https://goreportcard.com/badge/github.com/u-root/cpu)](https://goreportcard.com/report/github.com/u-root/cpu)
+[![CodeQL](https://github.com/u-root/cpu/workflows/CodeQL/badge.svg)](https://github.com/u-root/cpu/actions?query=workflow%3ACodeQL)
 [![GoDoc](https://godoc.org/github.com/u-root/cpu?status.svg)](https://godoc.org/github.com/u-root/cpu)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/u-root/cpu/blob/master/LICENSE)
 
