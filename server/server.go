@@ -12,8 +12,8 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -23,19 +23,15 @@ import (
 	"github.com/gliderlabs/ssh"
 
 	"github.com/brutella/dnssd"
-	"golang.org/x/sys/unix"
 )
 
 const (
 	defaultPort = "17010"
-	dsUpdate    = 60
 )
 
 var (
 	v          = func(string, ...interface{}) {}
 	cancelMdns = func() {}
-	tenants    = 0
-	tenChan    = make(chan int, 1)
 )
 
 func SetVerbose(f func(string, ...interface{})) {
@@ -47,7 +43,7 @@ func verbose(f string, a ...interface{}) {
 }
 
 func setWinsize(f *os.File, w, h int) {
-	unix.Syscall(unix.SYS_IOCTL, f.Fd(), uintptr(unix.TIOCSWINSZ), //nolint
+	syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), uintptr(syscall.TIOCSWINSZ), //nolint
 		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})))
 }
 
@@ -65,7 +61,6 @@ func errval(err error) error {
 }
 
 func handler(s ssh.Session) {
-	tenChan <- 1
 	a := s.Command()
 	v("handler: cmd is %q", a)
 	cmd := command(a[0], a[1:]...)
@@ -77,7 +72,6 @@ func handler(s ssh.Session) {
 		v("command started with pty")
 		if err != nil {
 			v("CPUD:err %v", err)
-			tenChan <- -1
 			return
 		}
 		go func() {
@@ -118,7 +112,6 @@ func handler(s ssh.Session) {
 			s.Exit(1) //nolint
 		}
 	}
-	tenChan <- -1
 	verbose("handler exits")
 }
 
@@ -136,40 +129,6 @@ func dsDefaultInstance() string {
 	}
 
 	return hostname
-}
-
-func dsUpdateSysInfo(txtFlag map[string]string) {
-	var sysinfo unix.Sysinfo_t
-	err := unix.Sysinfo(&sysinfo)
-
-	if err != nil {
-		v("Sysinfo call failed ", err)
-		return
-	}
-
-	txtFlag["mem_avail"] = strconv.FormatUint(uint64(sysinfo.Freeram), 10)
-	txtFlag["mem_total"] = strconv.FormatUint(uint64(sysinfo.Totalram), 10)
-	txtFlag["mem_unit"] = strconv.FormatUint(uint64(sysinfo.Unit), 10)
-	txtFlag["load1"] = strconv.FormatUint(uint64(sysinfo.Loads[0]), 10)
-	txtFlag["load5"] = strconv.FormatUint(uint64(sysinfo.Loads[1]), 10)
-	txtFlag["load15"] = strconv.FormatUint(uint64(sysinfo.Loads[2]), 10)
-	txtFlag["tenants"] = strconv.Itoa(tenants)
-
-	v(" dsUpdateSysInfo ", txtFlag)
-}
-
-func dsDefaults(txtFlag map[string]string) {
-	if len(txtFlag["arch"]) == 0 {
-		txtFlag["arch"] = runtime.GOARCH
-	}
-
-	if len(txtFlag["os"]) == 0 {
-		txtFlag["os"] = runtime.GOOS
-	}
-
-	if len(txtFlag["cores"]) == 0 {
-		txtFlag["cores"] = strconv.Itoa(runtime.NumCPU())
-	}
 }
 
 func DsRegister(instanceFlag, domainFlag, serviceFlag, interfaceFlag string, portFlag int, txtFlag map[string]string) error {
@@ -196,8 +155,13 @@ func DsRegister(instanceFlag, domainFlag, serviceFlag, interfaceFlag string, por
 		instanceFlag = dsDefaultInstance()
 	}
 
-	dsDefaults(txtFlag)
-	dsUpdateSysInfo(txtFlag)
+	if len(txtFlag["arch"]) == 0 {
+		txtFlag["arch"] = runtime.GOARCH
+	}
+
+	if len(txtFlag["os"]) == 0 {
+		txtFlag["os"] = runtime.GOOS
+	}
 
 	cfg := dnssd.Config{
 		Name:   instanceFlag,
@@ -219,19 +183,6 @@ func DsRegister(instanceFlag, domainFlag, serviceFlag, interfaceFlag string, por
 			fmt.Println(err)
 		} else {
 			v("%s	Got a reply for service %s: Name now registered and active\n", time.Now().Format(timeFormat), handle.Service().ServiceInstanceName())
-		}
-		go func() {
-			for {
-				delta := <-tenChan
-				tenants += delta
-				dsUpdateSysInfo(txtFlag)
-				handle.UpdateText(txtFlag, resp)
-			}
-		}()
-
-		for {
-			time.Sleep(dsUpdate * time.Second)
-			tenChan <- 0
 		}
 	}()
 
