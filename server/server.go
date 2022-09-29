@@ -35,6 +35,7 @@ var (
 	v          = func(string, ...interface{}) {}
 	cancelMdns = func() {}
 	tenants    = 0
+	dsEnabled  = false
 	tenChan    = make(chan int, 1)
 )
 
@@ -65,7 +66,9 @@ func errval(err error) error {
 }
 
 func handler(s ssh.Session) {
-	tenChan <- 1
+	if dsEnabled {
+		tenChan <- 1
+	}
 	a := s.Command()
 	v("handler: cmd is %q", a)
 	cmd := command(a[0], a[1:]...)
@@ -77,7 +80,9 @@ func handler(s ssh.Session) {
 		v("command started with pty")
 		if err != nil {
 			v("CPUD:err %v", err)
-			tenChan <- -1
+			if dsEnabled {
+				tenChan <- -1
+			}
 			return
 		}
 		go func() {
@@ -118,7 +123,9 @@ func handler(s ssh.Session) {
 			s.Exit(1) //nolint
 		}
 	}
-	tenChan <- -1
+	if dsEnabled {
+		tenChan <- -1
+	}
 	verbose("handler exits")
 }
 
@@ -211,6 +218,8 @@ func DsRegister(instanceFlag, domainFlag, serviceFlag, interfaceFlag string, por
 	if err != nil {
 		return fmt.Errorf("cpud: advertise: New service fail: %w", err)
 	}
+
+	dsEnabled = true
 
 	go func() {
 		time.Sleep(1 * time.Second)
