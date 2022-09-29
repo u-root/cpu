@@ -160,6 +160,7 @@ func dsUpdateSysInfo(txtFlag map[string]string) {
 	txtFlag["load1"] = strconv.FormatUint(uint64(sysinfo.Loads[0]), 10)
 	txtFlag["load5"] = strconv.FormatUint(uint64(sysinfo.Loads[1]), 10)
 	txtFlag["load15"] = strconv.FormatUint(uint64(sysinfo.Loads[2]), 10)
+	txtFlag["load_ratio"] = fmt.Sprintf("%.6f", float64(sysinfo.Loads[1])/float64(runtime.NumCPU()))
 	txtFlag["tenants"] = strconv.Itoa(tenants)
 
 	v(" dsUpdateSysInfo ", txtFlag)
