@@ -96,6 +96,16 @@ func TestDaemonStart(t *testing.T) {
 	t.Logf("Daemon returns")
 }
 
+func TestDnsSdStart(t *testing.T) {
+	v = t.Logf
+	dsTxt := make(map[string]string, 0)
+	err := DsRegister("testInstance", "local", "_ncpu._tcp", "", 17010, dsTxt)
+	if err != nil {
+		t.Fatalf(`DsRegister: %v != nil`, err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
 func TestDaemonConnectHelper(t *testing.T) {
 	if _, ok := os.LookupEnv("GO_WANT_DAEMON_HELPER_PROCESS"); !ok {
 		t.Logf("just a helper")
