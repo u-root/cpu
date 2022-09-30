@@ -287,7 +287,7 @@ func (*cpu9p) Rename(directory p9.File, name string) error {
 func (l *cpu9p) RenameAt(oldName string, newDir p9.File, newName string) error {
 	oldPath := path.Join(l.path, oldName)
 	nd, ok := newDir.(*cpu9p)
-	if ! ok {
+	if !ok {
 		// This is extremely serious and points to an internal error.
 		// Hence the non-optional log.Printf. It should not ever happen.
 		log.Printf("Can not happen: cast of newDir to %T failed; it is type %T", l, newDir)

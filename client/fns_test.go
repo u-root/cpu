@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// vsockIdPort gets a client id and a port from host and port
+// vsockIDPort gets a client id and a port from host and port
 // The id and port are uint32.
 func TestVsockIdPort(t *testing.T) {
 	for _, tt := range []struct {
@@ -28,9 +28,9 @@ func TestVsockIdPort(t *testing.T) {
 		{name: "badhostnum", host: "z", port: "2", h: 0, p: 0, err: strconv.ErrSyntax},
 		{name: "ok", host: "0x42", port: "17010", h: 0x42, p: 17010, err: nil},
 	} {
-		h, p, err := vsockIdPort(tt.host, tt.port)
+		h, p, err := vsockIDPort(tt.host, tt.port)
 		if !errors.Is(err, tt.err) || h != tt.h || p != tt.p {
-			t.Errorf("%s:vsockIdPort(%s, %s): (%v, %v, %v) != (%v, %v, %v)", tt.name, tt.host, tt.port, h, p, err, tt.h, tt.p, tt.err)
+			t.Errorf("%s:vsockIDPort(%s, %s): (%v, %v, %v) != (%v, %v, %v)", tt.name, tt.host, tt.port, h, p, err, tt.h, tt.p, tt.err)
 		}
 	}
 }

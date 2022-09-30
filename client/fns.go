@@ -217,9 +217,9 @@ func GetPort(host, port string) (string, error) {
 	return p, nil
 }
 
-// vsockIdPort gets a client id and a port from host and port
+// vsockIDPort gets a client id and a port from host and port
 // The id and port are uint32.
-func vsockIdPort(host, port string) (uint32, uint32, error) {
+func vsockIDPort(host, port string) (uint32, uint32, error) {
 	h, err := strconv.ParseUint(host, 0, 32)
 	if err != nil {
 		return 0, 0, err

@@ -88,6 +88,8 @@ func (c *Cmd) SetOptions(opts ...Set) error {
 	return nil
 }
 
+// SetVerbose sets the verbose printing function.
+// e.g., one might call SetVerbose(log.Printf)
 func SetVerbose(f func(string, ...interface{})) {
 	V = f
 }
@@ -273,7 +275,7 @@ func WithPort(port string) Set {
 
 // It's a shame vsock is not in the net package (yet ... or ever?)
 func vsockDial(host, port string) (net.Conn, string, error) {
-	id, portid, err := vsockIdPort(host, port)
+	id, portid, err := vsockIDPort(host, port)
 	V("vsock(%v, %v) = %v, %v, %v", host, port, id, portid, err)
 	if err != nil {
 		return nil, "", err
