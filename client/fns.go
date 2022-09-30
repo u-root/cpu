@@ -252,3 +252,72 @@ func (c *Cmd) Outputs() ([]bytes.Buffer, error) {
 	}
 	return r[:], nil
 }
+
+// parseBinds parses a CPU_NAMESPACE-style string to a
+// an fstab format string. It is not intended to be called
+// outside this package, because it is sensitive to values
+// in the Cmd struct (e.g. c.TmpMnt) and users might set things
+// in the wrong order. E.g., were we to call this function before
+// before code called WithTmpMnt, the binds will be to the wrong
+// place. This might be fixed with more complex cpud
+// behavior, e.g. pass fstab as a template and let cpud change it
+// before use, but for now, we will see if we can get away
+// with limiting the mistakes a client can make.
+func parseBinds(s, tmp string) (string, error) {
+	var fstab string
+	if len(s) == 0 {
+		return fstab, nil
+	}
+	binds := strings.Split(s, ":")
+	for i, bind := range binds {
+		if len(bind) == 0 {
+			return "", fmt.Errorf("bind: element %d is zero length:%w", i, strconv.ErrSyntax)
+		}
+		// If the value is local=remote, len(c) will be 2.
+		// The value might be some weird degenerate form such as
+		// =name or name=. Both are considered to be an error.
+		// The convention is to split on the first =. It is not up
+		// to this code to determine that more than one = is an error
+		// There is no rule that filenames can not contain an '='!
+		c := strings.SplitN(bind, "=", 2)
+		var local, remote string
+		switch len(c) {
+		case 0:
+			return fstab, fmt.Errorf("bind: element %d(%q): empty elements are not supported:%w", i, bind, strconv.ErrSyntax)
+		case 1:
+			local, remote = c[0], c[0]
+		case 2:
+			local, remote = c[0], c[1]
+		default:
+			return fstab, fmt.Errorf("bind: element %d(%q): too many elements around = sign:%w", i, bind, strconv.ErrSyntax)
+		}
+		if len(local) == 0 {
+			return fstab, fmt.Errorf("bind: element %d(%q): local is 0 length:%w", i, bind, strconv.ErrSyntax)
+		}
+		if len(remote) == 0 {
+			return fstab, fmt.Errorf("bind: element %d(%q): remote is 0 length:%w", i, bind, strconv.ErrSyntax)
+		}
+
+		// The convention is that the remote side is relative to filepath.Join(c.TmpMnt, "cpu")
+		// and the left side is taken exactly as written. Further, recall that in bind mounts, the
+		// remote side is the "device", and the local side is the "target."
+		fstab = fstab + fmt.Sprintf("%s %s none defaults,bind 0 0\n", filepath.Join(tmp, "cpu", remote), local)
+	}
+	return fstab, nil
+}
+
+// joinFSTab joins an arbitrary number of fstab-style strings.
+// The intent is to deal with strings that may not be well formatted
+// as provided by users, e.g. too many newlines, not enough, and so on.
+func joinFSTab(tables ...string) string {
+	if len(tables) == 0 {
+		return ""
+	}
+	for i := range tables {
+		if len(tables[i]) == 0 {
+			continue
+		}
+		tables[i] = strings.TrimRight(tables[i], "\n")
+	}
+	return strings.Join(tables, "\n") + "\n"
+}

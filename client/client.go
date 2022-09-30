@@ -567,14 +567,22 @@ func DsLookup(query dsQuery) (string, string, error) {
 // Dial implements ssh.Dial for cpu.
 // Additionaly, if Cmd.Root is not "", it
 // starts up a server for 9p requests.
+// Note that any bind parsing is deferred until this point,
+// to avoid callers getting ordering of setting variables
+// in the Cmd wrong.
 func (c *Cmd) Dial() error {
+	fstab, err := parseBinds(c.NameSpace, c.TmpMnt)
+	if err != nil {
+		return err
+	}
+	c.FSTab = joinFSTab(c.FSTab, fstab)
+
 	if err := c.UserKeyConfig(); err != nil {
 		return err
 	}
 	// Sadly, no vsock in net package.
 	var (
 		conn net.Conn
-		err  error
 		addr string
 	)
 
@@ -644,10 +652,7 @@ func (c *Cmd) Dial() error {
 		}
 		c.nonce = nonce
 		c.Env = append(c.Env, "CPUNONCE="+nonce.String())
-		if len(c.NameSpace) > 0 {
-			c.Env = append(c.Env, "CPU_NAMESPACE="+c.NameSpace)
-		}
-		V("Set NONCE; set NAMESPACE to %q", "CPU_NAMESPACE="+c.NameSpace)
+		V("Set NONCE to %q", nonce.String())
 		c.Env = append(c.Env, "CPU_TMPMNT="+c.TmpMnt)
 		V("Set CPU_TMPMNT to %q", "CPU_TMPMNT="+c.TmpMnt)
 		go func(l net.Listener) {

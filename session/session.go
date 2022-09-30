@@ -169,6 +169,7 @@ func (s *Session) Run() error {
 	// and get the mounts they want. The first uses of this will
 	// be building namespaces with drive and virtiofs.
 	if tab, ok := os.LookupEnv("CPU_FSTAB"); ok {
+		v("Mounting %q", tab)
 		if err := mount.Mount(tab); err != nil {
 			v("CPUD: fstab mount failure: %v", err)
 			// Should we die if the mounts fail? For now, we think not;
