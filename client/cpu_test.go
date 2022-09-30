@@ -139,7 +139,7 @@ func TestDialAuth(t *testing.T) {
 
 	c := Command(h, "ls", "-l")
 	c.PrivateKeyFile = k
-	if c.SetOptions(WithNameSpace(DefaultNameSpace), WithPort(""), WithNetwork("tcp")); err != nil {
+	if err := c.SetOptions(WithNameSpace(DefaultNameSpace), WithPort(""), WithNetwork("tcp")); err != nil {
 		t.Fatalf("Options(): %v != nil", err)
 	}
 	if c.Port != p {

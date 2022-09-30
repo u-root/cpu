@@ -249,7 +249,7 @@ func Test9pRenameAt(t *testing.T) {
 	if err := os.Mkdir(c.path, 0777); err != nil {
 		t.Fatalf("Mkdir(%q, 0777): %v != nil", c.path, err)
 	}
-	oldPath := &cpu9p {
+	oldPath := &cpu9p{
 		path: d,
 	}
 	if err := oldPath.RenameAt("a", c, "z"); err != nil {

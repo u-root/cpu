@@ -127,15 +127,6 @@ func getPort(host, port string) string {
 	return p
 }
 
-// TODO: we've been tryinmg to figure out the right way to do usage for years.
-// If this is a good way, it belongs in the uroot package.
-func usage() {
-	var b bytes.Buffer
-	flag.CommandLine.SetOutput(&b)
-	flag.PrintDefaults()
-	log.Fatalf("Usage: cpu [options] host [shell command]:\n%v", b.String())
-}
-
 func newCPU(host string, args ...string) error {
 	client.V = v
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
@@ -169,6 +160,13 @@ func newCPU(host string, args ...string) error {
 	err := c.Close()
 	v("CPU:close done")
 	return err
+}
+
+func usage() {
+	var b bytes.Buffer
+	flag.CommandLine.SetOutput(&b)
+	flag.PrintDefaults()
+	log.Fatalf("Usage: cpu [options] host [shell command]:\n%v", b.String())
 }
 
 func main() {

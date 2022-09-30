@@ -28,6 +28,8 @@ var (
 	v = func(string, ...interface{}) {}
 )
 
+// SetVerbose sets the internal verbose function to a function
+// f(string, ...interface{}), i.e. a function like log.Printf.
 func SetVerbose(f func(string, ...interface{})) {
 	v = f
 }
