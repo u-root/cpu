@@ -34,3 +34,50 @@ func TestVsockIdPort(t *testing.T) {
 		}
 	}
 }
+
+func TestParseBinds(t *testing.T) {
+	for _, tt := range []struct {
+		namespace string
+		tmpmnt    string
+		fstab     string
+		err       error
+	}{
+		{"", "/tmp", "", nil},
+		{"/lib", "/tmpmnt", "/tmpmnt/cpu/lib /lib none defaults,bind 0 0\n", nil},
+		{"/lib=/arm/lib", "/tmpmnt", "/tmpmnt/cpu/arm/lib /lib none defaults,bind 0 0\n", nil},
+		{"/lib=/arm/lib:/bin", "/tmpmnt", "/tmpmnt/cpu/arm/lib /lib none defaults,bind 0 0\n/tmpmnt/cpu/bin /bin none defaults,bind 0 0\n", nil},
+		{"/lib=/arm/lib:/bin=/b/bin", "/tmpmnt", "/tmpmnt/cpu/arm/lib /lib none defaults,bind 0 0\n/tmpmnt/cpu/b/bin /bin none defaults,bind 0 0\n", nil},
+		{"/a:/b:/c:/d", "/t", "/t/cpu/a /a none defaults,bind 0 0\n/t/cpu/b /b none defaults,bind 0 0\n/t/cpu/c /c none defaults,bind 0 0\n/t/cpu/d /d none defaults,bind 0 0\n", nil},
+		{"/lib=:/bin=/b/bin", "/tmpmnt", "", strconv.ErrSyntax},
+		{"=/lib:/bin=/b/bin", "/tmpmnt", "", strconv.ErrSyntax},
+		{"/a::/bin=/b/bin", "/tmpmnt", "", strconv.ErrSyntax},
+		// Test the weird case that a bind name can contain an = sign.
+		// There is not imaginable case where we need this but ...
+		// note also that only remote names contain = signs pending
+		// more complex parsing. Perhaps it should not be allowed at all.
+		{"/a:/bin==/b/bin", "/tmpmnt", "/tmpmnt/cpu/a /a none defaults,bind 0 0\n/tmpmnt/cpu/=/b/bin /bin none defaults,bind 0 0\n", nil},
+	} {
+		f, err := parseBinds(tt.namespace, tt.tmpmnt)
+		if !errors.Is(err, tt.err) || f != tt.fstab {
+			t.Errorf("parseBinds(%q,%q): (%q,%v) != (%q,%v)", tt.namespace, tt.tmpmnt, f, err, tt.fstab, tt.err)
+		}
+	}
+}
+
+func TestJoinFSTab(t *testing.T) {
+	for _, tt := range []struct {
+		tables []string
+		fstab  string
+	}{
+		{tables: nil, fstab: ""},
+		{tables: []string{""}, fstab: "\n"},
+		{tables: []string{"a b c"}, fstab: "a b c\n"},
+		{tables: []string{"a b c\n\n", "d e f"}, fstab: "a b c\nd e f\n"},
+		{tables: []string{"a b c\n\n", "d e f"}, fstab: "a b c\nd e f\n"},
+		{tables: []string{"a b c\n\n", "d e f\n1 2 3"}, fstab: "a b c\nd e f\n1 2 3\n"},
+	} {
+		if fstab := joinFSTab(tt.tables...); fstab != tt.fstab {
+			t.Errorf("joinFSTab(%q): %q != %q", tt.tables, fstab, tt.fstab)
+		}
+	}
+}
