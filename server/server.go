@@ -5,24 +5,19 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"runtime"
 	"strings"
-	"syscall"
-	"time"
 	"unsafe"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/creack/pty"
 	"github.com/gliderlabs/ssh"
-
-	"github.com/brutella/dnssd"
+	"syscall"
 )
 
 const (
@@ -30,8 +25,7 @@ const (
 )
 
 var (
-	v          = func(string, ...interface{}) {}
-	cancelMdns = func() {}
+	v = func(string, ...interface{}) {}
 )
 
 func SetVerbose(f func(string, ...interface{})) {
@@ -113,89 +107,6 @@ func handler(s ssh.Session) {
 		}
 	}
 	verbose("handler exits")
-}
-
-func DsUnregister() {
-	v("stopping mdns server")
-	cancelMdns()
-}
-
-func dsDefaultInstance() string {
-	hostname, err := os.Hostname()
-	if err == nil {
-		hostname += "-cpud"
-	} else {
-		hostname = "cpud"
-	}
-
-	return hostname
-}
-
-func DsRegister(instanceFlag, domainFlag, serviceFlag, interfaceFlag string, portFlag int, txtFlag map[string]string) error {
-	v("starting mdns server")
-
-	timeFormat := "15:04:05.000"
-
-	v("Advertising: %s.%s.%s.", strings.Trim(instanceFlag, "."), strings.Trim(serviceFlag, "."), strings.Trim(domainFlag, "."))
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancelMdns = cancel
-
-	resp, err := dnssd.NewResponder()
-	if err != nil {
-		return fmt.Errorf("dnssd newreponder fail: %w", err)
-	}
-
-	ifaces := []string{}
-	if len(interfaceFlag) > 0 {
-		ifaces = append(ifaces, interfaceFlag)
-	}
-
-	if len(instanceFlag) == 0 {
-		instanceFlag = dsDefaultInstance()
-	}
-
-	if len(txtFlag["arch"]) == 0 {
-		txtFlag["arch"] = runtime.GOARCH
-	}
-
-	if len(txtFlag["os"]) == 0 {
-		txtFlag["os"] = runtime.GOOS
-	}
-
-	cfg := dnssd.Config{
-		Name:   instanceFlag,
-		Type:   serviceFlag,
-		Domain: domainFlag,
-		Port:   portFlag,
-		Ifaces: ifaces,
-		Text:   txtFlag,
-	}
-	srv, err := dnssd.NewService(cfg)
-	if err != nil {
-		return fmt.Errorf("cpud: advertise: New service fail: %w", err)
-	}
-
-	go func() {
-		time.Sleep(1 * time.Second)
-		handle, err := resp.Add(srv)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			v("%s	Got a reply for service %s: Name now registered and active\n", time.Now().Format(timeFormat), handle.Service().ServiceInstanceName())
-		}
-	}()
-
-	go func() {
-		err = resp.Respond(ctx)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			v("cpu mdns responder running exited")
-		}
-	}()
-
-	return err
 }
 
 // New sets up a cpud. cpud is really just an SSH server with a special

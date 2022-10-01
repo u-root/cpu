@@ -20,6 +20,7 @@ import (
 
 	config "github.com/kevinburke/ssh_config"
 	"github.com/u-root/cpu/client"
+	"github.com/u-root/cpu/ds"
 	"github.com/u-root/u-root/pkg/ulog"
 
 	// We use this ssh because it can unpack password-protected private keys.
@@ -31,7 +32,7 @@ const defaultPort = "17010"
 var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
 	// For the ssh server part
-	cpudCmd     = flag.String("cpudcmd", "", "cpud invocation to run at remote, e.g. cpud -d")
+	cpudCmd     = flag.String("cpudcmd", "dcpud -remote", "cpud invocation to run at remote, e.g. dcpud -d")
 	debug       = flag.Bool("d", false, "enable debug prints")
 	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
 	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
@@ -61,6 +62,7 @@ func flags() {
 	}
 	if *debug {
 		v = log.Printf
+		ds.Verbose(log.Printf)
 	}
 	if *dump {
 		var err error
@@ -173,11 +175,27 @@ func newCPU(host string, args ...string) error {
 func main() {
 	flags()
 	args := flag.Args()
-	if len(args) == 0 {
-		usage()
+	host := ds.DsDefault
+	a := ""
+	if len(args) > 0 {
+		host = args[0]
+		a = strings.Join(args[1:], " ")
 	}
-	host := args[0]
-	a := strings.Join(args[1:], " ")
+	if host == "." {
+		host = ds.DsDefault
+	}
+	dq, err := ds.Parse(host)
+
+	if err == nil {
+		sdHost, sdPort, err := ds.Lookup(dq)
+		if err == nil {
+			host = sdHost
+			*port = sdPort
+		} else {
+			v("ds.Lookup returned %w", err)
+		}
+	}
+
 	verbose("Running as client, to host %q, args %q", host, a)
 	if len(a) == 0 {
 		a = os.Getenv("SHELL")

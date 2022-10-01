@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -e
+
+IMAGE="${1:-cpud:latest}"
+
+[ -z "$KEY" ] && (echo "ERROR: Please set environment variable KEY to point to public/private key pair";exit 1)
+
+set +e
+
+#KEYDIR=$(mktemp)
+#ssh-keygen -N "" -f $(mktemp)/testkey
+#KEY=$(mktemp)/testkey
+
+echo "=== Testing $IMAGE ==="
+echo " -create network"
+docker network create cpud-test
+echo " -run cpud"
+docker run -d -v $KEY:/key -v $KEY.pub:/key.pub -v /tmp:/tmp --privileged --rm --network cpud-test --name cpud $IMAGE
+sleep 1
+echo " -run client with localhost"
+docker exec -e PWD=/ cpud /bin/cpu -key /key localhost /bin/date
+sleep 1
+echo "==== cpud server logs ====" 
+docker logs cpud
+docker kill cpud
+docker network rm cpud-test
+sleep 5
+
+echo "=== Testing DNS-SD $IMAGE with explicit hostname ===" 
+echo " -create network"
+docker network create dcpud-test
+echo " -run dcpud"
+docker run -d -v $KEY:/key -v $KEY.pub:/key.pub -v /tmp:/tmp --privileged --rm --network dcpud-test --name dcpud $IMAGE /bin/dcpud
+sleep 5
+echo " -run client with localhost"
+docker exec -e PWD=/ dcpud /bin/dcpu $DEBUG -key /key localhost /bin/date
+sleep 1
+echo " -run client with discovery" 
+docker exec -e PWD=/ dcpud /bin/dcpu $DEBUG -key /key . /bin/date
+sleep 1
+echo "==== DNS-SD cpud server logs =====" 
+docker logs dcpud
+docker kill dcpud
+docker network rm dcpud-test

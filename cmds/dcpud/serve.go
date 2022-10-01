@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"net"
@@ -20,6 +21,7 @@ import (
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/cpu/server"
 	"github.com/u-root/u-root/pkg/ulog"
+	"github.com/u-root/cpu/ds"
 	"golang.org/x/sys/unix"
 )
 
@@ -37,6 +39,7 @@ func hang() {
 func commonsetup() error {
 	if *debug {
 		server.SetVerbose(log.Printf)
+		ds.Verbose(log.Printf)
 		v = log.Printf
 		if *klog {
 			ulog.KernelLog.Reinit()
@@ -104,6 +107,16 @@ func listen(network, port string) (net.Listener, error) {
 	return ln, err
 }
 
+type handleWrapper struct {
+	handle func(s ssh.Session)
+}
+
+func (w *handleWrapper) handler(s ssh.Session) {
+	ds.Tenant(1)
+	w.handle(s)
+	ds.Tenant(-1)
+}
+
 func serve() error {
 	s, err := server.New(*pubKeyFile, *hostKeyFile)
 	if err != nil {
@@ -117,6 +130,24 @@ func serve() error {
 		return err
 	}
 
+	if *dsEnabled {
+		v("Advertising w/dnssd ", dsTxt)
+		p, err := strconv.Atoi(*port)
+		if err != nil {
+			return fmt.Errorf("Could not parse port: %s, %w", *port, err)
+		}
+
+		err = ds.Register(*dsInstance, *dsDomain, *dsService, *dsInterface, p, dsTxt)
+		if err != nil {
+			return fmt.Errorf("Could not advertise with dns-sd: %w", err)
+		}
+		defer ds.Unregister()
+		
+		wrap := &handleWrapper{
+			handle: s.Handler,
+		}
+		s.Handler = wrap.handler
+	}
 	v("Listening on %v", ln.Addr())
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
 		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)
