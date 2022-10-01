@@ -22,10 +22,10 @@ import (
 
 // V allows debug printing.
 var (
-	v          = func(string, ...interface{}) {}
-	cancel = func() {}
-	tenants    = 0
-	tenChan    = make(chan int, 1)
+	v       = func(string, ...interface{}) {}
+	cancel  = func() {}
+	tenants = 0
+	tenChan = make(chan int, 1)
 )
 
 // Simple form dns-sd query
@@ -145,7 +145,11 @@ func Lookup(query dsQuery) (string, string, error) {
 		return "", "", fmt.Errorf("dnssd found no suitable service")
 	}
 
-	return e.Host, strconv.Itoa(e.Port), err
+	if len(e.IPs) > 1 {
+		v("WARNING: there was more than one option for address")
+	}
+
+	return e.IPs[0].String(), strconv.Itoa(e.Port), err
 }
 
 // Server components
