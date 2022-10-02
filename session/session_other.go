@@ -44,11 +44,11 @@ func (s *Session) Namespace() (error, error) {
 	return warning, fmt.Errorf("CPUD: cannot use 9p connection yet")
 }
 
-func osMounts() error {
+func osMounts(_ string) error {
 	return nil
 }
 
 // runSetup performs kernel-specific operations for starting a Session.
-func runSetup() error {
+func runSetup(_ string) error {
 	return nil
 }

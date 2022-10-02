@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux
+// +build linux
+
 package main
 
 import (
@@ -19,9 +22,9 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
 	"github.com/mdlayher/vsock"
+	"github.com/u-root/cpu/ds"
 	"github.com/u-root/cpu/server"
 	"github.com/u-root/u-root/pkg/ulog"
-	"github.com/u-root/cpu/ds"
 	"golang.org/x/sys/unix"
 )
 
@@ -142,7 +145,7 @@ func serve() error {
 			return fmt.Errorf("Could not advertise with dns-sd: %w", err)
 		}
 		defer ds.Unregister()
-		
+
 		wrap := &handleWrapper{
 			handle: s.Handler,
 		}

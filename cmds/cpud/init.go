@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux
+// +build linux
+
 // This is init code for the case that cpu finds itself as pid 1.
 // This is duplicative of the real init, but we're implementing it
 // as a duplicate so we can get some idea of:

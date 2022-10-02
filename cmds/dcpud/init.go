@@ -12,6 +12,10 @@
 // It is unusual (I guess?) for cpu to be an init in anything else.
 // So far, the case for an init pkg is not as strong as I thought
 // it might be.
+
+//go:build linux
+// +build linux
+
 package main
 
 import (

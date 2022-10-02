@@ -8,16 +8,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/brutella/dnssd"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	"golang.org/x/exp/slices"
 	"net/url"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/brutella/dnssd"
-	"golang.org/x/exp/slices"
-	"golang.org/x/sys/unix" // TODO: doesn't build on OSX
 )
 
 // V allows debug printing.
@@ -190,21 +190,15 @@ func DefaultInstance() string {
 }
 
 func UpdateSysInfo(txtFlag map[string]string) {
-	var sysinfo unix.Sysinfo_t
-	err := unix.Sysinfo(&sysinfo)
-
-	if err != nil {
-		v("Sysinfo call failed ", err)
-		return
+	vmstat, err := mem.VirtualMemory()
+	if err == nil {
+		txtFlag["mem_avail"] = strconv.FormatUint(uint64(vmstat.Available), 10)
+		txtFlag["mem_total"] = strconv.FormatUint(uint64(vmstat.Total), 10)
 	}
-
-	txtFlag["mem_avail"] = strconv.FormatUint(uint64(sysinfo.Freeram), 10)
-	txtFlag["mem_total"] = strconv.FormatUint(uint64(sysinfo.Totalram), 10)
-	txtFlag["mem_unit"] = strconv.FormatUint(uint64(sysinfo.Unit), 10)
-	txtFlag["load1"] = strconv.FormatUint(uint64(sysinfo.Loads[0]), 10)
-	txtFlag["load5"] = strconv.FormatUint(uint64(sysinfo.Loads[1]), 10)
-	txtFlag["load15"] = strconv.FormatUint(uint64(sysinfo.Loads[2]), 10)
-	txtFlag["load_ratio"] = fmt.Sprintf("%.6f", float64(sysinfo.Loads[1])/float64(runtime.NumCPU()))
+	cpupcnt, err := cpu.Percent(0, false)
+	if err == nil {
+		txtFlag["load"] = fmt.Sprintf("%.6f", float64(cpupcnt[0]))
+	}
 	txtFlag["tenants"] = strconv.Itoa(tenants)
 
 	v(" dsUpdateSysInfo ", txtFlag)
