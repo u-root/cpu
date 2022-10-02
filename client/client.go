@@ -5,26 +5,21 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
-	"net/url"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/brutella/dnssd"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -288,116 +283,6 @@ func vsockDial(host, port string) (net.Conn, string, error) {
 	V("vsock id %#x port %d addr %#x conn %v err %v", id, port, addr, conn, err)
 	return conn, addr, err
 
-}
-
-// check that mdns response has all required attributes
-func mdns_required(src map[string]string, req map[string][]string) bool {
-	for k, _ := range req {
-		if !slices.Contains(req[k], src[k]) {
-			return false
-		}
-	}
-	return true
-}
-
-type dsQuery struct {
-	Type   string
-	Domain string
-	Text   map[string][]string
-}
-
-const DsDefault = "dnssd:"
-
-// parse DNS-SD URI to dnssd struct
-// we could subtype BrowseEntry or Service, but why?
-func DsParse(uri string) (dsQuery, error) {
-	result := dsQuery{
-		Type:   "_ncpu._tcp",
-		Domain: "local",
-	}
-
-	u, err := url.Parse(uri)
-	if err != nil {
-		return result, fmt.Errorf("Trouble parsing url %s: %w", uri, err)
-	}
-
-	if u.Scheme != "dnssd" {
-		return result, fmt.Errorf("Not an mdns dns-sd URI")
-	}
-
-	// following dns-sd URI conventions from CUPS
-	if u.Host != "" {
-		result.Domain = u.Host
-	}
-	if u.Path != "" {
-		result.Type = u.Path
-	}
-
-	result.Text = u.Query()
-
-	if len(result.Text["arch"]) == 0 {
-		result.Text["arch"] = []string{runtime.GOARCH}
-	}
-
-	if len(result.Text["os"]) == 0 {
-		result.Text["os"] = []string{runtime.GOOS}
-	}
-
-	return result, nil
-}
-
-// lookup based on hostname, return resolved host, port, network, and error
-// uri currently supported dnssd://domain/_service._network/instance?reqkey=reqvalue
-// default for domain is local, first path element is _ncpu._tcp, and instance is wildcard
-// can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
-func DsLookup(query dsQuery) (string, string, error) {
-	var (
-		err error
-	)
-
-	timeout := 5 * time.Second
-	timeFormat := "15:04:05.000"
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	context.Canceled = errors.New("")
-	context.DeadlineExceeded = errors.New("")
-	defer cancel()
-
-	service := fmt.Sprintf("%s.%s.", strings.Trim(query.Type, "."), strings.Trim(query.Domain, "."))
-
-	V("Browsing for %s\n", service)
-
-	respCh := make(chan *dnssd.BrowseEntry, 1)
-
-	addFn := func(e dnssd.BrowseEntry) {
-		V("%s	Add	%s	%s	%s	%s (%s)\n", time.Now().Format(timeFormat), e.IfaceName, e.Domain, e.Type, e.Name, e.IPs)
-		// check requirement
-		V("Checking ", e.Text, query.Text)
-		if mdns_required(e.Text, query.Text) {
-			respCh <- &e
-		}
-	}
-
-	rmvFn := func(e dnssd.BrowseEntry) {
-		V("%s	Rmv	%s	%s	%s	%s\n", time.Now().Format(timeFormat), e.IfaceName, e.Domain, e.Type, e.Name)
-		// we aren't maintaining cache so don't care?
-	}
-
-	go func() {
-		if err := dnssd.LookupType(ctx, service, addFn, rmvFn); err != nil {
-			fmt.Println(err)
-		}
-		respCh <- nil
-	}()
-
-	e := <-respCh
-
-	// cancel()
-	if e == nil {
-		return "", "", fmt.Errorf("dnssd found no suitable service")
-	}
-
-	return e.Host, strconv.Itoa(e.Port), err
 }
 
 // Dial implements ssh.Dial for cpu.
