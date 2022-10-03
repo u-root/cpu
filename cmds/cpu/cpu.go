@@ -44,7 +44,6 @@ var (
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
-	mdns        = flag.Bool("mdns", false, "I want to use default mdns query (no specified hostname)")
 	tmpMnt      = flag.String("tmpMnt", "/tmp", "Mount point of the private namespace.")
 
 	v          = func(string, ...interface{}) {}
@@ -175,22 +174,11 @@ func newCPU(host string, args ...string) error {
 func main() {
 	flags()
 	args := flag.Args()
-	host := client.DsDefault
-	a := ""
-	if !*mdns && len(args) > 0 {
-		host = args[0]
-		a = strings.Join(args[1:], " ")
+	if len(args) == 0 {
+		usage()
 	}
-	dq, err := client.DsParse(host)
-
-	if err == nil {
-		sdHost, sdPort, err := client.DsLookup(dq)
-		if err == nil {
-			host = sdHost
-			*port = sdPort
-		}
-	}
-
+	host := args[0]
+	a := strings.Join(args[1:], " ")
 	verbose("Running as client, to host %q, args %q", host, a)
 	if len(a) == 0 {
 		a = os.Getenv("SHELL")
