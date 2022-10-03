@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+IMAGE="${1:-cpud:latest}"
+
+if [[ -z "${DEPLOY_ENV}" ]]; then
+  KEYDIR=$(mktemp -d)
+  ssh-keygen -N "" -f ${KEYDIR}/testkey
+  KEY=${KEYDIR}/testkey
+fi
+  
+set +e
+
+
+echo "=== Testing $IMAGE ==="
+echo " -create network"
+docker network create cpud-test
+echo " -run cpud"
+docker run -d -v $KEY:/key -v $KEY.pub:/key.pub -v /tmp:/tmp --privileged --rm --network cpud-test --name cpud $IMAGE
+sleep 1
+echo " -run client with localhost"
+docker exec -e PWD=/ cpud /bin/cpu $DEBUG -key /key localhost /bin/date
+sleep 1
+echo "==== cpud server logs ====" 
+docker logs cpud
+docker kill cpud
+docker network rm cpud-test
+echo "==== done ====" 
+
