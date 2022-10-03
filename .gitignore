@@ -18,5 +18,9 @@
 
 /target
 
+# Go binaries
+
+/bin
+
 # whatever
 *~
