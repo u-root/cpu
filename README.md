@@ -69,16 +69,11 @@ or if you have installed a version of docker buildx, you can build a multi-arch 
 % docker buildx build --platform "linux/amd64,linux/arm64,linux/arm/v7" --progress plain --pull -t "${USER}/cpu:latest" .
 ```
 
-There is a pre-built version of a multi-arch container here which you can substitute for the next section if you want to try out on arm (either arm64 or arm/v7): 
-```
-ericvh/cpu:latest
-```
-
-### Pre-build Docker container for trying out cpu (on x86 for now)
+### Pre-built Docker container for trying out cpu (on arm64 & amd64 for now)
 
 We have created a docker container so you can try cpu client and server:
 ```
-rminnich/cpu:latest
+ghcr.io/u-root/cpu:main
 ```
 
 It includes both the cpud (server) and cpu (client) commands. In the
@@ -109,21 +104,14 @@ That is how we avoid
 storing keys in the container itself.
 ```
 docker network create cpud
-# If you ran docker before, you need to remove the
-# old identity.
-docker rm cpud_test
-docker run --mount type=bind,source=$KEY.pub,target=/key.pub --mount type=bind,source=$KEY,target=/key --name cpud_test --privileged=true -t -i -p 17010:17010 rminnich/cpu:latest
-```
-
-Note: once the container is done, if you want to run it again with the
-same named, cpud_test, you must:
-```
-docker rm cpud_test
+# If you ran docker before and it failed in some way, you may need to remove the
+# old identity (e.g. docker rm cpud_test)
+docker run --rm -v $KEY.pub,target=/key.pub -v $KEY,target=/key -v /tmp:/tmp --name cpud_test --privileged=true -t -i -p 17010:17010 ghcr.io/u-root/cpu:main
 ```
 
 Then you can try running a command or two:
 ```
-docker exec -it  cpud_test  /bin/cpu -key /key localhost /bin/date
+docker exec -it -e PWD=/ cpud_test  /bin/cpu -key /key localhost /bin/date
 ```
 
 Remember, this cpu command is running in the container. You need to use the name /key in the
@@ -131,7 +119,7 @@ container, not $KEY.
 
 To see the mounts:
 ```
-docker exec -it  cpud_test  /bin/cpu -key /key localhost /bin/cat /proc/mounts
+docker exec -it -e PWD=/ cpud_test  /bin/cpu -key /key localhost /bin/cat /proc/mounts
 ```
 
 You might want to just get a cpu command to let you talk to the docker cpud
