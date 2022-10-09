@@ -148,7 +148,7 @@ cpu -key $KEY localhost date
 ### cpu on heterogeneous systems.
 
 The cpu command sets up the various 9p mounts with a default namespace. Users can override this
-default by setting the CPU_NAMESPACE environment variable. This variable looks like most
+default with the -namespace switch. The argument to the switch looks like
 PATH variables, with comma-separated values, but with one extra option: users can, optionally,
 specify the local path and the remote path. This is useful when running ARM binaries
 hosted from an x86 system.
@@ -157,10 +157,10 @@ In the example below, we show starting up a bash on an ARM system (solidrun hone
 a cpu command running on an x86 system.
 
 ```
-CPU_NAMESPACE=/home:/bin=`pwd`/bin:/lib=`pwd`/lib:/usr=`pwd`/usr cpu honeycomb /bin/bash
+cpu -namespace /home:/bin=`pwd`/bin:/lib=`pwd`/lib:/usr=`pwd`/usr honeycomb /bin/bash
 ```
 
-Breaking this down, we set up CPU_NAMESPACE so that:
+Breaking this down, we set up the namespace so that:
 * the remote /home is from our /home
 * the remote /bin is from `pwd`/bin -- which, in this case, was an unpacked arm64 file system image
 * the remote /lib is from `pwd`/lib
