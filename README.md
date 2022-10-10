@@ -256,6 +256,45 @@ cpu -net vsock 3 date
 
 If you want a different port, you can use the same -sp switch you use for other network types.
 
+## De-centralized cpu with DNS-SD
+
+A variation of the cpu and cpud commands now exist which use dns-sd to autodiscover and register cpu resources.  DNS-SD is a multi-cast DNS protocol that will multi-cast out requests for resources and get responses from participating cpud nodes.  Meta-data provides information such as architecture, OS, number of cores, free memory, load average, and number of existing cpu clients.  When you start a decpud you can specify additional meta-data which might be harder to auto-disocver such as near=storage, near=gateway, near=gpu, or secure=true (if running in a confidential computing domain).
+
+In order to use this functionality, you can use decpu and decpud just as you would cpu and cpud.  decpud will enable dns-sd registration by default, and multicast its information in response to requests.  In order to use this from decpu, you can just specify decpu without a hostname and, by default, it will find the lowest loaded decpud with the same architecture and OS as the host you run the decpu command from.
+
+You can specify additional constraints by using a dns-sd URI formulation:
+```
+  decpu dnssd://?requirement=value\&otherrequirement=\<othervalue\&sort=tenet
+```
+
+Essentially you can provide a set of key/value requirements that must be met in order for a decpud node to be considered.  You can override the defaults (arch/os), or you can specify a minimum core count or minimum amount of free memory.  Numeric values can use comparison operators (< or >) Finally, you can specify any number of numeric keys to sort based on.  If you are running on the shell, make sure you escape any characters the shell may have an interest in (<, >, !, &)
+
+### Runnign the DNS-SD tools inside Docker
+
+In order to use dns-sd you have to be able to send/receive multicast.  The easiest way to do this on Linux is to use host networking when you start your docker containers (--network host).  This unfortunately does not work on Mac OSX, so you will need to run a relay on your system that tunnels multicast to/from the docker network.  The relay client can be run in every container or you can start all dns-sd containers in the same docker network and start a relay container client on that network to communicate for the group.
+
+There is a container in the decent-e fork of the dnssd package: https://github.com/decent-e/dnssd under cmd/relay.  Running relay will start the server on the host, and running relay mode=client will start the client inside the docker container.  You can also use a pre-build docker image ( docker pull ghcr.io/decent-e/dnssd:main ) to start the client in a docker.
+
+Example: (on mac)
+```
+# presumes you have already setup your $KEY appropriately
+% docker create network cpud
+% go install github.com/decent-e/dnssd/cmd/relay@latest
+% export PATH=$GOBIN:$PATH
+% relay &
+% docker run -d --network cpud ghcr.io/decent-e/dnssd:main
+% docker run -d --network cpud -v $KEY:/key -v $KEY.pub:/key.pub -v /tmp:/tmp --privileged --rm --name decpud ghcr.io/decent-e/cpu:decent-e /bin/decpud
+% docker exec -i -t -e PWD=/ decpud /bindecpu -key /key . /bin/date
+# you should also be able to see the service from your mac
+% dns-sd -B _ncpu._tcp
+Browsing for _ncpu._tcp
+DATE: ---Sun 09 Oct 2022---
+18:35:56.925  ...STARTING...
+Timestamp     A/R    Flags  if Domain               Service Type         Instance Name
+18:35:56.925  Add        3  17 local.               _ncpu._tcp.          d3c196958c24-cpud
+18:35:56.925  Add        2  14 local.               _ncpu._tcp.          d3c196958c24-cpud
+```
+
 ## Summary
 The cpu command makes using small embedded systems dramatically easier. There is no need to install
 a distro, or juggle distros; there is no need to scp files back and forth; just run commands
