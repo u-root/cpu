@@ -267,7 +267,11 @@ You can specify additional constraints by using a dns-sd URI formulation:
   decpu dnssd://?requirement=value\&otherrequirement=\<othervalue\&sort=tenet
 ```
 
-Essentially you can provide a set of key/value requirements that must be met in order for a decpud node to be considered.  You can override the defaults (arch/os), or you can specify a minimum core count or minimum amount of free memory.  Numeric values can use comparison operators (< or >) Finally, you can specify any number of numeric keys to sort based on.  If you are running on the shell, make sure you escape any characters the shell may have an interest in (<, >, !, &)
+Essentially you can provide a set of key/value requirements that must be met in order for a decpud node to be considered.  You can override the defaults (arch/os), or you can specify a minimum core count or minimum amount of free memory.  Numeric values can use comparison operators (< or >) Finally, you can specify any number of numeric keys to sort based on.  If you want to ignore one of the default requirements (e.g. arch, os) then you can set to a \*:
+```
+  decpu dnssd://?arch=\*\&os=\*
+```
+ This can be useful if what you are running is a script or an interpretive language like python.  _If you are running on the shell, make sure you escape any characters the shell may have an interest in (<, >, !, &, *)_
 
 ### Runnign the DNS-SD tools inside Docker
 

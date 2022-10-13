@@ -58,6 +58,8 @@ func required(src map[string]string, req map[string][]string) bool {
 			continue
 		}
 		switch req[k][0][0] {
+		case '*':
+			continue
 		case '<':
 			fallthrough
 		case '>':
