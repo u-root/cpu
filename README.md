@@ -106,20 +106,25 @@ storing keys in the container itself.
 docker network create cpud
 # If you ran docker before and it failed in some way, you may need to remove the
 # old identity (e.g. docker rm cpud_test)
-docker run --rm -v $KEY.pub,target=/key.pub -v $KEY,target=/key -v /tmp:/tmp --name cpud_test --privileged=true -t -i -p 17010:17010 ghcr.io/u-root/cpu:main
+docker run --rm -v $KEY.pub:/key.pub -v $KEY:/key -v /tmp --name cpud_test --privileged=true -t -i -p 17010:17010 ghcr.io/u-root/cpu:main
 ```
 
-Then you can try running a command or two:
+Then you can try running a command or two by using the embedded cpu client in the docker container.  
+_NOTE_: when you run cpu in this way, it does not immediately have access to your host's file system, 
+which means you won't be able to really leverage the back-mount and you'll have to artificially set 
+environment variables (like PWD) so that the remote task can execute.
+
 ```
-docker exec -it -e PWD=/ cpud_test  /bin/cpu -key /key localhost /bin/date
+docker exec -it -e PWD=/root cpud_test  /bin/cpu -key /key localhost /bin/date
 ```
 
 Remember, this cpu command is running in the container. You need to use the name /key in the
-container, not $KEY.
+container, not $KEY and you'll only be able to run binaries that have been pre-loaded into the 
+container (which in the public container is /bin/cat and /bin/date)
 
 To see the mounts:
 ```
-docker exec -it -e PWD=/ cpud_test  /bin/cpu -key /key localhost /bin/cat /proc/mounts
+docker exec -it -e PWD=/root cpud_test  /bin/cpu -key /key localhost /bin/cat /proc/mounts
 ```
 
 You might want to just get a cpu command to let you talk to the docker cpud
@@ -132,6 +137,15 @@ And now you can run
 ```
 cpu -key $KEY localhost date
 ```
+
+_NOTE_: if you are running on OSX, remember that your cpud docker is linux, so if you try the above
+command you'll see:
+```
+$ cpu -key $KEY localhost date
+2022/10/13 18:52:17 CPUD(as remote):fork/exec /bin/date: exec format error
+```
+
+To deal with that we'll have to play games with the namespace, which we'll cover next.
 
 ### cpu on heterogeneous systems.
 
@@ -156,6 +170,9 @@ Breaking this down, we set up the namespace so that:
 
 We can use the path /bin/bash, because /bin/bash on the remote points to `pwd`/bin/bash on the local
 machine.
+
+We can use the same trick to cpu to Linux from OSX, but instead of having an Arm tree under `pwd`
+we'll need a Linux binary tree to pick binaries from.
 
 ## cpu will be familiar to ssh users
 
