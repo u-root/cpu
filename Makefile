@@ -1,23 +1,6 @@
-ifeq ($(OS),Windows_NT)
-    CCFLAGS += -D WIN32
-    ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
-        CCFLAGS += -D AMD64
-    else
-        ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
-            CCFLAGS += -D AMD64
-        endif
-        ifeq ($(PROCESSOR_ARCHITECTURE),x86)
-            CCFLAGS += -D IA32
-        endif
-    endif
-else
-    UNAME_S := $(shell uname -s)
-    ifeq ($(UNAME_S),Linux)
-        OS = Linux
-    endif
-    ifeq ($(UNAME_S),Darwin)
-		OS = Darwin
-    endif
+UNAME_S := $(shell uname -s 2>/dev/null)
+ifeq ($(UNAME_S),Linux)
+    OS = Linux
 endif
 
 CPU_OSARCH = "linux/arm64 linux/arm linux/amd64 linux/ppc64le linux/mips64 linux/390x linux/386 darwin/arm64 darwin/amd64"
