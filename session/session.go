@@ -233,5 +233,11 @@ func (s *Session) Run() error {
 // 9p (which can be the empty string, but is usually not) and a
 // command name.
 func New(port9p, tmpMnt, cmd string, args ...string) *Session {
-	return &Session{msize: 8192, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, tmpMnt: tmpMnt, cmd: cmd, args: args}
+	// Measurement has shown that 64K is a good number. 8K is too small.
+	// History: why was it ever 8K? You have to go back to the 90s and see:
+	// Page size on 68K Sun systems was 8K
+	// There was this amazing new thing called Jumbo Packets
+	// The 9P designers had the wisdom to make msize negotiation part of session initiation,
+	// so we had a way out!
+	return &Session{msize: 64*1024, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, tmpMnt: tmpMnt, cmd: cmd, args: args}
 }
