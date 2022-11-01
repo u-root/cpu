@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -76,6 +77,7 @@ type Cmd struct {
 	port9p  uint16 // port on which we serve 9p
 	cmd     string // The command is built up, bit by bit, as we configure the client
 	closers []func() error
+	closed  sync.Once // Makes sure closers are only called once.
 }
 
 // SetOptions sets various options into the Command.
@@ -415,12 +417,12 @@ func (c *Cmd) Start() error {
 		}
 	}
 
-	c.closers = append(c.closers, func() error {
+	c.closers = append([]func() error{func() error {
 		if err := c.session.Close(); err != nil && err != io.EOF {
 			return fmt.Errorf("closing session: %v", err)
 		}
 		return nil
-	})
+	}}, c.closers...)
 
 	if err := c.SetEnv(c.Env...); err != nil {
 		return err
@@ -582,12 +584,12 @@ func (c *Cmd) SetupInteractive() error {
 	if _, err = t.Raw(); err != nil {
 		return err
 	}
-	c.closers = append(c.closers, func() error {
+	c.closers = append([]func() error{func() error {
 		if err := t.Set(r); err != nil {
 			return err
 		}
 		return nil
-	})
+	}}, c.closers...)
 
 	return nil
 }
@@ -595,10 +597,12 @@ func (c *Cmd) SetupInteractive() error {
 // Close ends a cpu session, doing whatever is needed.
 func (c *Cmd) Close() error {
 	var err error
-	for _, f := range c.closers {
-		if e := f(); e != nil {
-			err = multierror.Append(err, e)
+	c.closed.Do(func() {
+		for _, f := range c.closers {
+			if e := f(); e != nil {
+				err = multierror.Append(err, e)
+			}
 		}
-	}
+	})
 	return err
 }

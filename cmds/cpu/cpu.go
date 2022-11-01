@@ -131,6 +131,7 @@ func newCPU(host string, args ...string) error {
 	client.V = v
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
 	c := client.Command(host, args...)
+	defer c.Close()
 	if err := c.SetOptions(
 		client.WithPrivateKeyFile(*keyFile),
 		client.WithHostKeyFile(*hostKeyFile),
@@ -154,12 +155,14 @@ func newCPU(host string, args ...string) error {
 	}
 	v("CPU:wait")
 	if err := c.Wait(); err != nil {
-		log.Printf("Wait: %v", err)
+		return fmt.Errorf("Wait: %v", err)
 	}
 	v("CPU:close")
-	err := c.Close()
+	if err := c.Close(); err != nil {
+		return fmt.Errorf("Close: %v", err)
+	}
 	v("CPU:close done")
-	return err
+	return nil
 }
 
 func usage() {
