@@ -176,7 +176,7 @@ func TestDialRun(t *testing.T) {
 	if err = c.Start(); err != nil {
 		t.Fatalf("Start: got %v, want nil", err)
 	}
-	if err := c.Stdin.Close(); err != nil {
+	if err := c.SessionIn.Close(); err != nil {
 		t.Errorf("Close stdin: Got %v, want nil", err)
 	}
 	if err := c.Wait(); err != nil {
@@ -218,7 +218,7 @@ func TestSetupInteractive(t *testing.T) {
 	if err = c.Start(); err != nil {
 		t.Fatalf("Start: got %v, want nil", err)
 	}
-	if err := c.Stdin.Close(); err != nil {
+	if err := c.SessionIn.Close(); err != nil {
 		t.Errorf("Close stdin: Got %v, want nil", err)
 	}
 	if err := c.Wait(); err != nil {

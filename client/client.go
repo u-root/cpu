@@ -57,9 +57,12 @@ type Cmd struct {
 	Port           string
 	Timeout        time.Duration
 	Env            []string
-	Stdin          io.WriteCloser
-	Stdout         io.Reader
-	Stderr         io.Reader
+	SessionIn      io.WriteCloser
+	SessionOut     io.Reader
+	SessionErr     io.Reader
+	Stdin          io.Reader
+	Stdout         io.Writer
+	Stderr         io.Writer
 	Row            int
 	Col            int
 	hasTTY         bool // Set if we have a TTY
@@ -124,6 +127,9 @@ func Command(host string, args ...string) *Cmd {
 		Args:     args,
 		Port:     DefaultPort,
 		Timeout:  defaultTimeOut,
+		Stdin:    os.Stdin,
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
 		Row:      row,
 		Col:      col,
 		config: ssh.ClientConfig{
@@ -427,18 +433,18 @@ func (c *Cmd) Start() error {
 	if err := c.SetEnv(c.Env...); err != nil {
 		return err
 	}
-	if c.Stdin, err = c.session.StdinPipe(); err != nil {
+	if c.SessionIn, err = c.session.StdinPipe(); err != nil {
 		return err
 	}
 	c.closers = append([]func() error{func() error {
-		c.Stdin.Close()
+		c.SessionIn.Close()
 		return nil
 	}}, c.closers...)
 
-	if c.Stdout, err = c.session.StdoutPipe(); err != nil {
+	if c.SessionOut, err = c.session.StdoutPipe(); err != nil {
 		return err
 	}
-	if c.Stderr, err = c.session.StderrPipe(); err != nil {
+	if c.SessionErr, err = c.session.StderrPipe(); err != nil {
 		return err
 	}
 
@@ -483,24 +489,24 @@ func (c *Cmd) Start() error {
 		if err := c.SetupInteractive(); err != nil {
 			return err
 		}
-		go c.TTYIn(c.session, c.Stdin, os.Stdin)
+		go c.TTYIn(c.session, c.SessionIn, c.Stdin)
 	} else {
 		go func() {
-			if _, err := io.Copy(c.Stdin, os.Stdin); err != nil && !errors.Is(err, io.EOF) {
+			if _, err := io.Copy(c.SessionIn, c.Stdin); err != nil && !errors.Is(err, io.EOF) {
 				log.Printf("copying stdin: %v", err)
 			}
-			if err := c.Stdin.Close(); err != nil {
+			if err := c.SessionIn.Close(); err != nil {
 				log.Printf("Closing stdin: %v", err)
 			}
 		}()
 	}
 	go func() {
-		if _, err := io.Copy(os.Stdout, c.Stdout); err != nil && !errors.Is(err, io.EOF) {
+		if _, err := io.Copy(c.Stdout, c.SessionOut); err != nil && !errors.Is(err, io.EOF) {
 			log.Printf("copying stdout: %v", err)
 		}
 	}()
 	go func() {
-		if _, err := io.Copy(os.Stderr, c.Stderr); err != nil && !errors.Is(err, io.EOF) {
+		if _, err := io.Copy(c.Stderr, c.SessionErr); err != nil && !errors.Is(err, io.EOF) {
 			log.Printf("copying stderr: %v", err)
 		}
 	}()
