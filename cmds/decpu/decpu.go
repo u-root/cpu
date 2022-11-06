@@ -176,10 +176,10 @@ func main() {
 	flags()
 	args := flag.Args()
 	host := ds.DsDefault
-	a := ""
+	a := []string{}
 	if len(args) > 0 {
 		host = args[0]
-		a = strings.Join(args[1:], " ")
+		a = args[1:]
 	}
 	if host == "." {
 		host = ds.DsDefault
@@ -198,9 +198,11 @@ func main() {
 
 	verbose("Running as client, to host %q, args %q", host, a)
 	if len(a) == 0 {
-		a = os.Getenv("SHELL")
-		if len(a) == 0 {
-			a = "/bin/sh"
+		shellEnv := os.Getenv("SHELL")
+		if len(shellEnv) > 0 {
+			a = []string{shellEnv}
+		} else {
+			a = []string{"/bin/sh"}
 		}
 	}
 
@@ -209,7 +211,7 @@ func main() {
 	hn := getHostName(host)
 
 	v("Running package-based cpu command")
-	if err := newCPU(hn, a); err != nil {
+	if err := newCPU(hn, a...); err != nil {
 		e := 1
 		log.Printf("SSH error %s", err)
 		sshErr := &ossh.ExitError{}
