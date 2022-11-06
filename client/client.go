@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alessio/shellescape"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/u-root/pkg/termios"
@@ -462,21 +463,8 @@ func (c *Cmd) Start() error {
 	// as needed, claiming to do proper unquote handling.
 	// This means we have to take care about quotes on
 	// our side.
-	//
-	// Be careful here: you want to use
-	// %v, not %q. %q will quote the string, and when
-	// ssh server unpacks it, this will look like one arg.
-	// This will manifest as weird problems when you
-	// cpu host ls -l and such. The ls -l will end up being
-	// a single arg. Why does this happen on cpu and not ssh?
-	// cpu, unlike ssh, does not pass the arguments to a shell.
-	// Unlike Plan 9 shells, Linux shells do gargantuan amounts
-	// of file IO for each command, and it's a very noticeable
-	// performance hit.
-	// TODO:
-	// Possibly the correct thing here is to loop over
-	// c.Args and print each argument as %q.
-	cmd += fmt.Sprintf(" %v", strings.Join(c.Args, " "))
+
+	cmd += " " + shellescape.QuoteCommand(c.Args)
 
 	V("call session.Start(%s)", cmd)
 	if err := c.session.Start(cmd); err != nil {

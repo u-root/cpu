@@ -176,21 +176,23 @@ func main() {
 		usage()
 	}
 	host := args[0]
-	a := strings.Join(args[1:], " ")
-	verbose("Running as client, to host %q, args %q", host, a)
+	a := args[1:]
 	if len(a) == 0 {
-		a = os.Getenv("SHELL")
-		if len(a) == 0 {
-			a = "/bin/sh"
+		shellEnv := os.Getenv("SHELL")
+		if len(shellEnv) > 0 {
+			a = []string{shellEnv}
+		} else {
+			a = []string{"/bin/sh"}
 		}
 	}
+	verbose("Running as client, to host %q, args %q", host, a)
 
 	*keyFile = getKeyFile(host, *keyFile)
 	*port = getPort(host, *port)
 	hn := getHostName(host)
 
 	v("Running package-based cpu command")
-	if err := newCPU(hn, a); err != nil {
+	if err := newCPU(hn, a...); err != nil {
 		e := 1
 		log.Printf("SSH error %s", err)
 		sshErr := &ossh.ExitError{}
