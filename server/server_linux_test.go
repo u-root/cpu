@@ -148,7 +148,7 @@ func TestDaemonSession(t *testing.T) {
 			t.Fatalf("Close: got %v, want nil", err)
 		}
 	}()
-	if err := c.Stdin.Close(); err != nil && !errors.Is(err, io.EOF) {
+	if err := c.SessionIn.Close(); err != nil && !errors.Is(err, io.EOF) {
 		t.Errorf("Close stdin: Got %v, want nil", err)
 	}
 	if err := c.Wait(); err != nil {
@@ -237,7 +237,7 @@ func TestDaemonConnect(t *testing.T) {
 			t.Fatalf("Close: got %v, want nil", err)
 		}
 	}()
-	if err := c.Stdin.Close(); err != nil && !errors.Is(err, io.EOF) {
+	if err := c.SessionIn.Close(); err != nil && !errors.Is(err, io.EOF) {
 		t.Errorf("Close stdin: Got %v, want nil", err)
 	}
 	if err := c.Wait(); err != nil {
