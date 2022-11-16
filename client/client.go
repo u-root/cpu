@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alessio/shellescape"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/u-root/pkg/termios"
@@ -398,6 +397,10 @@ func (c *Cmd) Dial() error {
 	return nil
 }
 
+func quoteArg(arg string) string {
+	return "'" + strings.ReplaceAll(arg, "'", "'\"'\"'") + "'"
+}
+
 // Start implements exec.Start for CPU.
 func (c *Cmd) Start() error {
 	var err error
@@ -463,8 +466,11 @@ func (c *Cmd) Start() error {
 	// as needed, claiming to do proper unquote handling.
 	// This means we have to take care about quotes on
 	// our side.
-
-	cmd += " " + shellescape.QuoteCommand(c.Args)
+	quotedArgs := make([]string, len(c.Args))
+	for i, arg := range c.Args {
+		quotedArgs[i] = quoteArg(arg)
+	}
+	cmd += " " + strings.Join(quotedArgs, " ")
 
 	V("call session.Start(%s)", cmd)
 	if err := c.session.Start(cmd); err != nil {
