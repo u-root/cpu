@@ -5,6 +5,7 @@
 package client
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -293,6 +294,23 @@ func vsockDial(host, port string) (net.Conn, string, error) {
 
 }
 
+// https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md#host-initiated-connections
+func unixVsockDial(path, port string) (net.Conn, string, error) {
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		return nil, "", err
+	}
+	connectMsg := []byte(fmt.Sprintf("CONNECT %s\n", port))
+	if n, err := conn.Write(connectMsg); err != nil || n != len(connectMsg) {
+		V("send connect request err, number of sent bytes = %d: %v", n, err)
+	}
+	s := bufio.NewScanner(conn)
+	if !s.Scan() || !strings.HasPrefix(s.Text(), "OK") {
+		V("connect request failed.")
+	}
+	return conn, path, nil
+}
+
 // Dial implements ssh.Dial for cpu.
 // Additionaly, if Cmd.Root is not "", it
 // starts up a server for 9p requests.
@@ -320,8 +338,10 @@ func (c *Cmd) Dial() error {
 		conn, addr, err = vsockDial(c.HostName, c.Port)
 	case "unix", "unixgram", "unixpacket":
 		// There is not port on a unix domain socket.
-		addr = c.network
-		conn, err = net.Dial(c.network, c.Port)
+		addr = c.HostName
+		conn, err = net.Dial(c.network, c.HostName)
+	case "unix-vsock":
+		conn, addr, err = unixVsockDial(c.HostName, c.Port)
 	default:
 		addr = net.JoinHostPort(c.HostName, c.Port)
 		conn, err = net.Dial(c.network, addr)
