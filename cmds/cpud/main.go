@@ -44,22 +44,21 @@ func verbose(f string, a ...interface{}) {
 
 func main() {
 	flag.Parse()
+	if *remote {
+		if *debug {
+			v = log.Printf
+			session.SetVerbose(log.Printf)
+		}
+	} else {
+		if err := commonsetup(); err != nil {
+			log.Fatal(err)
+		}
+	}
 	pid1 = os.Getpid() == 1
 	*runAsInit = *runAsInit || pid1
 	verbose("Args %v pid %d *runasinit %v *remote %v env %v", os.Args, os.Getpid(), *runAsInit, *remote, os.Environ())
 	args := flag.Args()
-	switch {
-	case *runAsInit:
-		if err := commonsetup(); err != nil {
-			log.Fatal(err)
-		}
-		if err := initsetup(); err != nil {
-			log.Fatal(err)
-		}
-		if err := serve(); err != nil {
-			log.Fatal(err)
-		}
-	case *remote:
+	if *remote {
 		verbose("server package: Running as remote: args %q, port9p %v", args, *port9p)
 		tmpMnt, ok := os.LookupEnv("CPU_TMPMNT")
 		if !ok || len(tmpMnt) == 0 {
@@ -69,10 +68,12 @@ func main() {
 		if err := s.Run(); err != nil {
 			log.Fatalf("CPUD(as remote):%v", err)
 		}
-	default:
-		log.Printf("cpud: running as a server (a.k.a. starter of cpud's for sessions")
-		if err := commonsetup(); err != nil {
-			log.Fatal(err)
+	} else {
+		log.Printf("CPUD:running as a server (a.k.a. starter of cpud's for sessions)")
+		if *runAsInit {
+			if err := initsetup(); err != nil {
+				log.Fatal(err)
+			}
 		}
 		if err := serve(); err != nil {
 			log.Fatal(err)
