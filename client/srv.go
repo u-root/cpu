@@ -24,20 +24,20 @@ func (c *Cmd) srv(l net.Listener) error {
 		err  error
 	)
 	go func() {
-		V("srv: try to accept l %v", l)
+		verbose("srv: try to accept l %v", l)
 		s, err = l.Accept()
-		V("Accept: %v %v", s, err)
+		verbose("Accept: %v %v", s, err)
 		if err != nil {
 			errs <- fmt.Errorf("accept 9p socket: %v", err)
 			return
 		}
-		V("srv got %v", s)
+		verbose("srv got %v", s)
 		var rn nonce
 		if _, err := io.ReadAtLeast(s, rn[:], len(rn)); err != nil {
 			errs <- fmt.Errorf("Reading nonce from remote: %v", err)
 			return
 		}
-		V("srv: read the nonce back got %s", rn)
+		verbose("srv: read the nonce back got %s", rn)
 		if c.nonce.String() != rn.String() {
 			errs <- fmt.Errorf("nonce mismatch: got %s but want %s", rn, c.nonce)
 			return
@@ -56,7 +56,7 @@ func (c *Cmd) srv(l net.Listener) error {
 		return fmt.Errorf("srv: %v", err)
 	}
 	// If we are debugging, add the option to trace records.
-	V("Start serving on %v", c.Root)
+	verbose("Start serving on %v", c.Root)
 	if Debug9p {
 		if Dump9p {
 			log.SetOutput(DumpWriter)

@@ -15,7 +15,7 @@ import (
 )
 
 func TestConfig(t *testing.T) {
-	V = t.Logf
+	v = t.Logf
 	var tconfig = `
 Host *.example.com
   Compression yes
@@ -162,7 +162,7 @@ func TestDialRun(t *testing.T) {
 	if err != nil {
 		t.Skipf("%v", err)
 	}
-	V = t.Logf
+	v = t.Logf
 	// From this test forward, at least try to get a port.
 	// For this test, there must be a key.
 
@@ -204,7 +204,7 @@ func TestSetupInteractive(t *testing.T) {
 	if err != nil {
 		t.Skipf("%v", err)
 	}
-	V = t.Logf
+	v = t.Logf
 	// From this test forward, at least try to get a port.
 	// For this test, there must be a key.
 

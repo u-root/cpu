@@ -44,7 +44,7 @@ var (
 type nonce [32]byte
 
 func verbose(f string, a ...interface{}) {
-	V("\r\n"+f+"\r\n", a...)
+	v("client:"+f, a...)
 }
 
 // generateNonce returns a nonce, or an error if random reader fails.
@@ -69,7 +69,7 @@ func (c *Cmd) UserKeyConfig() error {
 	kf := c.PrivateKeyFile
 	if len(kf) == 0 {
 		kf = config.Get(c.Host, "IdentityFile")
-		V("key file from config is %q", kf)
+		verbose("key file from config is %q", kf)
 		if len(kf) == 0 {
 			kf = DefaultKeyFile
 		}
@@ -169,10 +169,10 @@ func (c *Cmd) SSHStdin(w io.WriteCloser, r io.Reader) {
 // GetKeyFile picks a keyfile if none has been set.
 // It will use ssh config, else use a default.
 func GetKeyFile(host, kf string) string {
-	V("getKeyFile for %q", kf)
+	verbose("getKeyFile for %q", kf)
 	if len(kf) == 0 {
 		kf = config.Get(host, "IdentityFile")
-		V("key file from config is %q", kf)
+		verbose("key file from config is %q", kf)
 		if len(kf) == 0 {
 			kf = DefaultKeyFile
 		}
@@ -181,7 +181,7 @@ func GetKeyFile(host, kf string) string {
 	if strings.HasPrefix(kf, "~") {
 		kf = filepath.Join(os.Getenv("HOME"), kf[1:])
 	}
-	V("getKeyFile returns %q", kf)
+	verbose("getKeyFile returns %q", kf)
 	// this is a tad annoying, but the config package doesn't handle ~.
 	return kf
 }
@@ -202,18 +202,18 @@ func GetHostName(host string) string {
 // of "22", convert to defaultPort.
 func GetPort(host, port string) (string, error) {
 	p := port
-	V("getPort(%q, %q)", host, port)
+	verbose("getPort(%q, %q)", host, port)
 	if len(port) == 0 {
 		if cp := config.Get(host, "Port"); len(cp) != 0 {
-			V("config.Get(%q,%q): %q", host, port, cp)
+			verbose("config.Get(%q,%q): %q", host, port, cp)
 			p = cp
 		}
 	}
 	if len(p) == 0 || p == "22" {
 		p = DefaultPort
-		V("getPort: return default %q", p)
+		verbose("getPort: return default %q", p)
 	}
-	V("returns %q", p)
+	verbose("returns %q", p)
 	return p, nil
 }
 
