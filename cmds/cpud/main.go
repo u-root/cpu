@@ -64,14 +64,14 @@ func main() {
 	verbose("Args %v pid %d *runasinit %v *remote %v env %v", os.Args, os.Getpid(), *runAsInit, *remote, os.Environ())
 	args := flag.Args()
 	if *remote {
-		verbose("server package: Running as remote: args %q, port9p %v", args, *port9p)
+		log.Printf("CPUD(remote): args %q, port9p %v", args, *port9p)
 		tmpMnt, ok := os.LookupEnv("CPU_TMPMNT")
 		if !ok || len(tmpMnt) == 0 {
 			tmpMnt = "/tmp"
 		}
 		s := session.New(*port9p, tmpMnt, args[0], args[1:]...)
 		if err := s.Run(); err != nil {
-			log.Fatalf("CPUD(as remote):%v", err)
+			log.Fatalf("CPUD(remote): %v", err)
 		}
 	} else {
 		log.Printf("CPUD:running as a server (a.k.a. starter of cpud's for sessions)")

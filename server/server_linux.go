@@ -35,7 +35,7 @@ func init() {
 	// might magically exist, b/c of initrd; or be automagically mounted via
 	// some other mechanism.
 	if os.Getpid() == 1 {
-		v("PID 1")
+		verbose("PID 1")
 	}
 }
 
