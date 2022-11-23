@@ -37,7 +37,7 @@ func hang() {
 
 func commonsetup() error {
 	if *debug {
-		server.SetVerbose(log.Printf)
+		server.SetVerbose(verbose)
 		v = log.Printf
 		if *klog {
 			ulog.KernelLog.Reinit()
@@ -69,7 +69,7 @@ func initsetup() error {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		verbose("Run %v", cmd)
 		if err := cmd.Start(); err != nil {
-			verbose("CPUD:Error starting %v: %v", v, err)
+			verbose("Error starting %v: %v", v, err)
 			continue
 		}
 	}
@@ -134,24 +134,25 @@ func serve() error {
 		log.Printf(`New(%q, %q): %v`, *pubKeyFile, *hostKeyFile, err)
 		hang()
 	}
-	v("Server is %v", s)
+	verbose("Server is %v", s)
 
 	ln, err := listen(*network, *port)
 	if err != nil {
 		return err
 	}
-	v("Listening on %v", ln.Addr())
+
+	log.Printf("Listening on %v", ln.Addr())
 
 	// register can return an error, but it should not block serving.
 	if err := register(*network, *registerAddr, *registerTO); err != nil {
-		v("Register(%v, %v, %d): %v", *network, *registerAddr, *registerTO, err)
+		verbose("Register(%v, %v, %d): %v", *network, *registerAddr, *registerTO, err)
 	}
 
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
 		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)
 		hang()
 	}
-	v("Daemon returns")
+	verbose("Daemon returns")
 	hang()
 	return nil
 }
