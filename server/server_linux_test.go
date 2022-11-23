@@ -132,7 +132,7 @@ func TestDaemonSession(t *testing.T) {
 	}
 
 	t.Logf("HostName %q, IdentityFile %q, command %v", host, kf, os.Args[0])
-	client.V = t.Logf
+	client.SetVerbose(t.Logf)
 	c := client.Command(host, os.Args[0], "-remote", "ls", "-l")
 	if err := c.SetOptions(client.WithPrivateKeyFile(kf), client.WithPort(port), client.WithRoot(d), client.WithNameSpace(d)); err != nil {
 		t.Fatalf("SetOptions: %v != nil", err)
