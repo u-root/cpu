@@ -46,12 +46,14 @@ var (
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
 	tmpMnt      = flag.String("tmpMnt", "/tmp", "Mount point of the private namespace.")
 
+	// v allows debug printing.
+	// Do not call it directly, call verbose instead.
 	v          = func(string, ...interface{}) {}
 	dumpWriter *os.File
 )
 
 func verbose(f string, a ...interface{}) {
-	v("\r\n"+f+"\r\n", a...)
+	v("CPU:"+f+"\r\n", a...)
 }
 
 func flags() {
@@ -79,10 +81,10 @@ func flags() {
 // getKeyFile picks a keyfile if none has been set.
 // It will use sshconfig, else use a default.
 func getKeyFile(host, kf string) string {
-	v("getKeyFile for %q", kf)
+	verbose("getKeyFile for %q", kf)
 	if len(kf) == 0 {
 		kf = config.Get(host, "IdentityFile")
-		v("key file from config is %q", kf)
+		verbose("key file from config is %q", kf)
 		if len(kf) == 0 {
 			kf = defaultKeyFile
 		}
@@ -91,7 +93,7 @@ func getKeyFile(host, kf string) string {
 	if strings.HasPrefix(kf, "~") {
 		kf = filepath.Join(os.Getenv("HOME"), kf[1:])
 	}
-	v("getKeyFile returns %q", kf)
+	verbose("getKeyFile returns %q", kf)
 	// this is a tad annoying, but the config package doesn't handle ~.
 	return kf
 }
@@ -112,23 +114,22 @@ func getHostName(host string) string {
 // of "22", convert to defaultPort
 func getPort(host, port string) string {
 	p := port
-	v("getPort(%q, %q)", host, port)
+	verbose("getPort(%q, %q)", host, port)
 	if len(port) == 0 {
 		if cp := config.Get(host, "Port"); len(cp) != 0 {
-			v("config.Get(%q,%q): %q", host, port, cp)
+			verbose("config.Get(%q,%q): %q", host, port, cp)
 			p = cp
 		}
 	}
 	if len(p) == 0 || p == "22" {
 		p = defaultPort
-		v("getPort: return default %q", p)
+		verbose("getPort: return default %q", p)
 	}
-	v("returns %q", p)
+	verbose("returns %q", p)
 	return p
 }
 
 func newCPU(host string, args ...string) error {
-	client.V = v
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
 	c := client.Command(host, args...)
 	if err := c.SetOptions(
@@ -148,17 +149,17 @@ func newCPU(host string, args ...string) error {
 	if err := c.Dial(); err != nil {
 		return fmt.Errorf("Dial: %v", err)
 	}
-	v("CPU:start")
+	verbose("start")
 	if err := c.Start(); err != nil {
 		return fmt.Errorf("Start: %v", err)
 	}
-	v("CPU:wait")
+	verbose("wait")
 	if err := c.Wait(); err != nil {
-		log.Printf("Wait: %v", err)
+		log.Printf("Wait: %v\r\n", err)
 	}
-	v("CPU:close")
+	verbose("close")
 	err := c.Close()
-	v("CPU:close done")
+	verbose("close done")
 	return err
 }
 
@@ -191,7 +192,7 @@ func main() {
 	*port = getPort(host, *port)
 	hn := getHostName(host)
 
-	v("Running package-based cpu command")
+	verbose("Running package-based cpu command")
 	if err := newCPU(hn, a...); err != nil {
 		e := 1
 		log.Printf("SSH error %s", err)

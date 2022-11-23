@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+func verbose(f string, a ...interface{}) {
+	v("CPUD(remote):session:"+f+"\r\n", a...)
+}
+
 // ParseBinds parses a CPU_NAMESPACE-style string to a
 // slice of Bind structures.
 func ParseBinds(s string) ([]Bind, error) {

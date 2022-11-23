@@ -21,19 +21,25 @@ var (
 	pubKeyFile  = flag.String("pk", "key.pub", "file for public key")
 	port        = flag.String("sp", "17010", "cpu default port")
 
-	debug     = flag.Bool("d", true, "enable debug prints")
+	debug     = flag.Bool("d", false, "enable debug prints")
 	runAsInit = flag.Bool("init", false, "run as init (Debug only; normal test is if we are pid 1")
-	v         = func(string, ...interface{}) {}
-	remote    = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
-	network   = flag.String("net", "tcp", "network to use")
-	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
-	klog      = flag.Bool("klog", false, "Log cpud messages in kernel log, not stdout")
+	// v allows debug printing.
+	// Do not call it directly, call verbose instead.
+	v       = func(string, ...interface{}) {}
+	remote  = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
+	network = flag.String("net", "tcp", "network to use")
+	port9p  = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
+	klog    = flag.Bool("klog", false, "Log cpud messages in kernel log, not stdout")
 
 	pid1 bool
 )
 
 func verbose(f string, a ...interface{}) {
-	v("\r\nCPUD:"+f+"\r\n", a...)
+	if *remote {
+		v("CPUD(remote):"+f+"\r\n", a...)
+	} else {
+		v("CPUD:"+f, a...)
+	}
 }
 
 func main() {

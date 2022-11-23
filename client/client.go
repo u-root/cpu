@@ -35,8 +35,9 @@ const (
 	DefaultNameSpace = "/lib:/lib64:/usr:/bin:/etc:/home"
 )
 
-// V allows debug printing.
-var V = func(string, ...interface{}) {}
+// v allows debug printing.
+// Do not call it directly, call verbose instead.
+var v = func(string, ...interface{}) {}
 
 // Cmd is a cpu client.
 // It implements as much of exec.Command as makes sense.
@@ -95,7 +96,7 @@ func (c *Cmd) SetOptions(opts ...Set) error {
 // SetVerbose sets the verbose printing function.
 // e.g., one might call SetVerbose(log.Printf)
 func SetVerbose(f func(string, ...interface{})) {
-	V = f
+	v = f
 }
 
 // Command implements exec.Command. The required parameter is a host.
@@ -283,13 +284,13 @@ func WithPort(port string) Set {
 // It's a shame vsock is not in the net package (yet ... or ever?)
 func vsockDial(host, port string) (net.Conn, string, error) {
 	id, portid, err := vsockIDPort(host, port)
-	V("vsock(%v, %v) = %v, %v, %v", host, port, id, portid, err)
+	verbose("vsock(%v, %v) = %v, %v, %v", host, port, id, portid, err)
 	if err != nil {
 		return nil, "", err
 	}
 	addr := fmt.Sprintf("%#x:%d", id, portid)
 	conn, err := vsock.Dial(id, portid, nil)
-	V("vsock id %#x port %d addr %#x conn %v err %v", id, port, addr, conn, err)
+	verbose("vsock id %#x port %d addr %#x conn %v err %v", id, port, addr, conn, err)
 	return conn, addr, err
 
 }
@@ -302,11 +303,11 @@ func unixVsockDial(path, port string) (net.Conn, string, error) {
 	}
 	connectMsg := []byte(fmt.Sprintf("CONNECT %s\n", port))
 	if n, err := conn.Write(connectMsg); err != nil || n != len(connectMsg) {
-		V("send connect request err, number of sent bytes = %d: %v", n, err)
+		verbose("send connect request err, number of sent bytes = %d: %v", n, err)
 	}
 	s := bufio.NewScanner(conn)
 	if !s.Scan() || !strings.HasPrefix(s.Text(), "OK") {
-		V("connect request failed.")
+		verbose("connect request failed.")
 	}
 	return conn, path, nil
 }
@@ -346,7 +347,7 @@ func (c *Cmd) Dial() error {
 		addr = net.JoinHostPort(c.HostName, c.Port)
 		conn, err = net.Dial(c.network, addr)
 	}
-	V("connect: err %v", err)
+	verbose("connect: err %v", err)
 	if err != nil {
 		return err
 	}
@@ -355,7 +356,7 @@ func (c *Cmd) Dial() error {
 		return err
 	}
 	cl := ssh.NewClient(sshconn, chans, reqs)
-	V("cpu:ssh.Dial(%s, %s, %v): (%v, %v)", c.network, addr, c.config, cl, err)
+	verbose("cpu:ssh.Dial(%s, %s, %v): (%v, %v)", c.network, addr, c.config, cl, err)
 	if err != nil {
 		return fmt.Errorf("Failed to dial: %v", err)
 	}
@@ -382,7 +383,7 @@ func (c *Cmd) Dial() error {
 				return fmt.Errorf("cpu client listen for forwarded 9p port %v", err)
 			}
 		}
-		V("ssh.listener %v", l.Addr().String())
+		verbose("ssh.listener %v", l.Addr().String())
 		ap := strings.Split(l.Addr().String(), ":")
 		if len(ap) == 0 {
 			return fmt.Errorf("Can't find a port number in %v", l.Addr().String())
@@ -393,7 +394,7 @@ func (c *Cmd) Dial() error {
 		}
 		c.port9p = uint16(port9p)
 
-		V("listener %T %v addr %v port %v", l, l, l.Addr().String(), port9p)
+		verbose("listener %T %v addr %v port %v", l, l, l.Addr().String(), port9p)
 
 		nonce, err := generateNonce()
 		if err != nil {
@@ -401,9 +402,9 @@ func (c *Cmd) Dial() error {
 		}
 		c.nonce = nonce
 		c.Env = append(c.Env, "CPUNONCE="+nonce.String())
-		V("Set NONCE to %q", nonce.String())
+		verbose("Set NONCE to %q", nonce.String())
 		c.Env = append(c.Env, "CPU_TMPMNT="+c.TmpMnt)
-		V("Set CPU_TMPMNT to %q", "CPU_TMPMNT="+c.TmpMnt)
+		verbose("Set CPU_TMPMNT to %q", "CPU_TMPMNT="+c.TmpMnt)
 		go func(l net.Listener) {
 			if err := c.srv(l); err != nil {
 				log.Printf("9p server error: %v", err)
@@ -439,7 +440,7 @@ func (c *Cmd) Start() error {
 
 	// Request pseudo terminal
 	if c.hasTTY {
-		V("c.session.RequestPty(\"ansi\", %v, %v, %#x", c.Row, c.Col, modes)
+		verbose("c.session.RequestPty(\"ansi\", %v, %v, %#x", c.Row, c.Col, modes)
 		if err := c.session.RequestPty("ansi", c.Row, c.Col, modes); err != nil {
 			return fmt.Errorf("request for pseudo terminal failed: %v", err)
 		}
@@ -492,12 +493,12 @@ func (c *Cmd) Start() error {
 	}
 	cmd += " " + strings.Join(quotedArgs, " ")
 
-	V("call session.Start(%s)", cmd)
+	verbose("call session.Start(%s)", cmd)
 	if err := c.session.Start(cmd); err != nil {
 		return fmt.Errorf("Failed to run %v: %v", c, err.Error())
 	}
 	if c.hasTTY {
-		V("Setup interactive input")
+		verbose("Setup interactive input")
 		if err := c.SetupInteractive(); err != nil {
 			return err
 		}

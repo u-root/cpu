@@ -68,7 +68,7 @@ func initsetup() error {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setctty: true, Setsid: true}
 		verbose("Run %v", cmd)
 		if err := cmd.Start(); err != nil {
-			verbose("CPUD:Error starting %v: %v", v, err)
+			verbose("Error starting %v: %v", v, err)
 			continue
 		}
 	}
@@ -110,18 +110,18 @@ func serve() error {
 		log.Printf(`New(%q, %q): %v`, *pubKeyFile, *hostKeyFile, err)
 		hang()
 	}
-	v("Server is %v", s)
+	verbose("Server is %v", s)
 
 	ln, err := listen(*network, *port)
 	if err != nil {
 		return err
 	}
-	v("Listening on %v", ln.Addr())
+	log.Printf("CPUD:Listening on %v", ln.Addr())
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
 		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)
 		hang()
 	}
-	v("Daemon returns")
+	verbose("Daemon returns")
 	hang()
 	return nil
 }

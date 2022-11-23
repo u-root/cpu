@@ -24,20 +24,20 @@ func (s *Session) Namespace() (error, error) {
 	// N.B. We do not save the nonce in the cpu struct.
 	nonce := os.Getenv("CPUNONCE")
 	os.Unsetenv("CPUNONCE")
-	v("CPUD:namespace is %q", s.binds)
+	verbose("namespace is %q", s.binds)
 
 	// Connect to the socket, return the nonce.
 	a := net.JoinHostPort("localhost", s.port9p)
-	v("CPUD:Dial %v", a)
+	verbose("Dial %v", a)
 	so, err := net.Dial("tcp", a)
 	if err != nil {
 		return warning, fmt.Errorf("CPUD:Dial 9p port: %v", err)
 	}
-	v("CPUD:Connected: write nonce %s\n", nonce)
+	verbose("Connected: write nonce %s\n", nonce)
 	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
 		return warning, fmt.Errorf("CPUD:Write nonce: %v", err)
 	}
-	v("CPUD:Wrote the nonce")
+	verbose("Wrote the nonce")
 	// Zero it. I realize I am not a crypto person.
 	// improvements welcome.
 	copy([]byte(nonce), make([]byte, len(nonce)))

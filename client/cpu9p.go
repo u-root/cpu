@@ -82,26 +82,26 @@ func (l *cpu9p) Walk(names []string) ([]p9.QID, p9.File, error) {
 	if len(names) == 0 {
 		c := &cpu9p{path: last.path}
 		qid, fi, err := c.info()
-		V("Walk to %v: %v, %v, %v", *c, qid, fi, err)
+		verbose("Walk to %v: %v, %v, %v", *c, qid, fi, err)
 		if err != nil {
 			return nil, nil, err
 		}
 		qids = append(qids, qid)
-		V("Walk: return %v, %v, nil", qids, last)
+		verbose("Walk: return %v, %v, nil", qids, last)
 		return qids, last, nil
 	}
-	V("Walk: %v", names)
+	verbose("Walk: %v", names)
 	for _, name := range names {
 		c := &cpu9p{path: filepath.Join(last.path, name)}
 		qid, fi, err := c.info()
-		V("Walk to %v: %v, %v, %v", *c, qid, fi, err)
+		verbose("Walk to %v: %v, %v, %v", *c, qid, fi, err)
 		if err != nil {
 			return nil, nil, err
 		}
 		qids = append(qids, qid)
 		last = c
 	}
-	V("Walk: return %v, %v, nil", qids, last)
+	verbose("Walk: return %v, %v, nil", qids, last)
 	return qids, last, nil
 }
 

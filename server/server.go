@@ -25,6 +25,8 @@ const (
 )
 
 var (
+	// v allows debug printing.
+	// Do not call it directly, call verbose instead.
 	v = func(string, ...interface{}) {}
 )
 
@@ -35,7 +37,7 @@ func SetVerbose(f func(string, ...interface{})) {
 }
 
 func verbose(f string, a ...interface{}) {
-	v("\r\nCPUD:"+f+"\r\n", a...)
+	v("CPUD:"+f, a...)
 }
 
 func setWinsize(f *os.File, w, h int) {
@@ -58,16 +60,16 @@ func errval(err error) error {
 
 func handler(s ssh.Session) {
 	a := s.Command()
-	v("handler: cmd is %q", a)
+	verbose("handler: cmd is %q", a)
 	cmd := command(a[0], a[1:]...)
 	cmd.Env = append(cmd.Env, s.Environ()...)
 	ptyReq, winCh, isPty := s.Pty()
 	if isPty {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
 		f, err := pty.Start(cmd)
-		v("command started with pty")
+		verbose("command started with pty")
 		if err != nil {
-			v("CPUD:err %v", err)
+			verbose("err %v", err)
 			return
 		}
 		go func() {
@@ -92,19 +94,19 @@ func handler(s ssh.Session) {
 		// competing with each other and the results are odd to say the least.
 		// If the command exits, leaving orphans behind, it is the job
 		// of the reaper to get them.
-		v("wait for %q", cmd)
+		verbose("wait for %q", cmd)
 		err = cmd.Wait()
-		v("cmd %q returns with %v %v", cmd, err, cmd.ProcessState)
+		verbose("cmd %q returns with %v %v", cmd, err, cmd.ProcessState)
 		if errval(err) != nil {
-			v("CPUD:child exited with  %v", err)
+			verbose("child exited with  %v", err)
 			s.Exit(cmd.ProcessState.ExitCode()) //nolint
 		}
 
 	} else {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s
-		v("running command without pty")
+		verbose("running command without pty")
 		if err := cmd.Run(); errval(err) != nil {
-			v("CPUD:err %v", err)
+			verbose("err %v", err)
 			s.Exit(1) //nolint
 		}
 	}
@@ -114,7 +116,7 @@ func handler(s ssh.Session) {
 // New sets up a cpud. cpud is really just an SSH server with a special
 // handler and support for port forwarding for the 9p port.
 func New(publicKeyFile, hostKeyFile string) (*ssh.Server, error) {
-	v("configure SSH server")
+	verbose("configure SSH server")
 	publicKeyOption := func(ctx ssh.Context, key ssh.PublicKey) bool {
 		data, err := ioutil.ReadFile(publicKeyFile)
 		if err != nil {
@@ -142,7 +144,7 @@ func New(publicKeyFile, hostKeyFile string) (*ssh.Server, error) {
 		Addr:             ":" + defaultPort,
 		PublicKeyHandler: publicKeyOption,
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-			v("CPUD:ReversePortForwardingCallback: attempt to bind %v %v granted", host, port)
+			verbose("ReversePortForwardingCallback: attempt to bind %v %v granted", host, port)
 			return true
 		}),
 		RequestHandlers: map[string]ssh.RequestHandler{
