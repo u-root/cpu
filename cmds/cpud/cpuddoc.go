@@ -30,6 +30,14 @@
 //	-srv string
 //	      what server to run (default none; use internal)
 //
+//      For registering with a controller
+//      -register netaddr
+//            netaddr in Go style (host:port) to Dial and send 'ok' to
+//
+//      -registerTO
+//            timeout in time.Duration format (e.g. 25s, 1m, etc.)
+//            for connection to succeed.
+//
 // cpud is the daemon side of a cpu session.
 // In the original Plan 9 implementation, cpu was a command that contained
 // both server and client sides of a cpu session. The server side was started
