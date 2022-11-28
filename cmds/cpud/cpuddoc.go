@@ -5,28 +5,30 @@
 // cpud -- cpu daemon
 //
 // Synopsis:
-//     cpu [OPTIONS]
+//
+//	cpu [OPTIONS]
 //
 // Advisory:
 //
 // Options:
-//     -d    enable debug prints
-//     -dbg9p
-//           show 9p io
-//     -hostkey string
-//           host key file
-//     -key string
-//           key file (default "$HOME/.ssh/cpu_rsa")
-//     -network string
-//           network to use (default "tcp")
-//     -p string
-//           port to use (default "17010")
-//     -port9p string
-//           port9p # on remote machine for 9p mount
-//     -remote
-//           Indicates we are the remote side of the cpu session
-//     -srv string
-//           what server to run (default none; use internal)
+//
+//	-d    enable debug prints
+//	-dbg9p
+//	      show 9p io
+//	-hostkey string
+//	      host key file
+//	-key string
+//	      key file (default "$HOME/.ssh/cpu_rsa")
+//	-network string
+//	      network to use (default "tcp")
+//	-p string
+//	      port to use (default "17010")
+//	-port9p string
+//	      port9p # on remote machine for 9p mount
+//	-remote
+//	      Indicates we are the remote side of the cpu session
+//	-srv string
+//	      what server to run (default none; use internal)
 //
 // cpud is the daemon side of a cpu session.
 // In the original Plan 9 implementation, cpu was a command that contained
