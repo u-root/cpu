@@ -121,7 +121,7 @@ func register(network, addr string, timeout time.Duration) error {
 		return err
 	}
 	defer c.Close()
-	// if it works, it works. It not, log it and move on.
+	// if it works, it works. If not, log it and move on.
 	if _, err := c.Write([]byte("ok")); err != nil {
 		return fmt.Errorf("Writing OK to register address: %w", err)
 	}
