@@ -31,9 +31,10 @@ var (
 
 // Simple form dns-sd query
 type dsQuery struct {
-	Type   string
-	Domain string
-	Text   map[string][]string
+	Type     string
+	Instance string
+	Domain   string
+	Text     map[string][]string
 }
 
 const (
@@ -124,13 +125,35 @@ func Parse(uri string) (dsQuery, error) {
 		return result, fmt.Errorf("Not an dns-sd URI")
 	}
 
-	// following dns-sd URI conventions from CUPS
-	if u.Host != "" {
-		result.Domain = u.Host
-	}
-	if u.Path != "" {
-		// remove prefix slash
-		result.Type = u.Path[1:]
+	// following dns-sd URI conventions from CUPS dnssd://instance._type._proto.domain/?query
+	if u.Hostname() != "" {
+		parts := strings.Split(u.Hostname(), ".")
+		found := false
+		for p, v := range parts {
+			if v[0] == '_' {
+				if p > 0 {
+					result.Instance = strings.Join(parts[0:p], ".")
+				}
+				if len(parts) > p+1 {
+					if parts[p+1][0] == '_' {
+						result.Type = parts[p] + "." + parts[p+1]
+					}
+					p = p + 2
+				} else {
+					result.Type = parts[p]
+					p = p + 1
+				}
+
+				if len(parts) > p {
+					result.Domain = strings.Join(parts[p:], ".")
+				}
+				found = true
+				break
+			}
+		}
+		if found == false {
+			result.Domain = u.Hostname()
+		}
 	}
 
 	result.Text = u.Query()
@@ -260,9 +283,9 @@ func dsSort(req map[string][]string, entries []dnssd.BrowseEntry) {
 
 // --- end sort and compare code ---
 
-// lookup based on hostname, return resolved host, port, network, and error
-// uri currently supported dnssd://domain/_service._network/instance?reqkey=reqvalue
-// default for domain is local, first path element is _ncpu._tcp, and instance is wildcard
+// lookup based on query, return resolved host, port, network, and error
+// uri currently supported dnssd://instance._service._network.domain/?reqkey=reqvalue
+// default for domain is local, default type _ncpu._tcp, and instance is wildcard
 // can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
 func Lookup(query dsQuery) (string, string, error) {
 	var (
@@ -274,7 +297,7 @@ func Lookup(query dsQuery) (string, string, error) {
 	context.DeadlineExceeded = errors.New("")
 	defer cancel()
 
-	service := fmt.Sprintf("%s.%s.", strings.Trim(query.Type, "."), strings.Trim(query.Domain, "."))
+	service := fmt.Sprintf("%s.%s.", query.Type, query.Domain)
 
 	v("Browsing for %s\n", service)
 
@@ -285,7 +308,11 @@ func Lookup(query dsQuery) (string, string, error) {
 		// check requirement
 		v("Checking ", e.Text, query.Text)
 		if required(e.Text, query.Text) {
-			respCh <- &e
+			if (query.Instance != "") && (e.ServiceInstanceName() != query.Instance+"."+service) {
+				v("Instance %s didn't match %s", e.ServiceInstanceName(), query.Instance+"."+service)
+			} else {
+				respCh <- &e
+			}
 		}
 	}
 
