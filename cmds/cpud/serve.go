@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"net"
@@ -104,6 +105,29 @@ func listen(network, port string) (net.Listener, error) {
 	return ln, err
 }
 
+func register(network, addr string, timeout time.Duration) error {
+	if len(addr) == 0 {
+		return nil
+	}
+	// This is a bit of a hack for now, to test the idea.
+	// if registeraddr is not empty, Dial it over the network,
+	// and send the string "ok".
+	// This may fail because the host may have incorrectly requested a registration
+	// but may not be listening, OR may just be looking for a cheap way to set a
+	// delay between listen and accept for networks that are not well behaved.
+	c, err := net.DialTimeout(network, addr, timeout)
+	// N.B.: it fails to connect, it fails to connect.
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	// if it works, it works. If not, log it and move on.
+	if _, err := c.Write([]byte("ok")); err != nil {
+		return fmt.Errorf("Writing OK to register address: %w", err)
+	}
+	return nil
+}
+
 func serve() error {
 	s, err := server.New(*pubKeyFile, *hostKeyFile)
 	if err != nil {
@@ -117,6 +141,12 @@ func serve() error {
 		return err
 	}
 	v("Listening on %v", ln.Addr())
+
+	// register can return an error, but it should not block serving.
+	if err := register(*network, *registerAddr, *registerTO); err != nil {
+		v("Register(%v, %v, %d): %v", *network, *registerAddr, *registerTO, err)
+	}
+
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
 		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)
 		hang()

@@ -8,6 +8,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"time"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
@@ -28,6 +29,10 @@ var (
 	network   = flag.String("net", "tcp", "network to use")
 	port9p    = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
 	klog      = flag.Bool("klog", false, "Log cpud messages in kernel log, not stdout")
+
+	// Some networks are not well behaved, and for them we implement registration.
+	registerAddr = flag.String("register", "", "address and port to register with after listen on cpu server port")
+	registerTO   = flag.Duration("registerTO", time.Duration(5*time.Second), "time.Duration for Dial address for registering")
 
 	pid1 bool
 )
