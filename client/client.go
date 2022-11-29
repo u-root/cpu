@@ -5,6 +5,7 @@
 package client
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alessio/shellescape"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/u-root/pkg/termios"
@@ -294,6 +294,23 @@ func vsockDial(host, port string) (net.Conn, string, error) {
 
 }
 
+// https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md#host-initiated-connections
+func unixVsockDial(path, port string) (net.Conn, string, error) {
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		return nil, "", err
+	}
+	connectMsg := []byte(fmt.Sprintf("CONNECT %s\n", port))
+	if n, err := conn.Write(connectMsg); err != nil || n != len(connectMsg) {
+		V("send connect request err, number of sent bytes = %d: %v", n, err)
+	}
+	s := bufio.NewScanner(conn)
+	if !s.Scan() || !strings.HasPrefix(s.Text(), "OK") {
+		V("connect request failed.")
+	}
+	return conn, path, nil
+}
+
 // Dial implements ssh.Dial for cpu.
 // Additionaly, if Cmd.Root is not "", it
 // starts up a server for 9p requests.
@@ -321,8 +338,10 @@ func (c *Cmd) Dial() error {
 		conn, addr, err = vsockDial(c.HostName, c.Port)
 	case "unix", "unixgram", "unixpacket":
 		// There is not port on a unix domain socket.
-		addr = c.network
-		conn, err = net.Dial(c.network, c.Port)
+		addr = c.HostName
+		conn, err = net.Dial(c.network, c.HostName)
+	case "unix-vsock":
+		conn, addr, err = unixVsockDial(c.HostName, c.Port)
 	default:
 		addr = net.JoinHostPort(c.HostName, c.Port)
 		conn, err = net.Dial(c.network, addr)
@@ -398,6 +417,10 @@ func (c *Cmd) Dial() error {
 	return nil
 }
 
+func quoteArg(arg string) string {
+	return "'" + strings.ReplaceAll(arg, "'", "'\"'\"'") + "'"
+}
+
 // Start implements exec.Start for CPU.
 func (c *Cmd) Start() error {
 	var err error
@@ -463,8 +486,11 @@ func (c *Cmd) Start() error {
 	// as needed, claiming to do proper unquote handling.
 	// This means we have to take care about quotes on
 	// our side.
-
-	cmd += " " + shellescape.QuoteCommand(c.Args)
+	quotedArgs := make([]string, len(c.Args))
+	for i, arg := range c.Args {
+		quotedArgs[i] = quoteArg(arg)
+	}
+	cmd += " " + strings.Join(quotedArgs, " ")
 
 	V("call session.Start(%s)", cmd)
 	if err := c.session.Start(cmd); err != nil {

@@ -20,3 +20,23 @@ func TestBadVsockHost(t *testing.T) {
 		t.Fatalf("Dial: got %v, want %v", err, want)
 	}
 }
+
+func TestQuoteArg(t *testing.T) {
+	var tests = []struct {
+		in  string
+		out string
+	}{
+		{in: "", out: "''"},
+		{in: "arg", out: "'arg'"},
+		{in: "arg space", out: "'arg space'"},
+		{in: "\"", out: "'\"'"},
+		{in: "'", out: "''\"'\"''"},
+		{in: "'a'", out: "''\"'\"'a'\"'\"''"},
+	}
+	for i, tt := range tests {
+		result := quoteArg(tt.in)
+		if result != tt.out {
+			t.Errorf("%d: quoteArg(%s) = %s, expected %s", i, tt.in, result, tt.out)
+		}
+	}
+}

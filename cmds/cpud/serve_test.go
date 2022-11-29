@@ -2,9 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"os"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestListen(t *testing.T) {
@@ -60,4 +63,69 @@ func TestListen(t *testing.T) {
 			t.Errorf("%v.Close: %v != nil", ln, err)
 		}
 	}
+}
+
+func TestRegister(t *testing.T) {
+	// There is not a lot of consistency in errors and error values and messages across kernels.
+	// There are a few things we can count on:
+	// nobody listens on all of ports 1, 21, or 23 any more. So try to get an error
+	// from trying to connect to them and use it in the test.
+
+	var addr string
+	for _, p := range []int{1, 21, 23} {
+		addr = fmt.Sprintf(":%d", p)
+		if _, err := net.DialTimeout("tcp", addr, time.Second); err != nil {
+			break
+		}
+	}
+	if len(addr) == 0 {
+		t.Skip("Can't get addr which gets econnrefused")
+	}
+
+	// Now, interestingly, all errors returned from the test below, even connection refused,
+	// do not work with errors.Is with the error return above. Even when Unwrapped, even when Is
+	// is used.
+	// So ... we just do all the error cases, then work on the
+	// non-error cases.
+	// All these tests expect err to be non-nil.
+	var tests = []struct {
+		network string
+		addr    string
+		timeout time.Duration
+	}{
+		{network: "tcp", addr: addr, timeout: time.Duration(0)},
+		{network: "tcp", addr: addr, timeout: time.Duration(time.Second)},
+	}
+
+	v = t.Logf
+	// These tests are purely for the error case. We're not listening.
+	for _, tt := range tests {
+		if err := register(tt.network, tt.addr, tt.timeout); err == nil {
+			t.Errorf("register(%v, %v, %v): nil != an error", tt.network, tt.addr, tt.timeout)
+			continue
+		}
+	}
+	// See if, once listening, we can register.
+	l, err := net.Listen("tcp", ":")
+	if err != nil {
+		t.Fatalf("Can not listen on tcp: %v", err)
+	}
+	defer l.Close()
+	if err := register("tcp", l.Addr().String(), 0); err != nil {
+		t.Fatalf("register(\"tcp\", %v): %v != nil", l.Addr(), err)
+	}
+	c, err := l.Accept()
+	if err != nil {
+		t.Fatalf("Accept(\"tcp\", %v): %v != nil", l.Addr().String(), err)
+	}
+	defer c.Close()
+	var ok [8]byte
+	n, err := c.Read(ok[:])
+	if err != nil {
+		t.Fatalf("Read(\"tcp\", %v): %v != nil", l.Addr().String(), err)
+	}
+	if string(ok[:n]) != "ok" {
+		t.Errorf("Read(\"tcp\", %v): %q != %q", l.Addr().String(), ok[:n], "ok")
+	}
+
 }
