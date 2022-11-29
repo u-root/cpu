@@ -125,17 +125,21 @@ func Parse(uri string) (dsQuery, error) {
 		return result, fmt.Errorf("Not an dns-sd URI")
 	}
 
-	// following dns-sd URI conventions from CUPS dnssd://instance._type._proto.domain/?query
-	if u.Hostname() != "" {
+	// following dns-sd URI conventions from CUPS
+	//   (e.g. dnssd://instance._type._proto.domain/?query)
+	//   We are going to look for the _type._proto tuple and split the
+	//   components around it because domain could have more than one
+	//   . speperated coponent (it could be local or example.com)
+	if len(u.Hostname()) != 0 {
 		parts := strings.Split(u.Hostname(), ".")
 		found := false
 		for p, v := range parts {
-			if v[0] == '_' {
+			if strings.HasPrefix(v, "_") {
 				if p > 0 {
 					result.Instance = strings.Join(parts[0:p], ".")
 				}
 				if len(parts) > p+1 {
-					if parts[p+1][0] == '_' {
+					if strings.HasPrefix(parts[p+1], "_") {
 						result.Type = parts[p] + "." + parts[p+1]
 					}
 					p = p + 2
