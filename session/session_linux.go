@@ -55,20 +55,20 @@ func (s *Session) Namespace() (error, error) {
 		return nil, nil
 	}
 	os.Unsetenv("CPUNONCE")
-	v("CPUD:namespace is %q", s.binds)
+	verbose("namespace is %q", s.binds)
 
 	// Connect to the socket, return the nonce.
 	a := net.JoinHostPort("localhost", s.port9p)
-	v("CPUD:Dial %v", a)
+	verbose("Dial %v", a)
 	so, err := net.Dial("tcp", a)
 	if err != nil {
 		return nil, fmt.Errorf("CPUD:Dial 9p port: %v", err)
 	}
-	v("CPUD:Connected: write nonce %s\n", nonce)
+	verbose("Connected: write nonce %s\n", nonce)
 	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
 		return nil, fmt.Errorf("CPUD:Write nonce: %v", err)
 	}
-	v("CPUD:Wrote the nonce")
+	verbose("Wrote the nonce")
 	// Zero it. I realize I am not a crypto person.
 	// improvements welcome.
 	copy([]byte(nonce), make([]byte, len(nonce)))
@@ -82,7 +82,7 @@ func (s *Session) Namespace() (error, error) {
 	}
 
 	fd := cf.Fd()
-	v("CPUD:fd is %v", fd)
+	verbose("fd is %v", fd)
 
 	user := os.Getenv("USER")
 	if user == "" {
@@ -97,11 +97,11 @@ func (s *Session) Namespace() (error, error) {
 		opts += "," + s.mopts
 	}
 	mountTarget := filepath.Join(s.tmpMnt, "cpu")
-	v("CPUD: mount 127.0.0.1 on %s 9p %#x %s", mountTarget, flags, opts)
+	verbose("mount 127.0.0.1 on %s 9p %#x %s", mountTarget, flags, opts)
 	if err := unix.Mount("localhost", mountTarget, "9p", flags, opts); err != nil {
 		return nil, fmt.Errorf("9p mount %v", err)
 	}
-	v("CPUD: mount done")
+	verbose("mount done")
 
 	// In some cases if you set LD_LIBRARY_PATH it is ignored.
 	// This is disappointing to say the least. We just bind a few things into /
@@ -109,12 +109,12 @@ func (s *Session) Namespace() (error, error) {
 	var warning error
 	for _, n := range s.binds {
 		t := filepath.Join(mountTarget, n.Remote)
-		v("CPUD: mount %v over %v", t, n.Local)
+		verbose("mount %v over %v", t, n.Local)
 		if err := unix.Mount(t, n.Local, "", syscall.MS_BIND, ""); err != nil {
 			s.fail = true
 			warning = multierror.Append(fmt.Errorf("CPUD:Warning: mounting %v on %v failed: %v", t, n, err))
 		} else {
-			v("CPUD:Mounted %v on %v", t, n)
+			verbose("Mounted %v on %v", t, n)
 		}
 
 	}

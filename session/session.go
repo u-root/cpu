@@ -48,6 +48,8 @@ type Session struct {
 }
 
 var (
+	// v allows debug printing.
+	// Do not call it directly, call verbose instead.
 	v = func(string, ...interface{}) {}
 	// To get debugging when Things Go Wrong, you can run as, e.g., -wtf /bbin/elvish
 	// or change the value here to /bbin/elvish.
@@ -58,16 +60,22 @@ var (
 	wtf string
 )
 
+// SetVerbose sets the verbose printing function.
+// e.g., one might call SetVerbose(log.Printf)
+func SetVerbose(f func(string, ...interface{})) {
+	v = f
+}
+
 // DropPrivs drops privileges to the level of os.Getuid / os.Getgid
 func (s *Session) DropPrivs() error {
 	uid := unix.Getuid()
-	v("CPUD:dropPrives: uid is %v", uid)
+	verbose("dropPrives: uid is %v", uid)
 	if uid == 0 {
-		v("CPUD:dropPrivs: not dropping privs")
+		verbose("dropPrivs: not dropping privs")
 		return nil
 	}
 	gid := unix.Getgid()
-	v("CPUD:dropPrivs: gid is %v", gid)
+	verbose("dropPrivs: gid is %v", gid)
 	if err := unix.Setreuid(-1, uid); err != nil {
 		return err
 	}
@@ -136,30 +144,30 @@ func (s *Session) Run() error {
 		return err
 	}
 	if err := s.TmpMounts(); err != nil {
-		v("CPUD: TmpMounts error: %v", err)
+		verbose("TmpMounts error: %v", err)
 		s.fail = true
 		errors = multierror.Append(err)
 	}
 
-	v("CPUD: Set up a namespace")
+	verbose("Set up a namespace")
 	if b, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
 		binds, err := ParseBinds(b)
 		if err != nil {
-			v("CPUD: ParseBind failed: %v", err)
+			verbose("ParseBind failed: %v", err)
 			s.fail = true
 			errors = multierror.Append(errors, err)
 		}
 
 		s.binds = binds
 	}
-	v("CPUD: call s.NameSpace")
+	verbose("call s.NameSpace")
 	w, err := s.Namespace()
 	if err != nil {
 		return fmt.Errorf("CPUD:Namespace: warnings %v, err %v", w, multierror.Append(errors, err))
 	}
-	v("CPUD:warning: %v", w)
+	verbose("warning: %v", w)
 
-	v("CPUD: bind mounts done")
+	verbose("bind mounts done")
 
 	// The CPU_FSTAB environment variable is, literally, an fstab.
 	// Why an environment variable and not a file? We do not
@@ -169,9 +177,9 @@ func (s *Session) Run() error {
 	// and get the mounts they want. The first uses of this will
 	// be building namespaces with drive and virtiofs.
 	if tab, ok := os.LookupEnv("CPU_FSTAB"); ok {
-		v("Mounting %q", tab)
+		verbose("Mounting %q", tab)
 		if err := mount.Mount(tab); err != nil {
-			v("CPUD: fstab mount failure: %v", err)
+			verbose("fstab mount failure: %v", err)
 			// Should we die if the mounts fail? For now, we think not;
 			// the user may be able to debug if they have a non-empty
 			// CPU_NAMESPACE. Just record that it failed.
@@ -183,7 +191,7 @@ func (s *Session) Run() error {
 		s.fail = true
 		errors = multierror.Append(err)
 	}
-	v("CPUD: Terminal ready")
+	verbose("Terminal ready")
 	if s.fail && len(wtf) != 0 {
 		c := exec.Command(wtf)
 		// Tricky question: should wtf use the stdio files or the ones
@@ -205,7 +213,7 @@ func (s *Session) Run() error {
 	// While it is true that things have been mounted, we need not
 	// worry about unmounting them once the command is done: the
 	// unmount happens for free since we unshared.
-	v("CPUD:runRemote: command is %q", s.args)
+	verbose("runRemote: command is %q", s.args)
 	c := exec.Command(s.cmd, s.args...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = s.Stdin, s.Stdout, s.Stderr, os.Getenv("PWD")
 	dirInfo, err := os.Stat(c.Dir)
@@ -214,7 +222,7 @@ func (s *Session) Run() error {
 		return os.ErrNotExist
 	}
 	err = c.Run()
-	v("CPUD:Run %v returns %v", c, err)
+	verbose("Run %v returns %v", c, err)
 	if err != nil {
 		if s.fail && len(wtf) != 0 {
 			c := exec.Command(wtf)
@@ -239,5 +247,5 @@ func New(port9p, tmpMnt, cmd string, args ...string) *Session {
 	// There was this amazing new thing called Jumbo Packets
 	// The 9P designers had the wisdom to make msize negotiation part of session initiation,
 	// so we had a way out!
-	return &Session{msize: 64*1024, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, tmpMnt: tmpMnt, cmd: cmd, args: args}
+	return &Session{msize: 64 * 1024, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, tmpMnt: tmpMnt, cmd: cmd, args: args}
 }
