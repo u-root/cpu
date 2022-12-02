@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-type testURI struct {
-	uri    string
-	result dsQuery
-}
-
 // test parsing logic
 func TestParse(t *testing.T) {
 	v = t.Logf
@@ -76,9 +71,8 @@ func TestClient(t *testing.T) {
 	}
 
 	// simple lookup with no server and bad service, it better fail
-	_, _, err := Lookup(q)
-	if err == nil {
-		t.Fatal(fmt.Errorf("Lookup of bad service didn't fail"))
+	if _, _, err := Lookup(q); err == nil {
+		t.Fatalf("Lookup of bad service didn't fail: got nil, want an err")
 	}
 }
 
@@ -99,14 +93,12 @@ func TestDnsSdStart(t *testing.T) {
 	}
 
 	// simple lookup with no server and bad service, it better succeed
-	_, _, err = Lookup(q)
-	if err != nil {
+	if _, _, err := Lookup(q); err != nil {
 		t.Error(err)
 	}
 
 	// default uri parse
-	q, err = Parse(DsDefault)
-	if err != nil {
+	if _, err := Parse(DsDefault); err != nil {
 		t.Fatal(err)
 	}
 }

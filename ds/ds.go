@@ -8,17 +8,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/brutella/dnssd"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	"golang.org/x/exp/slices"
-	"net/url"
-	"os"
-	"runtime"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // V allows debug printing.
@@ -216,75 +216,6 @@ func (ms *dsMultiSorter) Less(i, j int) bool {
 	return ms.less[k](p, q)
 }
 
-// generate sort functions for dnssd BrowseEntry based on txt key
-func dsGenSortTxt(key string, operator byte) dsLessFunc {
-	return func(c1, c2 *dnssd.BrowseEntry) bool {
-		switch operator {
-		case '=': // key existence prioritizes entry
-			if len(c1.Text[key]) > len(c2.Text[key]) {
-				return true
-			} else {
-				return false
-			}
-		case '!': // key existence deprioritizes entry
-			if len(c1.Text[key]) < len(c2.Text[key]) {
-				return true
-			} else {
-				return false
-			}
-		}
-		n1, err := strconv.ParseFloat(c1.Text[key], 10)
-		if err != nil {
-			v("Bad format in entry TXT")
-			return false
-		}
-		n2, err := strconv.ParseFloat(c2.Text[key], 10)
-		if err != nil {
-			v("Bad format in entry TXT")
-			return false
-		}
-		switch operator {
-		case '<':
-			if n1 < n2 {
-				return true
-			}
-		case '>':
-			if n1 > n2 {
-				return true
-			}
-		default:
-			v("Bad operator")
-		}
-		return false
-	}
-}
-
-// perform numeric sort based on a particular key (assumes numeric values)
-func dsSort(req map[string][]string, entries []dnssd.BrowseEntry) {
-	if len(req["sort"]) == 0 {
-		return
-	}
-	ms := &dsMultiSorter{
-		entries: entries,
-	}
-	// generate a sort function list based on sort entry
-	for _, element := range req["sort"] {
-		var operator byte
-		operator = '<' // default to use if no operator
-		switch element[0] {
-		case '<', '>', '=', '!':
-			operator = element[0]
-			if len(element) < 2 {
-				v("dnssd: Poorly configured comparison in sort %s", element)
-				return
-			}
-			element = element[1:]
-		}
-		ms.less = append(ms.less, dsGenSortTxt(element, operator))
-	}
-	sort.Sort(ms)
-}
-
 // --- end sort and compare code ---
 
 // lookup based on query, return resolved host, port, network, and error
@@ -310,7 +241,7 @@ func Lookup(query dsQuery) (string, string, error) {
 	addFn := func(e dnssd.BrowseEntry) {
 		v("%s	Add	%s	%s	%s	%s (%s)\n", time.Now().Format(timeFormat), e.IfaceName, e.Domain, e.Type, e.Name, e.IPs)
 		// check requirement
-		v("Checking ", e.Text, query.Text)
+		v("Checking %q, %q", e.Text, query.Text)
 		if required(e.Text, query.Text) {
 			if (query.Instance != "") && (e.ServiceInstanceName() != query.Instance+"."+service) {
 				v("Instance %s didn't match %s", e.ServiceInstanceName(), query.Instance+"."+service)
@@ -326,11 +257,13 @@ func Lookup(query dsQuery) (string, string, error) {
 	}
 
 	go func() {
-		if err := dnssd.LookupType(ctx, service, addFn, rmvFn); err != nil {
-			fmt.Println(err)
-		}
+		err = dnssd.LookupType(ctx, service, addFn, rmvFn)
 		respCh <- nil
 	}()
+
+	if err != nil {
+		return "", "", fmt.Errorf("dnssd failed: %w", err)
+	}
 
 	e := <-respCh
 
@@ -339,7 +272,7 @@ func Lookup(query dsQuery) (string, string, error) {
 		return "", "", fmt.Errorf("dnssd found no suitable service")
 	}
 
-	return e.IPs[0].String(), strconv.Itoa(e.Port), err
+	return e.IPs[0].String(), strconv.Itoa(e.Port), nil
 }
 
 // Server components
@@ -391,7 +324,7 @@ func UpdateSysInfo(txtFlag map[string]string) {
 	}
 	txtFlag["tenants"] = strconv.Itoa(tenants)
 
-	v(" dsUpdateSysInfo ", txtFlag)
+	v(" dsUpdateSysInfo %v", txtFlag)
 }
 
 func DefaultTxt(txtFlag map[string]string) {
