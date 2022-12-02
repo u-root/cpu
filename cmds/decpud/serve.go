@@ -134,7 +134,7 @@ func serve() error {
 	}
 
 	if *dsEnabled {
-		v("Advertising w/dnssd ", dsTxt)
+		v("Advertising w/dnssd %q", dsTxt)
 		p, err := strconv.Atoi(*port)
 		if err != nil {
 			return fmt.Errorf("Could not parse port: %s, %w", *port, err)
