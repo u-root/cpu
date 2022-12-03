@@ -29,14 +29,18 @@ all: go gox docker rust
 go:
 	mkdir -p bin
 	-CGO_ENABLED=0 go build -o bin/cpu ./cmds/cpu/.
+	-CGO_ENABLED=0 go build -o bin/decpu ./cmds/decpu/.
 ifeq ($(OS),Linux)
 	-CGO_ENABLED=0 go build -o bin/cpud ./cmds/cpud/.
+	-CGO_ENABLED=0 go build -o bin/decpud ./cmds/decpud/.
 endif
 
 gox:
 	mkdir -p bin
 	-(cd bin && CGO_ENABLED=0 gox -osarch=$(CPU_OSARCH) ../cmds/cpu/.)
 	-(cd bin && CGO_ENABLED=0 gox -osarch=$(CPUD_OSARCH) ../cmds/cpud/.)
+	-(cd bin && CGO_ENABLED=0 gox -osarch=$(CPU_OSARCH) ../cmds/decpu/.)
+	-(cd bin && CGO_ENABLED=0 gox -osarch=$(CPUD_OSARCH) ../cmds/decpud/.)
 
 test:
 	go test ./...
