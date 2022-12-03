@@ -29,6 +29,7 @@ func TestParse(t *testing.T) {
 		{"dnssd://_nobody", dsQuery{Type: "_nobody", Domain: "local"}, false}, // malformed
 		{"dnssd://instance._ncpu._tcp", dsQuery{Instance: "instance", Type: "_ncpu._tcp", Domain: "local"}, false},
 		{"dnssd://instance._ncpu._tcp.example.com", dsQuery{Instance: "instance", Type: "_ncpu._tcp", Domain: "example.com"}, false},
+		{"dnssd://?sort=cpu.pcnt", dsQuery{Type: "_ncpu._tcp", Domain: "local"}, false},
 	}
 
 	for _, x := range tus {

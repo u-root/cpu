@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -216,6 +217,75 @@ func (ms *dsMultiSorter) Less(i, j int) bool {
 	return ms.less[k](p, q)
 }
 
+// generate sort functions for dnssd BrowseEntry based on txt key
+func dsGenSortTxt(key string, operator byte) dsLessFunc {
+	return func(c1, c2 *dnssd.BrowseEntry) bool {
+		switch operator {
+		case '=': // key existence prioritizes entry
+			if len(c1.Text[key]) > len(c2.Text[key]) {
+				return true
+			} else {
+				return false
+			}
+		case '!': // key existence deprioritizes entry
+			if len(c1.Text[key]) < len(c2.Text[key]) {
+				return true
+			} else {
+				return false
+			}
+		}
+		n1, err := strconv.ParseFloat(c1.Text[key], 10)
+		if err != nil {
+			v("Bad format in entry TXT")
+			return false
+		}
+		n2, err := strconv.ParseFloat(c2.Text[key], 10)
+		if err != nil {
+			v("Bad format in entry TXT")
+			return false
+		}
+		switch operator {
+		case '<':
+			if n1 < n2 {
+				return true
+			}
+		case '>':
+			if n1 > n2 {
+				return true
+			}
+		default:
+			v("Bad operator")
+		}
+		return false
+	}
+}
+
+// perform numeric sort based on a particular key (assumes numeric values)
+func dsSort(req map[string][]string, entries []dnssd.BrowseEntry) {
+	if len(req["sort"]) == 0 {
+		return
+	}
+	ms := &dsMultiSorter{
+		entries: entries,
+	}
+	// generate a sort function list based on sort entry
+	for _, element := range req["sort"] {
+		var operator byte
+		operator = '<' // default to use if no operator
+		switch element[0] {
+		case '<', '>', '=', '!':
+			operator = element[0]
+			if len(element) < 2 {
+				v("dnssd: Poorly configured comparison in sort %s", element)
+				return
+			}
+			element = element[1:]
+		}
+		ms.less = append(ms.less, dsGenSortTxt(element, operator))
+	}
+	sort.Sort(ms)
+}
+
 // --- end sort and compare code ---
 
 // lookup based on query, return resolved host, port, network, and error
@@ -224,7 +294,8 @@ func (ms *dsMultiSorter) Less(i, j int) bool {
 // can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
 func Lookup(query dsQuery) (string, string, error) {
 	var (
-		err error
+		err       error
+		responses []dnssd.BrowseEntry
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), dsTimeout)
@@ -265,12 +336,23 @@ func Lookup(query dsQuery) (string, string, error) {
 		return "", "", fmt.Errorf("dnssd failed: %w", err)
 	}
 
-	e := <-respCh
+	for {
+		e := <-respCh
+		if e == nil {
+			break
+		}
+		responses = append(responses, *e)
+	}
 
-	// cancel()
-	if e == nil {
+	if len(responses) == 0 {
 		return "", "", fmt.Errorf("dnssd found no suitable service")
 	}
+
+	dsSort(query.Text, responses)
+
+	// TODO: in the future we could return a list of responses so that decpu
+	// could choose to run commands on all (or some subset) of matching servers
+	e := responses[0]
 
 	return e.IPs[0].String(), strconv.Itoa(e.Port), nil
 }
