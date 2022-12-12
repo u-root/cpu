@@ -64,7 +64,7 @@ func main() {
 	verbose("Args %v pid %d *runasinit %v *remote %v env %v", os.Args, os.Getpid(), *runAsInit, *remote, os.Environ())
 	args := flag.Args()
 	if *remote {
-		log.Printf("CPUD(remote): args %q, port9p %v", args, *port9p)
+		verbose("args %q, port9p %v", args, *port9p)
 		tmpMnt, ok := os.LookupEnv("CPU_TMPMNT")
 		if !ok || len(tmpMnt) == 0 {
 			tmpMnt = "/tmp"
