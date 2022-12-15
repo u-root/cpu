@@ -103,7 +103,7 @@ func handler(s ssh.Session) {
 		}
 
 	} else {
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = s, s, s.Stderr()
 		verbose("running command without pty")
 		if err := cmd.Run(); errval(err) != nil {
 			verbose("err %v", err)
