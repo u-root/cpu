@@ -134,8 +134,10 @@ func (l *cpu9p) Open(mode p9.OpenFlags) (p9.QID, uint32, error) {
 		return qid, 0, err
 	}
 	l.file = f
-	verbose("Open returns %v, 4096, nil", qid)
-	return qid, 4096, nil
+	// from DIOD
+	// if iounit=0, v9fs will use msize-P9_IOHDRSZ
+	verbose("Open returns %v, 0, nil", qid)
+	return qid, 0, nil
 }
 
 // Read implements p9.File.ReadAt.
@@ -175,7 +177,9 @@ func (l *cpu9p) Create(name string, mode p9.OpenFlags, permissions p9.FileMode, 
 		return nil, p9.QID{}, 0, err
 	}
 
-	return l2, qid, 4096, nil
+	// from DIOD
+	// if iounit=0, v9fs will use msize-P9_IOHDRSZ
+	return l2, qid, 0, nil
 }
 
 // Mkdir implements p9.File.Mkdir.
