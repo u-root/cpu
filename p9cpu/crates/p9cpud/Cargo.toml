@@ -1,0 +1,15 @@
+[package]
+name = "p9cpud"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "p9cpud"
+path = "src/p9cpud.rs"
+
+
+[dependencies]
+anyhow = "1"
+libp9cpu = { version = "*", path = "../libp9cpu" }
+clap = { version = "4.0.29", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread","process","io-std"] }
