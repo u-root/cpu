@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -61,11 +62,32 @@ func mount(m mounter, fstab string) error {
 		dev, where, fstype, opts := f[0], f[1], f[2], f[3]
 		// The man page implies that the Linux kernel handles flags of "defaults"
 		// we do no further manipulation of opts.
-		if e := os.MkdirAll(where, 0666); e != nil && !os.IsExist(e) {
-			err = multierror.Append(err, e)
-			continue
-		}
 		flags, data := parse(opts)
+		if src, e := os.Stat(dev); e == nil && !src.IsDir() && flags&unix.MS_BIND != 0 {
+			// Source dev is a file and we are going to do a bind mount.
+			if target, e := os.Stat(where); e != nil {
+				// Destination does not exist, so we are going to create an empty file.
+				if e := os.MkdirAll(path.Dir(where), 0666); e != nil {
+					// Creation failed.
+					err = multierror.Append(err, fmt.Errorf("cannot create dir %s: %s", path.Dir(where), e))
+					continue
+				}
+				if err := os.WriteFile(where, []byte{}, 0666); err != nil {
+					// Creation failed.
+					err = multierror.Append(err, fmt.Errorf("cannot create target file %s: %s", where, e))
+					continue
+				}
+			} else if target.IsDir() {
+				// Destination exists, but it is a directory.
+				err = multierror.Append(err, fmt.Errorf("cannot bind file %s to a dir %s", dev, where))
+				continue
+			}
+		} else {
+			if e := os.MkdirAll(where, 0666); e != nil && !os.IsExist(e) {
+				err = multierror.Append(err, e)
+				continue
+			}
+		}
 		if e := m(dev, where, fstype, flags, data); e != nil {
 			err = multierror.Append(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %v", dev, where, fstype, opts, flags, data, e))
 		}
