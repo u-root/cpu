@@ -1,0 +1,26 @@
+syntax = "proto3";
+package cmd;
+
+message FsTab {
+  string spec = 1;
+  string file = 2;
+  string vfstype = 3;
+  string mntops = 4;
+  int32 freq = 5;
+  int32 passno = 6;
+}
+
+message EnvVar {
+  bytes key = 1;
+  bytes val = 2;
+}
+
+message CommandReq {
+  string program = 1;
+  repeated string args = 2;
+  repeated EnvVar envs = 3;
+  repeated FsTab fstab = 4;
+  bool ninep = 5;
+  bool tty = 6;
+  string tmp_mnt = 7;
+}

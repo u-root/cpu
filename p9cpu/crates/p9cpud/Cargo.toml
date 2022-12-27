@@ -11,5 +11,5 @@ path = "src/p9cpud.rs"
 [dependencies]
 anyhow = "1"
 libp9cpu = { version = "*", path = "../libp9cpu" }
-clap = { version = "4.0.29", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread","process","io-std"] }
