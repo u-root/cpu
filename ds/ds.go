@@ -288,11 +288,17 @@ func dsSort(req map[string][]string, entries []dnssd.BrowseEntry) {
 
 // --- end sort and compare code ---
 
+// LookupResult is returned over a channel, and has either a result or an error.
+type LookupResult struct {
+	Entry *dnssd.BrowseEntry
+	Error error
+}
+
 // lookup based on query, return resolved host, port, network, and error
 // uri currently supported dnssd://instance._service._network.domain/?reqkey=reqvalue
 // default for domain is local, default type _ncpu._tcp, and instance is wildcard
 // can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
-func Lookup(query dsQuery) (string, string, error) {
+func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 	var (
 		err       error
 		responses []dnssd.BrowseEntry
@@ -307,7 +313,7 @@ func Lookup(query dsQuery) (string, string, error) {
 
 	v("Browsing for %s\n", service)
 
-	respCh := make(chan *dnssd.BrowseEntry, 1)
+	respCh := make(chan *dnssd.BrowseEntry, n)
 
 	addFn := func(e dnssd.BrowseEntry) {
 		v("%s	Add	%s	%s	%s	%s (%s)\n", time.Now().Format(timeFormat), e.IfaceName, e.Domain, e.Type, e.Name, e.IPs)
@@ -333,7 +339,7 @@ func Lookup(query dsQuery) (string, string, error) {
 	}()
 
 	if err != nil {
-		return "", "", fmt.Errorf("dnssd failed: %w", err)
+		return nil, err
 	}
 
 	for {
@@ -345,16 +351,19 @@ func Lookup(query dsQuery) (string, string, error) {
 	}
 
 	if len(responses) == 0 {
-		return "", "", fmt.Errorf("dnssd found no suitable service")
+		return nil, fmt.Errorf("dnssd found no suitable service")
 	}
 
 	dsSort(query.Text, responses)
 
-	// TODO: in the future we could return a list of responses so that decpu
-	// could choose to run commands on all (or some subset) of matching servers
-	e := responses[0]
-
-	return e.IPs[0].String(), strconv.Itoa(e.Port), nil
+	var ret []*LookupResult
+	for _, l := range responses {
+		ret = append(ret, &LookupResult{Entry: &l})
+		if len(ret) >= n {
+			break
+		}
+	}
+	return ret, nil
 }
 
 // Server components

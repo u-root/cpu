@@ -72,7 +72,7 @@ func TestClient(t *testing.T) {
 	}
 
 	// simple lookup with no server and bad service, it better fail
-	if _, _, err := Lookup(q); err == nil {
+	if _, err := Lookup(q, 1); err == nil {
 		t.Fatalf("Lookup of bad service didn't fail: got nil, want an err")
 	}
 }
@@ -94,7 +94,7 @@ func TestDnsSdStart(t *testing.T) {
 	}
 
 	// simple lookup with no server and bad service, it better succeed
-	if _, _, err := Lookup(q); err != nil {
+	if _, err := Lookup(q, 1); err != nil {
 		t.Error(err)
 	}
 
