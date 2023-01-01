@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	// We use this ssh because it implements port redirection.
@@ -174,6 +175,8 @@ func newCPU(host string, args ...string) error {
 }
 
 func main() {
+	var c []*ds.LookupResult
+
 	flags()
 	args := flag.Args()
 	host := ds.DsDefault
@@ -188,12 +191,12 @@ func main() {
 	dq, err := ds.Parse(host)
 
 	if err == nil {
-		sdHost, sdPort, err := ds.Lookup(dq)
-		if err == nil {
-			host = sdHost
-			*port = sdPort
+		c, err = ds.Lookup(dq, 1)
+		if err != nil {
+			verbose("ds.Lookup returned error %v", err)
 		} else {
-			verbose("ds.Lookup returned %w", err)
+			host = c[0].Entry.IPs[0].String()
+			*port = strconv.Itoa(c[0].Entry.Port)
 		}
 	}
 
