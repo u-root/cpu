@@ -338,10 +338,6 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 		respCh <- nil
 	}()
 
-	if err != nil {
-		return nil, err
-	}
-
 	for {
 		e := <-respCh
 		if e == nil {
@@ -351,7 +347,7 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 	}
 
 	if len(responses) == 0 {
-		return nil, fmt.Errorf("dnssd found no suitable service")
+		return nil, fmt.Errorf("dnssd found no suitable service %w", err)
 	}
 
 	dsSort(query.Text, responses)
