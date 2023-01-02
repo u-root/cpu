@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
@@ -42,7 +43,8 @@ var (
 	keyFile     = flag.String("key", "", "key file")
 	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
 	network     = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
-	port        = flag.String("sp", "", "cpu default port")
+	numCPUs     = flag.Int("n", 1, "number CPUs to run on")
+	sp          = flag.String("sp", "", "cpu default port")
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
@@ -140,13 +142,13 @@ func usage() {
 	log.Fatalf("Usage: cpu [options] host [shell command]:\n%v", b.String())
 }
 
-func newCPU(host string, args ...string) error {
+func newCPU(host, port string, args ...string) error {
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
 	c := client.Command(host, args...)
 	if err := c.SetOptions(
 		client.WithPrivateKeyFile(*keyFile),
 		client.WithHostKeyFile(*hostKeyFile),
-		client.WithPort(*port),
+		client.WithPort(port),
 		client.WithRoot(*root),
 		client.WithNameSpace(*namespace),
 		client.With9P(*ninep),
@@ -175,11 +177,10 @@ func newCPU(host string, args ...string) error {
 }
 
 func main() {
-	var c []*ds.LookupResult
-
 	flags()
 	args := flag.Args()
 	host := ds.DsDefault
+	port := *sp
 	a := []string{}
 	if len(args) > 0 {
 		host = args[0]
@@ -188,20 +189,10 @@ func main() {
 	if host == "." {
 		host = ds.DsDefault
 	}
-	dq, err := ds.Parse(host)
-
-	if err == nil {
-		c, err = ds.Lookup(dq, 1)
-		if err != nil {
-			verbose("ds.Lookup returned error %v", err)
-		} else {
-			host = c[0].Entry.IPs[0].String()
-			*port = strconv.Itoa(c[0].Entry.Port)
-		}
-	}
-
-	verbose("Running as client, to host %q, args %q", host, a)
 	if len(a) == 0 {
+		if *numCPUs > 1 {
+			log.Fatal("Interactive access with more than one CPU is not supported (yet)")
+		}
 		shellEnv := os.Getenv("SHELL")
 		if len(shellEnv) > 0 {
 			a = []string{shellEnv}
@@ -210,18 +201,48 @@ func main() {
 		}
 	}
 
-	*keyFile = getKeyFile(host, *keyFile)
-	*port = getPort(host, *port)
-	hn := getHostName(host)
+	// Try to parse it as a dnssd: path.
+	// If that fails, we will run as though
+	// it were just a host name.
+	dq, err := ds.Parse(host)
 
-	verbose("Running package-based cpu command")
-	if err := newCPU(hn, a...); err != nil {
-		e := 1
-		log.Printf("SSH error %s", err)
-		sshErr := &ossh.ExitError{}
-		if errors.As(err, &sshErr) {
-			e = sshErr.ExitStatus()
-		}
-		defer os.Exit(e)
+	type cpu struct {
+		host, port string
 	}
+	var cpus []cpu
+
+	if err == nil {
+		c, err := ds.Lookup(dq, *numCPUs)
+		if err != nil {
+			log.Printf("%v", err)
+		}
+		for _, e := range c {
+			cpus = append(cpus, cpu{host: e.Entry.IPs[0].String(), port: strconv.Itoa(e.Entry.Port)})
+		}
+	} else {
+		cpus = append(cpus, cpu{host: host, port: port})
+	}
+
+	verbose("Running as client, to host %q, args %q", host, a)
+
+	var wg sync.WaitGroup
+	for _, cpu := range cpus {
+		wg.Add(1)
+		*keyFile = getKeyFile(cpu.host, *keyFile)
+		port = getPort(cpu.host, cpu.port)
+		hn := getHostName(cpu.host)
+
+		verbose("cpu to %v:%v", hn, port)
+		if err := newCPU(hn, port, a...); err != nil {
+			e := 1
+			log.Printf("SSH error %s", err)
+			sshErr := &ossh.ExitError{}
+			if errors.As(err, &sshErr) {
+				e = sshErr.ExitStatus()
+			}
+			log.Printf("%v", e)
+		}
+		wg.Done()
+	}
+	wg.Wait()
 }
