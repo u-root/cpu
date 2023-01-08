@@ -1,0 +1,43 @@
+syntax = "proto3";
+package p9cpu;
+
+import "cmd.proto";
+
+message StartRequest {
+    bytes id = 1;
+    cmd.CommandReq cmd = 2;
+}
+
+message StdinRequest {
+    optional bytes id = 1;
+    bytes data = 2;
+}
+
+message Empty {}
+
+message SessionID {
+    bytes id = 1;
+}
+
+message Bytes {
+    bytes data = 1;
+}
+
+message Code {
+    int32 code = 1;
+}
+
+message NinepForwardRequest {
+    optional bytes id = 1;
+    bytes data = 2;
+}
+
+service P9cpu {
+    rpc Dial (Empty) returns (SessionID);
+    rpc Start (StartRequest) returns (Empty);
+    rpc Stdin (stream StdinRequest) returns (Empty);
+    rpc Stdout (SessionID) returns (stream Bytes);
+    rpc Stderr (SessionID) returns (stream Bytes);
+    rpc Wait (SessionID) returns (Code);
+    rpc NinepForward (stream NinepForwardRequest) returns (stream Bytes);
+}
