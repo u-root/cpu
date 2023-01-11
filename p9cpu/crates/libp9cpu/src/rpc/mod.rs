@@ -1,4 +1,5 @@
-pub mod rpc_client;
+pub(crate) mod rpc_client;
+pub(crate) mod rpc_server;
 
 use futures::Stream;
 
