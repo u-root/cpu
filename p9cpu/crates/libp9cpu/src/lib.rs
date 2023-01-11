@@ -1,10 +1,18 @@
 pub mod client;
+pub mod server;
 pub mod cmd;
 mod rpc;
 
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+
+#[derive(Debug)]
+pub enum Addr {
+    Tcp(std::net::SocketAddr),
+    Vsock(tokio_vsock::VsockAddr),
+    Uds(String),
+}
 
 pub(crate) struct TryOrErrInto<F> {
     future: F,
