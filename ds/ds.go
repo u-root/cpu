@@ -54,7 +54,7 @@ func Verbose(f func(string, ...interface{})) {
 
 // check that dns-sd response has all required attributes
 func required(src map[string]string, req map[string][]string) bool {
-	for k, _ := range req {
+	for k := range req {
 		// ignore sort criteria since they are optional
 		if k == "sort" {
 			continue
@@ -288,9 +288,10 @@ func dsSort(req map[string][]string, entries []dnssd.BrowseEntry) {
 
 // --- end sort and compare code ---
 
-// LookupResult is returned over a channel, and has either a result or an error.
+// LookupResult holds a dnssd.BrowseEntry struct and an error.
+// TOOD: it should implement the error interface
 type LookupResult struct {
-	Entry *dnssd.BrowseEntry
+	Entry dnssd.BrowseEntry
 	Error error
 }
 
@@ -299,10 +300,7 @@ type LookupResult struct {
 // default for domain is local, default type _ncpu._tcp, and instance is wildcard
 // can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
 func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
-	var (
-		err       error
-		responses []dnssd.BrowseEntry
-	)
+	var err error
 
 	ctx, cancel := context.WithTimeout(context.Background(), dsTimeout)
 	context.Canceled = errors.New("")
@@ -313,8 +311,7 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 
 	v("Browsing for %s\n", service)
 
-	respCh := make(chan *dnssd.BrowseEntry, n)
-
+	responses := make([]dnssd.BrowseEntry, 0, n)
 	addFn := func(e dnssd.BrowseEntry) {
 		v("%s	Add	%s	%s	%s	%s (%s)\n", time.Now().Format(timeFormat), e.IfaceName, e.Domain, e.Type, e.Name, e.IPs)
 		// check requirement
@@ -323,7 +320,8 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 			if (query.Instance != "") && (e.ServiceInstanceName() != query.Instance+"."+service) {
 				v("Instance %s didn't match %s", e.ServiceInstanceName(), query.Instance+"."+service)
 			} else {
-				respCh <- &e
+				v("Add %s,%v", e.Host, e.IPs)
+				responses = append(responses, e)
 			}
 		}
 	}
@@ -333,18 +331,9 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 		// we aren't maintaining cache so don't care?
 	}
 
-	go func() {
-		err = dnssd.LookupType(ctx, service, addFn, rmvFn)
-		respCh <- nil
-	}()
-
-	for {
-		e := <-respCh
-		if e == nil {
-			break
-		}
-		responses = append(responses, *e)
-	}
+	// Lookuptype returns a non-nil error of type *errors.errorString, and it's never nil.
+	// Not sure what the point of that is.
+	dnssd.LookupType(ctx, service, addFn, rmvFn)
 
 	if len(responses) == 0 {
 		return nil, fmt.Errorf("dnssd found no suitable service %w", err)
@@ -354,7 +343,7 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 
 	var ret []*LookupResult
 	for _, l := range responses {
-		ret = append(ret, &LookupResult{Entry: &l})
+		ret = append(ret, &LookupResult{Entry: l})
 		if len(ret) >= n {
 			break
 		}
