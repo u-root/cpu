@@ -1,7 +1,16 @@
+use crate::cmd;
 use crate::cmd::CommandReq;
 use async_trait::async_trait;
-use futures::{Future, Stream};
+use futures::{Future, Stream, StreamExt};
+use nix::sys::termios;
 use std::fmt::Debug;
+use thiserror::Error;
+use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::{
+    sync::{broadcast, mpsc},
+    task::JoinHandle,
+};
+use tokio_stream::wrappers::ReceiverStream;
 
 /// A transport-layer client.
 ///
@@ -56,4 +65,185 @@ pub trait ClientInnerT {
     ) -> Result<Self::ByteVecStream, Self::Error>;
 
     async fn wait(&self, sid: Self::SessionId) -> Result<i32, Self::Error>;
+}
+
+struct SessionInfo<S> {
+    sid: S,
+    handles: Vec<JoinHandle<Result<(), ClientError>>>,
+    stop_tx: broadcast::Sender<()>,
+    tty: bool,
+}
+
+#[derive(Error, Debug)]
+pub enum ClientError {
+    #[error("Command not started")]
+    NotStarted,
+    #[error("Command exits with {0}")]
+    NonZeroExitCode(i32),
+    #[error("Command already started")]
+    AlreadyStarted,
+    #[error("IO error: {0}")]
+    IoErr(#[from] std::io::Error),
+    #[error("System error: {0}")]
+    Sys(#[from] nix::errno::Errno),
+    #[error("Channel closed")]
+    ChannelClosed,
+}
+
+impl<T> From<mpsc::error::SendError<T>> for ClientError {
+    fn from(_: mpsc::error::SendError<T>) -> Self {
+        ClientError::ChannelClosed
+    }
+}
+
+pub struct P9cpuClient<Inner: ClientInnerT> {
+    inner: Inner,
+    session_info: Option<SessionInfo<Inner::SessionId>>,
+}
+
+impl<'a, Inner> P9cpuClient<Inner>
+where
+    Inner: ClientInnerT,
+    ClientError: From<Inner::Error>,
+{
+    pub async fn new(inner: Inner) -> P9cpuClient<Inner> {
+        Self {
+            inner,
+            session_info: None,
+        }
+    }
+
+    const STDIN_BUF_SIZE: usize = 128;
+
+    async fn setup_stdio(
+        &mut self,
+        sid: Inner::SessionId,
+        tty: bool,
+        mut stop_rx: broadcast::Receiver<()>,
+    ) -> Result<Vec<JoinHandle<Result<(), ClientError>>>, Inner::Error> {
+        let mut handles = vec![];
+
+        let out_stream = self.inner.stdout(sid.clone()).await?;
+        let stdout = tokio::io::stdout();
+        let out_handle = Self::copy_stream(out_stream, stdout);
+        handles.push(out_handle);
+
+        if !tty {
+            let err_stream = self.inner.stderr(sid.clone()).await?;
+            let stderr = tokio::io::stderr();
+            let err_handle = Self::copy_stream(err_stream, stderr);
+            handles.push(err_handle);
+        }
+
+        let (tx, rx) = mpsc::channel(1);
+
+        let in_stream = ReceiverStream::new(rx);
+        let stdin_future = self.inner.stdin(sid.clone(), in_stream).await;
+        let in_handle = tokio::spawn(async move {
+            let mut stdin = tokio::io::stdin();
+            loop {
+                let mut buf = vec![0; Self::STDIN_BUF_SIZE];
+                let len = tokio::select! {
+                    len = stdin.read(&mut buf) => len,
+                    _ = stop_rx.recv() => break,
+                }?;
+                if len == 0 {
+                    break;
+                }
+                buf.truncate(len);
+                tx.send(buf).await?;
+            }
+            drop(tx);
+            stdin_future.await?;
+            Ok(())
+        });
+        handles.push(in_handle);
+        Ok(handles)
+    }
+
+    fn copy_stream<D>(
+        mut src: Inner::ByteVecStream,
+        mut dst: D,
+    ) -> JoinHandle<Result<(), ClientError>>
+    where
+        D: AsyncWrite + Unpin + Send + 'static,
+    {
+        tokio::spawn(async move {
+            while let Some(bytes) = src.next().await {
+                dst.write_all(&bytes).await?;
+                dst.flush().await?;
+            }
+            Ok(())
+        })
+    }
+
+    pub async fn start(&mut self, command: cmd::Command) -> Result<(), ClientError> {
+        if self.session_info.is_some() {
+            return Err(ClientError::AlreadyStarted)?;
+        }
+        let tty = command.req.tty;
+        let sid = self.inner.dial().await?;
+        if command.req.ninep {
+            unimplemented!("local 9p server is not implemented yet.")
+        }
+        self.inner.start(sid.clone(), command.req).await?;
+
+        let (stop_tx, stop_rx) = broadcast::channel(1);
+
+        let handles = self.setup_stdio(sid.clone(), tty, stop_rx).await?;
+
+        self.session_info = Some(SessionInfo {
+            tty,
+            sid,
+            handles,
+            stop_tx,
+        });
+        Ok(())
+    }
+
+    pub async fn wait_inner(&mut self, sid: Inner::SessionId) -> Result<(), ClientError> {
+        let code = self.inner.wait(sid).await?;
+        if code == 0 {
+            Ok(())
+        } else {
+            Err(ClientError::NonZeroExitCode(code))
+        }
+    }
+
+    pub async fn wait(&mut self) -> Result<(), ClientError> {
+        let SessionInfo {
+            sid,
+            handles,
+            stop_tx,
+            tty,
+        } = self.session_info.take().ok_or(ClientError::NotStarted)?;
+        let termios_attr = if tty {
+            let current = termios::tcgetattr(libc::STDIN_FILENO)?;
+            let mut raw = current.clone();
+            termios::cfmakeraw(&mut raw);
+            termios::tcsetattr(libc::STDIN_FILENO, termios::SetArg::TCSANOW, &raw)?;
+            Some(current)
+        } else {
+            None
+        };
+        let ret = self.wait_inner(sid).await;
+        if stop_tx.send(()).is_err() {
+            log::error!("stdin thread is not working");
+        }
+        for handle in handles {
+            match handle.await {
+                Err(e) => log::error!("thread join error: {:?}", e),
+                Ok(Err(e)) => log::error!("thread error {:?}", e),
+                Ok(Ok(())) => {}
+            }
+        }
+        if let Some(current) = termios_attr {
+            if let Err(e) =
+                termios::tcsetattr(libc::STDIN_FILENO, termios::SetArg::TCSANOW, &current)
+            {
+                log::error!("restore termios error: {:?}", e);
+            }
+        }
+        ret
+    }
 }
