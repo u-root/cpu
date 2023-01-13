@@ -1,7 +1,8 @@
+mod async_fd;
 pub mod client;
-pub mod server;
 pub mod cmd;
 mod rpc;
+pub mod server;
 
 use std::future::Future;
 use std::pin::Pin;
