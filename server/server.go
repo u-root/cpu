@@ -62,6 +62,27 @@ func handler(s ssh.Session) {
 	a := s.Command()
 	verbose("handler: cmd is %q", a)
 	cmd := command(a[0], a[1:]...)
+
+	sigChan := make(chan ssh.Signal, 1)
+	defer close(sigChan)
+	s.Signals(sigChan)
+	go func() {
+		for signal := range sigChan {
+			var err error
+			switch signal {
+			case ssh.SIGTERM:
+				err = cmd.Process.Signal(syscall.SIGTERM)
+			case ssh.SIGINT:
+				err = cmd.Process.Signal(syscall.SIGINT)
+			default:
+				err = fmt.Errorf("unknown signal: %q", signal)
+			}
+			if err != nil {
+				verbose("sending %q to %q: %v", signal, a[0], err)
+			}
+		}
+	}()
+
 	cmd.Env = append(cmd.Env, s.Environ()...)
 	ptyReq, winCh, isPty := s.Pty()
 	if isPty {
