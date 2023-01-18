@@ -12,8 +12,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
@@ -129,9 +131,17 @@ func getPort(host, port string) string {
 	return p
 }
 
-func newCPU(host string, args ...string) error {
+func newCPU(host string, args ...string) (retErr error) {
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
 	c := client.Command(host, args...)
+	defer func() {
+		verbose("close")
+		if err := c.Close(); err != nil && retErr == nil {
+			retErr = fmt.Errorf("Close: %v", err)
+		}
+		verbose("close done")
+	}()
+
 	if err := c.SetOptions(
 		client.WithPrivateKeyFile(*keyFile),
 		client.WithHostKeyFile(*hostKeyFile),
@@ -149,17 +159,46 @@ func newCPU(host string, args ...string) error {
 	if err := c.Dial(); err != nil {
 		return fmt.Errorf("Dial: %v", err)
 	}
-	verbose("start")
-	if err := c.Start(); err != nil {
-		return fmt.Errorf("Start: %v", err)
+
+	sigChan := make(chan os.Signal, 1)
+	defer close(sigChan)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
+	errChan := make(chan error, 1)
+	defer close(errChan)
+
+	go func() {
+		verbose("start")
+		if err := c.Start(); err != nil {
+			errChan <- fmt.Errorf("Start: %v", err)
+			return
+		}
+		verbose("wait")
+		errChan <- c.Wait()
+	}()
+
+	var err error
+loop:
+	for {
+		select {
+		case sig := <-sigChan:
+			var sigErr error
+			switch sig {
+			case syscall.SIGINT:
+				sigErr = c.Signal(ossh.SIGINT)
+			case syscall.SIGTERM:
+				sigErr = c.Signal(ossh.SIGTERM)
+			}
+			if sigErr != nil {
+				verbose("sending %v to %q: %v", sig, c.Args[0], sigErr)
+			} else {
+				verbose("signal %v sent to %q", sig, c.Args[0])
+			}
+		case err = <-errChan:
+			break loop
+		}
 	}
-	verbose("wait")
-	if err := c.Wait(); err != nil {
-		log.Printf("Wait: %v\r\n", err)
-	}
-	verbose("close")
-	err := c.Close()
-	verbose("close done")
+
 	return err
 }
 
