@@ -221,7 +221,7 @@ func (s *Session) Run() error {
 		log.Printf("CPUD: your $PWD %s is not in the remote namespace", c.Dir)
 		return os.ErrNotExist
 	}
-	err = c.Run()
+	err = runCmd(c)
 	verbose("Run %v returns %v", c, err)
 	if err != nil {
 		if s.fail && len(wtf) != 0 {

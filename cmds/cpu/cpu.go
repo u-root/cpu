@@ -15,7 +15,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
@@ -26,6 +25,7 @@ import (
 
 	// We use this ssh because it can unpack password-protected private keys.
 	ossh "golang.org/x/crypto/ssh"
+	"golang.org/x/sys/unix"
 )
 
 const defaultPort = "17010"
@@ -162,7 +162,7 @@ func newCPU(host string, args ...string) (retErr error) {
 
 	sigChan := make(chan os.Signal, 1)
 	defer close(sigChan)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigChan, unix.SIGINT, unix.SIGTERM)
 	defer signal.Stop(sigChan)
 	errChan := make(chan error, 1)
 	defer close(errChan)
@@ -184,9 +184,9 @@ loop:
 		case sig := <-sigChan:
 			var sigErr error
 			switch sig {
-			case syscall.SIGINT:
+			case unix.SIGINT:
 				sigErr = c.Signal(ossh.SIGINT)
-			case syscall.SIGTERM:
+			case unix.SIGTERM:
 				sigErr = c.Signal(ossh.SIGTERM)
 			}
 			if sigErr != nil {

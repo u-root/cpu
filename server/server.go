@@ -18,6 +18,7 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/creack/pty"
 	"github.com/gliderlabs/ssh"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -71,9 +72,9 @@ func handler(s ssh.Session) {
 			var err error
 			switch signal {
 			case ssh.SIGTERM:
-				err = cmd.Process.Signal(syscall.SIGTERM)
+				err = cmd.Process.Signal(unix.SIGTERM)
 			case ssh.SIGINT:
-				err = cmd.Process.Signal(syscall.SIGINT)
+				err = cmd.Process.Signal(unix.SIGINT)
 			default:
 				err = fmt.Errorf("unknown signal: %q", signal)
 			}
