@@ -30,7 +30,7 @@ network.
 Installing distros can turn into a mess. Some programs only work under specific distros.
 In some cases, when two programs are needed in a pipeline, it can happen that they only work
 under different distros!
-Users are left juggling USB stucks and NVME cards, and this fails the first time there are
+Users are left juggling USB sticks and NVME cards, and this fails the first time there are
 two programs which need two different distros.
 
 Running over a network is usually done with ssh, but ssh can not supply the programs and files.
