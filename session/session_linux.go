@@ -58,11 +58,31 @@ func (s *Session) Namespace() (error, error) {
 	verbose("namespace is %q", s.binds)
 
 	// Connect to the socket, return the nonce.
-	a := net.JoinHostPort("localhost", s.port9p)
-	verbose("Dial %v", a)
-	so, err := net.Dial("tcp", a)
-	if err != nil {
-		return nil, fmt.Errorf("CPUD:Dial 9p port: %v", err)
+	var (
+		so net.Conn
+		// using this array avoids using the name
+		// "localhost", which makes the code
+		// insenstive to missing/nmisconfigured
+		// /etc/hosts files.
+		// ip6 is first, because that's where
+		// the world is going.
+		localhosts = []string{"::1", "127.0.0.1"}
+		errs       [2]error
+	)
+
+	for i, h := range localhosts {
+		a := net.JoinHostPort(h, s.port9p)
+		verbose("Dial %v", a)
+		so, errs[i] = net.Dial("tcp", a)
+		// Error trees are not quite ready yet.
+		if errs[i] == nil {
+			break
+		}
+		verbose("Dial %v:%v", a, errs[i])
+	}
+	// TODO: once everyone is up to go 1.20, use the error appending
+	if so == nil {
+		return nil, fmt.Errorf("CPUD:Dial 9p port to %q: %v", localhosts, errs)
 	}
 	verbose("Connected: write nonce %s\n", nonce)
 	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
