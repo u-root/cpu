@@ -5,7 +5,6 @@
 package client
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -296,20 +295,29 @@ func vsockDial(host, port string) (net.Conn, string, error) {
 }
 
 // https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md#host-initiated-connections
-func unixVsockDial(path, port string) (net.Conn, string, error) {
+func unixVsockDial(path, port string) (net.Conn, error) {
 	conn, err := net.Dial("unix", path)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	connectMsg := []byte(fmt.Sprintf("CONNECT %s\n", port))
-	if n, err := conn.Write(connectMsg); err != nil || n != len(connectMsg) {
-		verbose("send connect request err, number of sent bytes = %d: %v", n, err)
+	connectMsg := fmt.Sprintf("CONNECT %s\n", port)
+	if _, err := io.WriteString(conn, connectMsg); err != nil {
+		return nil, fmt.Errorf("sending connect request: %w", err)
 	}
-	s := bufio.NewScanner(conn)
-	if !s.Scan() || !strings.HasPrefix(s.Text(), "OK") {
-		verbose("connect request failed.")
+	buf := make([]byte, 2)
+	if _, err := io.ReadFull(conn, buf); err != nil {
+		return nil, fmt.Errorf("reading connect request: %w", err)
 	}
-	return conn, path, nil
+	if string(buf) != "OK" {
+		return nil, fmt.Errorf("vsock: expect OK, got %s", buf)
+	}
+	buf = make([]byte, 1)
+	for buf[0] != '\n' {
+		if _, err := io.ReadFull(conn, buf); err != nil {
+			return nil, err
+		}
+	}
+	return conn, nil
 }
 
 // Dial implements ssh.Dial for cpu.
@@ -342,7 +350,8 @@ func (c *Cmd) Dial() error {
 		addr = c.HostName
 		conn, err = net.Dial(c.network, c.HostName)
 	case "unix-vsock":
-		conn, addr, err = unixVsockDial(c.HostName, c.Port)
+		addr = c.HostName
+		conn, err = unixVsockDial(c.HostName, c.Port)
 	default:
 		addr = net.JoinHostPort(c.HostName, c.Port)
 		conn, err = net.Dial(c.network, addr)
