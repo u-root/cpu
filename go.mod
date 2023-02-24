@@ -7,7 +7,7 @@ require (
 	github.com/hugelgupf/p9 v0.1.1-0.20210528120703-cc05b77b314b
 	github.com/kevinburke/ssh_config v1.1.0
 	github.com/u-root/u-root v0.11.0
-	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
+	golang.org/x/crypto v0.1.0
 	golang.org/x/sys v0.5.0
 )
 
