@@ -39,7 +39,7 @@ test:
 
 docker:
 ifeq (, $(shell which docker))
-$(info No docker in PATH, install docker if you want to create images"
+$(info No docker in PATH, install docker if you want to create images")
 else
 	-docker build . -t cpud:latest
 	-IMAGE=cpud:latest ./TESTDOCKERCPU
