@@ -1,6 +1,6 @@
 module github.com/u-root/cpu
 
-go 1.19
+go 1.20
 
 require (
 	github.com/gliderlabs/ssh v0.3.3
@@ -14,7 +14,6 @@ require (
 require (
 	github.com/brutella/dnssd v1.2.4
 	github.com/creack/pty v1.1.15
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mdlayher/vsock v1.1.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	golang.org/x/exp v0.0.0-20221002003631-540bb7301a08
@@ -23,7 +22,6 @@ require (
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/klauspost/compress v1.10.6 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
 	github.com/mdlayher/socket v0.2.0 // indirect

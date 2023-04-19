@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/crypto/ssh"
@@ -628,7 +627,7 @@ func (c *Cmd) Close() error {
 	var err error
 	for _, f := range c.closers {
 		if e := f(); e != nil {
-			err = multierror.Append(err, e)
+			err = errors.Join(err, e)
 		}
 	}
 	return err

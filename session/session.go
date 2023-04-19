@@ -8,6 +8,7 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,7 +16,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/u-root/cpu/mount"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/sys/unix"
@@ -138,7 +138,7 @@ func (s *Session) TmpMounts() error {
 // On Linux, it starts as uid 0, and once the mount/bind is done,
 // calls DropPrivs.
 func (s *Session) Run() error {
-	var errors error
+	var errs error
 
 	if err := runSetup(s.tmpMnt); err != nil {
 		return err
@@ -146,7 +146,7 @@ func (s *Session) Run() error {
 	if err := s.TmpMounts(); err != nil {
 		verbose("TmpMounts error: %v", err)
 		s.fail = true
-		errors = multierror.Append(err)
+		errs = errors.Join(errs, err)
 	}
 
 	verbose("Set up a namespace")
@@ -155,7 +155,7 @@ func (s *Session) Run() error {
 		if err != nil {
 			verbose("ParseBind failed: %v", err)
 			s.fail = true
-			errors = multierror.Append(errors, err)
+			errs = errors.Join(errs, err)
 		}
 
 		s.binds = binds
@@ -163,7 +163,7 @@ func (s *Session) Run() error {
 	verbose("call s.NameSpace")
 	w, err := s.Namespace()
 	if err != nil {
-		return fmt.Errorf("CPUD:Namespace: warnings %v, err %v", w, multierror.Append(errors, err))
+		return fmt.Errorf("CPUD:Namespace: warnings %v, err %v", w, errors.Join(errs, err))
 	}
 	verbose("warning: %v", w)
 
@@ -189,7 +189,7 @@ func (s *Session) Run() error {
 
 	if err := s.Terminal(); err != nil {
 		s.fail = true
-		errors = multierror.Append(err)
+		errs = errors.Join(errs, err)
 	}
 	verbose("Terminal ready")
 	if s.fail && len(wtf) != 0 {
@@ -202,12 +202,12 @@ func (s *Session) Run() error {
 			log.Printf("CPUD: Running %q failed: %v", wtf, err)
 		}
 		log.Printf("CPUD: WTF done")
-		return errors
+		return errs
 	}
 
 	// We don't want to run as the wrong uid.
 	if err := s.DropPrivs(); err != nil {
-		return multierror.Append(errors, err)
+		return errors.Join(errs, err)
 	}
 
 	// While it is true that things have been mounted, we need not
