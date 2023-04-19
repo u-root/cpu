@@ -5,13 +5,13 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"syscall"
 
-	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sys/unix"
 )
 
@@ -132,7 +132,7 @@ func (s *Session) Namespace() (error, error) {
 		verbose("mount %v over %v", t, n.Local)
 		if err := unix.Mount(t, n.Local, "", syscall.MS_BIND, ""); err != nil {
 			s.fail = true
-			warning = multierror.Append(fmt.Errorf("CPUD:Warning: mounting %v on %v failed: %v", t, n, err))
+			warning = errors.Join(warning, fmt.Errorf("CPUD:Warning: mounting %v on %v failed: %v", t, n, err))
 		} else {
 			verbose("Mounted %v on %v", t, n)
 		}
@@ -142,12 +142,12 @@ func (s *Session) Namespace() (error, error) {
 }
 
 func osMounts(tmpMnt string) error {
-	var errors error
+	var errs error
 	// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
 	if err := unix.Mount("/", filepath.Join(tmpMnt, "local"), "", syscall.MS_BIND, ""); err != nil {
-		errors = multierror.Append(fmt.Errorf("CPUD:Warning: binding / over %s did not work: %v, continuing anyway", filepath.Join(tmpMnt, "local"), err))
+		errs = errors.Join(errs, fmt.Errorf("CPUD:Warning: binding / over %s did not work: %v, continuing anyway", filepath.Join(tmpMnt, "local"), err))
 	}
-	return errors
+	return errs
 }
 
 // runSetup performs kernel-specific operations for starting a Session.

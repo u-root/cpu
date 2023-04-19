@@ -9,12 +9,12 @@ package mount
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sys/unix"
 )
 
@@ -69,27 +69,27 @@ func mount(m mounter, fstab string) error {
 				// Destination does not exist, so we are going to create an empty file.
 				if e := os.MkdirAll(path.Dir(where), 0666); e != nil {
 					// Creation failed.
-					err = multierror.Append(err, fmt.Errorf("cannot create dir %s: %s", path.Dir(where), e))
+					err = errors.Join(err, fmt.Errorf("cannot create dir %s: %s", path.Dir(where), e))
 					continue
 				}
 				if err := os.WriteFile(where, []byte{}, 0666); err != nil {
 					// Creation failed.
-					err = multierror.Append(err, fmt.Errorf("cannot create target file %s: %s", where, e))
+					err = errors.Join(err, fmt.Errorf("cannot create target file %s: %s", where, e))
 					continue
 				}
 			} else if target.IsDir() {
 				// Destination exists, but it is a directory.
-				err = multierror.Append(err, fmt.Errorf("cannot bind file %s to a dir %s", dev, where))
+				err = errors.Join(err, fmt.Errorf("cannot bind file %s to a dir %s", dev, where))
 				continue
 			}
 		} else {
 			if e := os.MkdirAll(where, 0666); e != nil && !os.IsExist(e) {
-				err = multierror.Append(err, e)
+				err = errors.Join(err, e)
 				continue
 			}
 		}
 		if e := m(dev, where, fstype, flags, data); e != nil {
-			err = multierror.Append(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %v", dev, where, fstype, opts, flags, data, e))
+			err = errors.Join(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %v", dev, where, fstype, opts, flags, data, e))
 		}
 	}
 	return err
