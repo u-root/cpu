@@ -72,7 +72,7 @@ func mount(m mounter, fstab string) error {
 					err = errors.Join(err, fmt.Errorf("cannot create dir %s: %s", path.Dir(where), e))
 					continue
 				}
-				if err := os.WriteFile(where, []byte{}, 0666); err != nil {
+				if e := os.WriteFile(where, []byte{}, 0666); e != nil {
 					// Creation failed.
 					err = errors.Join(err, fmt.Errorf("cannot create target file %s: %s", where, e))
 					continue
