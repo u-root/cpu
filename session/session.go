@@ -34,7 +34,6 @@ type Session struct {
 	Stdin    io.Reader
 	Stdout   io.Writer
 	Stderr   io.Writer
-	binds    []Bind
 	// Any function can use fail to mark that something
 	// went badly wrong in some step. At that point, if wtf is set,
 	// cpud will start it. This is incredibly handy for debugging.
@@ -149,40 +148,29 @@ func (s *Session) Run() error {
 		errs = errors.Join(errs, err)
 	}
 
-	verbose("Set up a namespace")
-	if b, ok := os.LookupEnv("CPU_NAMESPACE"); ok {
-		binds, err := ParseBinds(b)
-		if err != nil {
-			verbose("ParseBind failed: %v", err)
-			s.fail = true
-			errs = errors.Join(errs, err)
-		}
-
-		s.binds = binds
-	}
 	verbose("call s.NameSpace")
-	w, err := s.Namespace()
+	err := s.Namespace()
 	if err != nil {
-		return fmt.Errorf("CPUD:Namespace: warnings %v, err %v", w, errors.Join(errs, err))
+		return errors.Join(errs, fmt.Errorf("CPUD:Namespace: %v", err))
 	}
-	verbose("warning: %v", w)
-
-	verbose("bind mounts done")
 
 	// The CPU_FSTAB environment variable is, literally, an fstab.
 	// Why an environment variable and not a file? We do not
 	// want to require any 9p mounts at all. People should be able
 	// to do this:
-	// CPU_NAMESPACE="" CPU_FSTAB=`cat fstab`
+	// CPU_FSTAB=`cat fstab`
 	// and get the mounts they want. The first uses of this will
 	// be building namespaces with drive and virtiofs.
+
+	// In some cases if you set LD_LIBRARY_PATH it is ignored.
+	// This is disappointing to say the least. We just bind a few things into /
+	// bind *may* hide local resources but for now it's the least worst option.
 	if tab, ok := os.LookupEnv("CPU_FSTAB"); ok {
 		verbose("Mounting %q", tab)
 		if err := mount.Mount(tab); err != nil {
 			verbose("fstab mount failure: %v", err)
 			// Should we die if the mounts fail? For now, we think not;
-			// the user may be able to debug if they have a non-empty
-			// CPU_NAMESPACE. Just record that it failed.
+			// the user may be able to debug. Just record that it failed.
 			s.fail = true
 		}
 	}
