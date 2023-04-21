@@ -13,9 +13,7 @@
 // needed and will set one up.
 //
 // Run will also set up a process namespace via 9p and other mounts,
-// if needed.  If CPU_NAMESPACE is non-empty, it defines the bind
-// mounts from /tmp/cpu.  See the cpu command documentation for more
-// information on how CPU_NAMESPACE is set.  If CPU_FSTAB is set, it
+// if needed. If CPU_FSTAB is set, it
 // is assumed to be a string in fstab(5) format and Run will mount the
 // specified file systems. CPU_FSTAB is most often used for virtiofs
 // mounts from virtual machines.

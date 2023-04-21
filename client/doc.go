@@ -5,8 +5,7 @@
 // Package client provides an exec.Command and ssh like interface for cpu sessions.
 // It attempts to cleave as much as possible to the original.
 // The choice between options and environment variables mirrors this effort.
-// For example, the namespace for the remote process is an environment variable,
-// CPU_NAMESPACE. The nonce for the mount protocol back is also an environment variable.
+// For example, the nonce for the mount protocol back is an environment variable.
 // command name and arguments are passed in os.Args
 // The only required parameter for Command() is a host name; if os.Args is empty,
 // the remote server reads SHELL and starts a shell.
