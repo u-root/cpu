@@ -214,6 +214,8 @@ func (s *Session) Run() error {
 	// worry about unmounting them once the command is done: the
 	// unmount happens for free since we unshared.
 	verbose("runRemote: command is %q", s.args)
+	os.Unsetenv("CPU_FSTAB")
+	os.Unsetenv("CPU_TMPMNT")
 	c := exec.Command(s.cmd, s.args...)
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = s.Stdin, s.Stdout, s.Stderr, os.Getenv("PWD")
 	dirInfo, err := os.Stat(c.Dir)
