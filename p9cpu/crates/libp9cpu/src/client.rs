@@ -1,5 +1,5 @@
 use crate::cmd;
-use crate::cmd::CommandReq;
+use crate::cmd::Cmd;
 use crate::rpc;
 use async_trait::async_trait;
 use futures::{Future, Stream, StreamExt};
@@ -32,7 +32,7 @@ pub trait ClientInnerT {
     /// Starts the command on the remote machine. This method should return as
     /// long as the command is spawned successfully. To obtained the command
     /// return code, call [wait()](Self::wait).
-    async fn start(&self, sid: Self::SessionId, command: CommandReq) -> Result<(), Self::Error>;
+    async fn start(&self, sid: Self::SessionId, command: Cmd) -> Result<(), Self::Error>;
 
     type EmptyFuture: Future<Output = Result<(), Self::Error>> + Send + 'static;
 
@@ -184,12 +184,12 @@ where
         if self.session_info.is_some() {
             return Err(ClientError::AlreadyStarted)?;
         }
-        let tty = command.req.tty;
+        let tty = command.cmd.tty;
         let sid = self.inner.dial().await?;
-        if command.req.ninep {
+        if command.cmd.ninep {
             unimplemented!("local 9p server is not implemented yet.")
         }
-        self.inner.start(sid.clone(), command.req).await?;
+        self.inner.start(sid.clone(), command.cmd).await?;
 
         let (stop_tx, stop_rx) = broadcast::channel(1);
 

@@ -26,7 +26,7 @@ impl<I> Default for Server<I> {
 }
 
 impl<I> Server<I> {
-    pub async fn start(&self, _command: cmd::CommandReq, _sid: I) -> Result<(), Error> {
+    pub async fn start(&self, _command: cmd::Cmd, _sid: I) -> Result<(), Error> {
         unimplemented!()
     }
 

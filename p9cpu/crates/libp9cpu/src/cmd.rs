@@ -43,13 +43,13 @@ impl TryFrom<&str> for FsTab {
 }
 
 pub struct Command {
-    pub(crate) req: CommandReq,
+    pub(crate) cmd: Cmd,
 }
 
 impl Command {
     pub fn new(program: String) -> Self {
         Self {
-            req: CommandReq {
+            cmd: Cmd {
                 program,
                 ..Default::default()
             },
@@ -57,7 +57,7 @@ impl Command {
     }
 
     pub fn args(&mut self, args: impl IntoIterator<Item = String>) -> &mut Self {
-        self.req.args.extend(args);
+        self.cmd.args.extend(args);
         self
     }
 
@@ -67,7 +67,7 @@ impl Command {
         K: Into<Vec<u8>>,
         V: Into<Vec<u8>>,
     {
-        self.req.envs.extend(vars.into_iter().map(|(k, v)| EnvVar {
+        self.cmd.envs.extend(vars.into_iter().map(|(k, v)| EnvVar {
             key: k.into(),
             val: v.into(),
         }));
@@ -75,22 +75,22 @@ impl Command {
     }
 
     pub fn fstab(&mut self, tab: impl IntoIterator<Item = FsTab>) -> &mut Self {
-        self.req.fstab.extend(tab);
+        self.cmd.fstab.extend(tab);
         self
     }
 
     pub fn ninep(&mut self, enable: bool) -> &mut Self {
-        self.req.ninep = enable;
+        self.cmd.ninep = enable;
         self
     }
 
     pub fn tty(&mut self, enable: bool) -> &mut Self {
-        self.req.tty = enable;
+        self.cmd.tty = enable;
         self
     }
 
     pub fn tmp_mnt(&mut self, tmp_mnt: String) -> &mut Self {
-        self.req.tmp_mnt = tmp_mnt;
+        self.cmd.tmp_mnt = tmp_mnt;
         self
     }
 }
