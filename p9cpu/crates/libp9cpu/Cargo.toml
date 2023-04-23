@@ -12,6 +12,7 @@ futures = "0.3.28"
 async-trait = "0.1.68"
 prost = "0.11.9"
 tonic = "0.8.3"
+tower = "0.4.13"
 tokio = { version = "1", features = ["macros", "rt-multi-thread","process","io-std", "fs", "io-util"] }
 tokio-vsock = { version = "0.4", features = ["tonic-conn"] }
 libc = "0.2.142"

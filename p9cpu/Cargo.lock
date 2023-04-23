@@ -508,6 +508,7 @@ dependencies = [
  "tokio-vsock",
  "tonic",
  "tonic-build",
+ "tower",
  "uuid",
 ]
 
