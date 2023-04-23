@@ -5,7 +5,7 @@ import "cmd.proto";
 
 message StartRequest {
     bytes id = 1;
-    cmd.CommandReq cmd = 2;
+    cmd.Cmd cmd = 2;
 }
 
 message StdinRequest {
