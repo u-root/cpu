@@ -1,5 +1,10 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::Parser;
+use libp9cpu::parse_namespace;
+use libp9cpu::cmd::{Command, FsTab};
+use tokio::io::AsyncBufReadExt;
+use std::os::unix::prelude::OsStringExt;
+
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Net {
@@ -40,7 +45,43 @@ struct Args {
 }
 
 async fn app(args: Args) -> Result<()> {
-    unimplemented!("not implemented: {:?}", args);
+    let addr = match args.net {
+        Net::Vsock => libp9cpu::Addr::Vsock(tokio_vsock::VsockAddr::new(
+            args.host.parse().unwrap(),
+            args.port,
+        )),
+        Net::Unix => libp9cpu::Addr::Uds(args.host),
+        Net::Tcp => libp9cpu::Addr::Tcp(format!("{}:{}", args.host, args.port).parse()?),
+    };
+
+    if args.tmp_mnt.is_empty() {
+        bail!("`tmp_mnt` cannot be empty");
+    }
+    let mut fs_tab_lines = parse_namespace(&args.namespace, &args.tmp_mnt);
+    let ninep = !fs_tab_lines.is_empty();
+    if let Some(ref fs_tab) = args.fs_tab {
+        let fs_tab_file = tokio::fs::File::open(fs_tab).await?;
+        let mut lines = tokio::io::BufReader::new(fs_tab_file).lines();
+        while let Some(line) = lines.next_line().await? {
+            if line.starts_with('#') {
+                continue;
+            }
+            fs_tab_lines.push(FsTab::try_from(line.as_str())?);
+        }
+    }
+    let program = args.args[0].clone();
+    let mut cmd = Command::new(program);
+    cmd.args(Vec::from(&args.args[1..]));
+    cmd.envs(std::env::vars_os().map(|(k, v)| (k.into_vec(), v.into_vec())));
+    cmd.ninep(ninep);
+    cmd.fstab(fs_tab_lines);
+    cmd.tty(args.tty);
+    cmd.tmp_mnt(args.tmp_mnt);
+
+    let mut client = libp9cpu::client::rpc_based(addr).await?;
+    client.start(cmd).await?;
+    client.wait().await?;
+    Ok(())
 }
 
 fn main() -> Result<()> {
