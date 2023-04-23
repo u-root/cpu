@@ -1,13 +1,19 @@
-use crate::{cmd, rpc, TryOrErrInto};
+use crate::{cmd, rpc, Addr, TryOrErrInto};
 use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use thiserror::Error;
+use tokio::net::UnixStream;
 use tokio::task::JoinHandle;
-use tonic::{transport::Channel, Status, Streaming};
+use tokio_vsock::VsockStream;
+use tonic::{
+    transport::{Channel, Endpoint},
+    Status, Streaming,
+};
+use tower::service_fn;
 
-pub(crate) struct ByteVecStream<I> {
+pub struct ByteVecStream<I> {
     inner: I,
     session: uuid::Uuid,
     name: &'static str,
@@ -33,17 +39,55 @@ where
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum RpcError {
+pub enum RpcError {
     #[error("RPC error: {0}")]
     Rpc(#[from] Status),
     #[error("Invalid UUID: {0}")]
     InvalidUuid(#[from] uuid::Error),
     #[error("Task join error: {0}")]
     JoinError(#[from] tokio::task::JoinError),
+    #[error("Transport error: {0}")]
+    Transport(#[from] tonic::transport::Error),
 }
 
-pub(crate) struct RpcClient {
+impl From<RpcError> for crate::client::ClientError {
+    fn from(error: RpcError) -> Self {
+        crate::client::ClientError::Inner(Box::new(error))
+    }
+}
+
+pub struct RpcClient {
     channel: Channel,
+}
+
+impl RpcClient {
+    pub async fn new(addr: Addr) -> Result<Self, RpcError> {
+        let channel = match addr {
+            Addr::Uds(addr) => {
+                Endpoint::from_static("http://[::]:50051")
+                    .connect_with_connector(service_fn(move |_| {
+                        // Connect to a unix domain socket
+                        UnixStream::connect(addr.clone())
+                    }))
+                    .await?
+            }
+            Addr::Tcp(addr) => {
+                let addr = format!("http://{}:{}", addr.ip(), addr.port());
+                Endpoint::from_shared(addr)?.connect().await?
+            }
+            Addr::Vsock(addr) => {
+                let cid = addr.cid();
+                let port = addr.port();
+                Endpoint::from_static("http://[::]:50051")
+                    .connect_with_connector(service_fn(move |_| {
+                        // Connect to a vsock
+                        VsockStream::connect(cid, port)
+                    }))
+                    .await?
+            }
+        };
+        Ok(Self { channel })
+    }
 }
 
 #[async_trait]

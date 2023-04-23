@@ -88,6 +88,8 @@ pub enum ClientError {
     Sys(#[from] nix::errno::Errno),
     #[error("Channel closed")]
     ChannelClosed,
+    #[error("Inner: {0}")]
+    Inner(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 impl<T> From<mpsc::error::SendError<T>> for ClientError {

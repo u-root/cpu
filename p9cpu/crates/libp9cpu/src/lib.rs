@@ -15,7 +15,7 @@ pub enum Addr {
     Uds(String),
 }
 
-pub(crate) struct TryOrErrInto<F> {
+pub struct TryOrErrInto<F> {
     future: F,
 }
 
