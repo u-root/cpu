@@ -8,19 +8,19 @@ name = "libp9cpu"
 path = "src/lib.rs"
 
 [dependencies]
-futures = "0.3.25"
-async-trait = "0.1.61"
-prost = "0.11.6"
+futures = "0.3.28"
+async-trait = "0.1.68"
+prost = "0.11.9"
 tonic = "0.8.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread","process","io-std", "fs", "io-util"] }
 tokio-vsock = { version = "0.4", features = ["tonic-conn"] }
-libc = "0.2.139"
+libc = "0.2.142"
 thiserror = "1"
 uuid = { version = "1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 log = "0.4"
-tokio-stream = { version = "0.1.11", features = ["net"] }
-nix = "0.26.1"
+tokio-stream = { version = "0.1.12", features = ["net"] }
+nix = "0.26.2"
 
 [build-dependencies]
 tonic-build = "0.8.4"
-prost-build = "0.11.6"
+prost-build = "0.11.9"
