@@ -1,5 +1,6 @@
 use crate::cmd;
 use crate::cmd::CommandReq;
+use crate::rpc;
 use async_trait::async_trait;
 use futures::{Future, Stream, StreamExt};
 use nix::sys::termios;
@@ -248,4 +249,12 @@ where
         }
         ret
     }
+}
+
+pub async fn rpc_based(
+    addr: crate::Addr,
+) -> Result<P9cpuClient<rpc::rpc_client::RpcClient>, ClientError> {
+    let inner = rpc::rpc_client::RpcClient::new(addr).await.unwrap();
+    let client = P9cpuClient::new(inner).await;
+    Ok(client)
 }

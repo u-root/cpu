@@ -637,6 +637,7 @@ dependencies = [
  "clap",
  "libp9cpu",
  "tokio",
+ "tokio-vsock",
 ]
 
 [[package]]
