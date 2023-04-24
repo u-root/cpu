@@ -9,6 +9,30 @@ use futures::stream::{Stream, StreamExt};
 use std::pin::Pin;
 use thiserror::Error;
 use tonic::{Request, Response, Status, Streaming};
+use tokio::net::UnixListener;
+use tokio_stream::wrappers::UnixListenerStream;
+use tokio_vsock::{VsockListener, VsockStream};
+use std::task::Poll;
+
+struct VsockListenerStream {
+    listener: VsockListener,
+}
+
+impl Stream for VsockListenerStream {
+    type Item = std::io::Result<VsockStream>;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        match self.listener.poll_accept(cx) {
+            Poll::Ready(Ok((stream, _))) => Poll::Ready(Some(Ok(stream))),
+            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -28,11 +52,15 @@ impl crate::server::P9cpuServerT for RpcServer {
         let router = tonic::transport::Server::builder().add_service(p9cpu_service);
         match addr {
             Addr::Tcp(addr) => router.serve(addr).await?,
-            Addr::Uds(_addr) => {
-                unimplemented!()
+            Addr::Uds(addr) => {
+                let uds = UnixListener::bind(addr)?;
+                let stream = UnixListenerStream::new(uds);
+                router.serve_with_incoming(stream).await?
             }
-            Addr::Vsock(_addr) => {
-                unimplemented!()
+            Addr::Vsock(addr) => {
+                let listener = VsockListener::bind(addr.cid(), addr.port())?;
+                let stream = VsockListenerStream { listener };
+                router.serve_with_incoming(stream).await?
             }
         }
         Ok(())
