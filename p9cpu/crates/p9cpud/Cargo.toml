@@ -13,3 +13,5 @@ anyhow = "1"
 libp9cpu = { version = "*", path = "../libp9cpu" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread","process","io-std"] }
+tokio-vsock = { version = "0.4", features = ["tonic-conn"] }
+vsock = "0.3.0"

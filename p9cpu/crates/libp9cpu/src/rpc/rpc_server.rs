@@ -7,12 +7,12 @@ use crate::Addr;
 use async_trait::async_trait;
 use futures::stream::{Stream, StreamExt};
 use std::pin::Pin;
+use std::task::Poll;
 use thiserror::Error;
-use tonic::{Request, Response, Status, Streaming};
 use tokio::net::UnixListener;
 use tokio_stream::wrappers::UnixListenerStream;
 use tokio_vsock::{VsockListener, VsockStream};
-use std::task::Poll;
+use tonic::{Request, Response, Status, Streaming};
 
 struct VsockListenerStream {
     listener: VsockListener,
@@ -33,7 +33,6 @@ impl Stream for VsockListenerStream {
     }
 }
 
-
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("RPC error: {0}")]
@@ -47,8 +46,11 @@ pub struct RpcServer {}
 #[async_trait]
 impl crate::server::P9cpuServerT for RpcServer {
     type Error = Error;
-    async fn serve(&self, addr: Addr) -> Result<(), Error> {
-        let p9cpu_service = rpc::p9cpu_server::P9cpuServer::new(P9cpuService::default());
+    async fn serve<L>(&self, addr: Addr, launcher: L) -> Result<(), Error>
+    where
+        L: crate::launcher::Launch + Send + Sync + 'static,
+    {
+        let p9cpu_service = rpc::p9cpu_server::P9cpuServer::new(P9cpuService::new(launcher));
         let router = tonic::transport::Server::builder().add_service(p9cpu_service);
         match addr {
             Addr::Tcp(addr) => router.serve(addr).await?,
@@ -79,13 +81,24 @@ fn vec_to_uuid(v: &Vec<u8>) -> Result<uuid::Uuid, Status> {
     uuid::Uuid::from_slice(v).map_err(|e| Status::invalid_argument(e.to_string()))
 }
 
-#[derive(Debug, Default)]
-pub struct P9cpuService {
-    server: server::Server<uuid::Uuid>,
+#[derive(Debug)]
+pub struct P9cpuService<L> {
+    server: server::Server<uuid::Uuid, L>,
+}
+
+impl<L> P9cpuService<L> {
+    pub(crate) fn new(launcher: L) -> Self {
+        P9cpuService {
+            server: server::Server::new(launcher),
+        }
+    }
 }
 
 #[async_trait]
-impl rpc::p9cpu_server::P9cpu for P9cpuService {
+impl<L> rpc::p9cpu_server::P9cpu for P9cpuService<L>
+where
+    L: crate::launcher::Launch + Send + Sync + 'static,
+{
     type StdoutStream = Pin<Box<dyn Stream<Item = Result<rpc::Bytes, Status>> + Send>>;
     type StderrStream = Pin<Box<dyn Stream<Item = Result<rpc::Bytes, Status>> + Send>>;
     type NinepForwardStream = Pin<Box<dyn Stream<Item = Result<rpc::Bytes, Status>> + Send>>;

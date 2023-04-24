@@ -102,11 +102,7 @@ impl crate::client::ClientInnerT for RpcClient {
         Ok(sid)
     }
 
-    async fn start(
-        &self,
-        sid: Self::SessionId,
-        command: cmd::Cmd,
-    ) -> Result<(), Self::Error> {
+    async fn start(&self, sid: Self::SessionId, command: cmd::Cmd) -> Result<(), Self::Error> {
         let req = rpc::StartRequest {
             id: sid.into_bytes().into(),
             cmd: Some(command),

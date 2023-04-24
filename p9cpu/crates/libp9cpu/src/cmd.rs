@@ -93,4 +93,10 @@ impl Command {
         self.cmd.tmp_mnt = tmp_mnt;
         self
     }
+
+    pub fn ugid(&mut self, uid: u32, gid: u32) -> &mut Self {
+        self.cmd.uid = uid;
+        self.cmd.gid = gid;
+        self
+    }
 }
