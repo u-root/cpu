@@ -17,6 +17,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread","process","io-s
 tokio-vsock = { version = "0.4", features = ["tonic-conn"] }
 libc = "0.2.142"
 thiserror = "1"
+justerror = "1"
 uuid = { version = "1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 log = "0.4"
 tokio-stream = { version = "0.1.12", features = ["net"] }

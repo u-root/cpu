@@ -1,10 +1,9 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use clap::Parser;
-use libp9cpu::parse_namespace;
 use libp9cpu::cmd::{Command, FsTab};
-use tokio::io::AsyncBufReadExt;
+use libp9cpu::parse_namespace;
 use std::os::unix::prelude::OsStringExt;
-
+use tokio::io::AsyncBufReadExt;
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Net {
@@ -33,6 +32,12 @@ struct Args {
 
     #[arg(long, default_value = "/tmp")]
     tmp_mnt: String,
+
+    #[arg(long, default_value_t = nix::unistd::geteuid().as_raw())]
+    uid: u32,
+
+    #[arg(long, default_value_t = nix::unistd::getegid().as_raw())]
+    gid: u32,
 
     #[arg()]
     host: String,
@@ -77,6 +82,7 @@ async fn app(args: Args) -> Result<()> {
     cmd.fstab(fs_tab_lines);
     cmd.tty(args.tty);
     cmd.tmp_mnt(args.tmp_mnt);
+    cmd.ugid(args.uid, args.gid);
 
     let mut client = libp9cpu::client::rpc_based(addr).await?;
     client.start(cmd).await?;

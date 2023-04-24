@@ -480,6 +480,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
 
 [[package]]
+name = "justerror"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "befab2078d3ff679889e32730a1e9107b06a60a18ed7dfa3384f66ebe5e1062a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -497,6 +508,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "justerror",
  "libc",
  "log",
  "nix 0.26.2",
@@ -636,6 +648,7 @@ dependencies = [
  "anyhow",
  "clap",
  "libp9cpu",
+ "nix 0.26.2",
  "tokio",
  "tokio-vsock",
 ]
@@ -648,6 +661,8 @@ dependencies = [
  "clap",
  "libp9cpu",
  "tokio",
+ "tokio-vsock",
+ "vsock",
 ]
 
 [[package]]

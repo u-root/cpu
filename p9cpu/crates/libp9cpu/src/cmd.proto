@@ -23,4 +23,6 @@ message Cmd {
   bool ninep = 5;
   bool tty = 6;
   string tmp_mnt = 7;
+  uint32 uid = 8;
+  uint32 gid = 9;
 }
