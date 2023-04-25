@@ -2,3 +2,36 @@
 name = "rust-9p"
 version = "0.0.1"
 edition = "2018"
+authors = ["Ryo Munakata (pfpacket) <afpacket@gmail.com>"]
+description = "Filesystems library using 9P2000.L protocol, an extended variant of 9P from Plan 9"
+documentation = "https://pfpacket.github.io/rust-9p/rs9p/index.html"
+repository = "https://github.com/pfpacket/rust-9p"
+readme = "README.md"
+keywords = ["9p", "Plan9", "v9fs", "filesystem", "network"]
+categories = ["filesystem", "network-programming"]
+license-file = "LICENSE"
+
+[badges]
+travis-ci = { repository = "pfpacket/rust-9p", branch = "master" }
+
+[lib]
+name = "rs9p"
+crate-type = ["rlib"]
+
+[dependencies]
+log = "^0.4"
+num-traits = "^0.2"
+nix = "^0"
+byteorder = "^1.0"
+bitflags = "^1.0"
+enum_primitive = "*"
+async-trait = "^0.1"
+tokio = { version = "^1.0", features = ["full"] }
+tokio-util = { version = "^0.6", features = ["codec"] }
+tokio-stream = "^0.1"
+bytes = "^1"
+futures = "^0.3"
+
+[profile.release]
+opt-level = 3
+lto = true

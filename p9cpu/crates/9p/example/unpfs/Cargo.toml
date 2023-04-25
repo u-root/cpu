@@ -1,0 +1,25 @@
+
+[package]
+name = "unpfs"
+version = "0.0.1"
+authors = [ "afpacket <afpacket@gmail.com>" ]
+edition = "2018"
+
+[[bin]]
+name = "unpfs"
+
+[dependencies]
+nix = "^0"
+env_logger = "^0"
+filetime = "^0"
+tokio = { version = "^1.0", features = ["full"] }
+tokio-stream = { version = "^0.1", features = ["fs"] }
+async-trait = "^0.1"
+futures = "^0.3"
+
+[dependencies.rust-9p]
+path = "../../"
+
+[profile.release]
+opt-level = 3
+lto = true
