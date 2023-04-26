@@ -47,15 +47,14 @@ import (
 // been inspired by Plan 9, but an understanding of some critical core
 // ideas has been lost. As a result, they do not remotely represent
 // any kind of security boundary.
-func (s *Session) Namespace() (error, error) {
+func (s *Session) Namespace() error {
 	// Get the nonce and remove it from the environment.
 	// N.B. We do not save the nonce in the cpu struct.
 	nonce, ok := os.LookupEnv("CPUNONCE")
 	if !ok {
-		return nil, nil
+		return nil
 	}
 	os.Unsetenv("CPUNONCE")
-	verbose("namespace is %q", s.binds)
 
 	// Connect to the socket, return the nonce.
 	var (
@@ -82,11 +81,11 @@ func (s *Session) Namespace() (error, error) {
 	}
 	// TODO: once everyone is up to go 1.20, use the error appending
 	if so == nil {
-		return nil, fmt.Errorf("CPUD:Dial 9p port to %q: %v", localhosts, errs)
+		return fmt.Errorf("CPUD:Dial 9p port to %q: %v", localhosts, errs)
 	}
 	verbose("Connected: write nonce %s\n", nonce)
 	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
-		return nil, fmt.Errorf("CPUD:Write nonce: %v", err)
+		return fmt.Errorf("CPUD:Write nonce: %v", err)
 	}
 	verbose("Wrote the nonce")
 	// Zero it. I realize I am not a crypto person.
@@ -98,7 +97,7 @@ func (s *Session) Namespace() (error, error) {
 	flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID)
 	cf, err := so.(*net.TCPConn).File()
 	if err != nil {
-		return nil, fmt.Errorf("CPUD:Cannot get fd for %v: %v", so, err)
+		return fmt.Errorf("CPUD:Cannot get fd for %v: %v", so, err)
 	}
 
 	fd := cf.Fd()
@@ -119,26 +118,11 @@ func (s *Session) Namespace() (error, error) {
 	mountTarget := filepath.Join(s.tmpMnt, "cpu")
 	verbose("mount 127.0.0.1 on %s 9p %#x %s", mountTarget, flags, opts)
 	if err := unix.Mount("localhost", mountTarget, "9p", flags, opts); err != nil {
-		return nil, fmt.Errorf("9p mount %v", err)
+		return fmt.Errorf("9p mount %v", err)
 	}
 	verbose("mount done")
 
-	// In some cases if you set LD_LIBRARY_PATH it is ignored.
-	// This is disappointing to say the least. We just bind a few things into /
-	// bind *may* hide local resources but for now it's the least worst option.
-	var warning error
-	for _, n := range s.binds {
-		t := filepath.Join(mountTarget, n.Remote)
-		verbose("mount %v over %v", t, n.Local)
-		if err := unix.Mount(t, n.Local, "", syscall.MS_BIND, ""); err != nil {
-			s.fail = true
-			warning = errors.Join(warning, fmt.Errorf("CPUD:Warning: mounting %v on %v failed: %v", t, n, err))
-		} else {
-			verbose("Mounted %v on %v", t, n)
-		}
-
-	}
-	return warning, nil
+	return nil
 }
 
 func osMounts(tmpMnt string) error {
