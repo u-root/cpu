@@ -5,12 +5,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
@@ -147,6 +149,19 @@ func serve() error {
 	if err := register(*network, *registerAddr, *registerTO); err != nil {
 		verbose("Register(%v, %v, %d): %v", *network, *registerAddr, *registerTO, err)
 	}
+
+	// If there is a hup, we stop serving.
+	sigs := make(chan os.Signal, 1)
+
+	signal.Notify(sigs, syscall.SIGHUP)
+
+	go func() {
+		sig := <-sigs
+		log.Printf("Received %v, Shutdown cpud listen ...", sig)
+		if err := s.Shutdown(context.Background()); err != nil {
+			log.Printf("Shutdown done")
+		}
+	}()
 
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
 		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)
