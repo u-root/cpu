@@ -69,6 +69,17 @@ func main() {
 		if !ok || len(tmpMnt) == 0 {
 			tmpMnt = "/tmp"
 		}
+
+		// This can happy if the user gets clever and
+		// invokes cpu with, e.g., nothing but switches.
+		// We could potentially assume os.Getenv("SHELL")?
+		if len(args) == 0 {
+			shell, ok := os.LookupEnv("SHELL")
+			if !ok {
+				log.Fatal("No arguments and $SHELL is not set")
+			}
+			args = []string{shell}
+		}
 		s := session.New(*port9p, tmpMnt, args[0], args[1:]...)
 		if err := s.Run(); err != nil {
 			log.Fatalf("CPUD(remote): %v", err)
