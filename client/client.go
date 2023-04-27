@@ -138,15 +138,6 @@ func Command(host string, args ...string) *Cmd {
 		network: "tcp",
 		// Safety first: if they want a namespace, they must say so
 		Root: "",
-		// The command, always, at least, starts with "cpu"
-		// We ship this command because it does allow for
-		// using non-cpud to start cpud in --remote mode.
-		// We are kind of stuck with this default for now,
-		// as the original cpu implementation requires it.
-		// Also, there is the nagging concern that we're not
-		// totally proper yet on the security issues
-		// around letting users run arbitrary binaries.
-		cmd: "cpud -remote",
 	}
 }
 
@@ -233,18 +224,6 @@ func WithHostKeyFile(key string) Set {
 func WithRoot(root string) Set {
 	return func(c *Cmd) error {
 		c.Root = root
-		return nil
-	}
-}
-
-// WithCpudCommand sets the initial command to run on the
-// remote side. This is extremely helpful when testing new
-// implementations of cpud, of little use otherwise.
-func WithCpudCommand(cmd string) Set {
-	return func(c *Cmd) error {
-		if len(cmd) > 0 {
-			c.cmd = cmd
-		}
 		return nil
 	}
 }
@@ -496,7 +475,7 @@ func (c *Cmd) Start() error {
 
 	cmd := c.cmd
 	if c.port9p != 0 {
-		cmd += fmt.Sprintf(" -port9p %v", c.port9p)
+		cmd += fmt.Sprintf("-port9p=%v", c.port9p)
 	}
 	// The ABI for ssh.Start uses a string, not a []string
 	// On the other end, it splits the string back up

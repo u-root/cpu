@@ -40,7 +40,12 @@
 // like: cpud -remote -port9p <9pportnumber> [command
 // [arguments]].  If there is no command, servers typically run
 // $SHELL; that is up to whatever binary cpud is asked to run for each
-// session.
+// session. To avoid certain types of attacks, the 'cpud -remote'
+// part of the command is always provided at the server. If the
+// client is providing a 9p mount, it must provide the -port9p <number>
+// switch. For now, the only client-provided switch accepted by
+// cpud is -port9p. The actual command, if non-empty, must not start
+// with a -.
 //
 // This package also provides a Session type, created by a call to
 // NewSession.  Sessions are very similar to exec.Command, providing

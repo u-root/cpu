@@ -47,14 +47,39 @@ func verbose(f string, a ...interface{}) {
 	}
 }
 
+// There are three distinct cases to cover.
+//  1. running as init (indicated by pid == 1 OR -init=true switch
+//  2. running as server. pid != 1 AND -remote=true AND -init=false
+//  3. running as 'remote', i.e. the thing that starts a command for
+//     a client. Indicated by remote=true.
+//
+// case (3) overrides case 2 and 1.
+// This has evolved over the years, and, likely, the init and remote
+// switches ought to be renamed to 'role'. But so it goes.
+// The rules on arguments are very strict now. In the remote case,
+// os.Args[1] MUST be remote; no other invocation is accepted, because
+// the args to remote and the args to server are different.
+// This invocation requirement is known to the server package.
 func main() {
-	flag.Parse()
+	if len(os.Args) > 1 && os.Args[1] == "-remote" {
+		*remote = true
+	}
+
 	if *remote {
+		// remote has far fewer args. Since they are specified by the client,
+		// we want to limit the set of args it can set.
+		flag.CommandLine = flag.NewFlagSet("cpud-remote", flag.ExitOnError)
+		debug = flag.Bool("d", false, "enable debug prints")
+		remote = flag.Bool("remote", false, "indicates we are the remote side of the cpu session")
+		port9p = flag.String("port9p", "", "port9p # on remote machine for 9p mount")
+
+		flag.Parse()
 		if *debug {
 			v = log.Printf
 			session.SetVerbose(verbose)
 		}
 	} else {
+		flag.Parse()
 		if err := commonsetup(); err != nil {
 			log.Fatal(err)
 		}

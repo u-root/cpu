@@ -62,7 +62,7 @@ func errval(err error) error {
 func handler(s ssh.Session) {
 	a := s.Command()
 	verbose("handler: cmd is %q", a)
-	cmd := command(a[0], a[1:]...)
+	cmd := command("cpud", append([]string{"-remote"}, a...)...)
 
 	sigChan := make(chan ssh.Signal, 1)
 	defer close(sigChan)
