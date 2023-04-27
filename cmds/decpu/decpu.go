@@ -33,8 +33,6 @@ const defaultPort = "17010"
 
 var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
-	// For the ssh server part
-	cpudCmd     = flag.String("cpudcmd", "decpud -remote", "cpud invocation to run at remote, e.g. decpud -d")
 	debug       = flag.Bool("d", false, "enable debug prints")
 	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
 	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
@@ -153,7 +151,6 @@ func newCPU(host, port string, args ...string) error {
 		client.WithNameSpace(*namespace),
 		client.With9P(*ninep),
 		client.WithFSTab(*fstab),
-		client.WithCpudCommand(*cpudCmd),
 		client.WithNetwork(*network),
 		client.WithTempMount(*tmpMnt),
 		client.WithTimeout(*timeout9P)); err != nil {
