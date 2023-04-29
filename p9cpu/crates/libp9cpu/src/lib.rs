@@ -45,6 +45,14 @@ pub fn parse_namespace(namespace: &str, tmp_mnt: &str) -> Vec<cmd::FsTab> {
     if namespace.is_empty() {
         return result;
     }
+    result.push(cmd::FsTab {
+        spec: "".to_owned(),
+        file: format!("{}/{}", tmp_mnt, NINEP_MOUNT),
+        vfstype: "9p".to_owned(),
+        mntops: "".to_owned(),
+        freq: 0,
+        passno: 0,
+    });
     let mut targets = HashSet::new();
     for part in namespace.split(':') {
         let mut iter = part.split('=');
@@ -71,5 +79,9 @@ pub fn parse_namespace(namespace: &str, tmp_mnt: &str) -> Vec<cmd::FsTab> {
             passno: 0,
         });
     }
-    result
+    if result.len() == 1 {
+        vec![]
+    } else {
+        result
+    }
 }

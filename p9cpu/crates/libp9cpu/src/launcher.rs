@@ -4,8 +4,10 @@ use nix::mount::{mount, MsFlags};
 use nix::sched::{unshare, CloneFlags};
 use nix::unistd::setsid;
 use std::ffi::{CString, OsStr};
+use std::fs::create_dir_all;
 use std::net::TcpStream;
 use std::os::unix::prelude::OsStrExt;
+use std::path::Path;
 use std::{io::Read, process::Command};
 
 use crate::cmd;
@@ -46,6 +48,9 @@ pub enum Error {
         err: nix::Error,
     },
     MountRoot(#[source] nix::Error),
+    MountTmp(#[source] nix::Error),
+    MountLocal(#[source] nix::Error),
+    CreateDir(#[source] std::io::Error),
     UnexpectedBytes,
     ShutdownSocket(#[source] std::io::Error),
     ConvertCString(#[source] std::ffi::NulError),
@@ -77,11 +82,39 @@ pub fn connect(port: u16) -> Result<(), Error> {
         .read_exact(&mut buf[0..length])
         .map_err(Error::ReadUds)?;
     let cmd: cmd::Cmd = prost::Message::decode(buf.as_slice()).map_err(Error::ProtoDecode)?;
+    let mut buf = [0];
+    match stream.read(&mut buf) {
+        Ok(0) => {}
+        _ => return Err(Error::UnexpectedBytes),
+    }
+    stream
+        .shutdown(std::net::Shutdown::Both)
+        .map_err(Error::ShutdownSocket)?;
+
     mount::<str, str, str, str>(None, "/", None, MsFlags::MS_REC | MsFlags::MS_PRIVATE, None)
         .map_err(Error::MountRoot)?;
 
+    println!("creating {}", &cmd.tmp_mnt);
+    let tmp_mnt = Path::new(&cmd.tmp_mnt);
+    create_dir_all(tmp_mnt).map_err(Error::CreateDir)?;
+    mount::<_, _, _, str>(
+        Some("p9cpu"),
+        tmp_mnt,
+        Some("tmpfs"),
+        MsFlags::empty(),
+        None,
+    )
+    .map_err(Error::MountTmp)?;
+
+    let local_mount = tmp_mnt.join(crate::LOCAL_ROOT_MOUNT);
+    println!("creating {:?}", &local_mount);
+    create_dir_all(local_mount.as_path()).map_err(Error::CreateDir)?;
+    mount::<_, _, str, str>(Some("/"), &local_mount, None, MsFlags::MS_BIND, None)
+        .map_err(Error::MountLocal)?;
+
     for tab in &cmd.fstab {
         let (flags, data) = parse_fstab_opt(&tab.mntops);
+        create_dir_all(&tab.file).map_err(Error::CreateDir)?;
         if let Err(err) = nix::mount::mount(
             get_ptr(&tab.spec),
             tab.file.as_str(),
@@ -92,14 +125,6 @@ pub fn connect(port: u16) -> Result<(), Error> {
             warn!("Mounting {:?}: {:?}", tab, err)
         }
     }
-    let mut buf = [0];
-    match stream.read(&mut buf) {
-        Ok(0) => {}
-        _ => return Err(Error::UnexpectedBytes),
-    }
-    stream
-        .shutdown(std::net::Shutdown::Both)
-        .map_err(Error::ShutdownSocket)?;
 
     for env in &cmd.envs {
         std::env::set_var(OsStr::from_bytes(&env.key), OsStr::from_bytes(&env.val));

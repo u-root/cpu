@@ -130,7 +130,7 @@ where
         Ok(())
     }
 
-    pub async fn start(&self, cmd: cmd::Cmd, sid: I) -> Result<(), Error> {
+    pub async fn start(&self, mut cmd: cmd::Cmd, sid: I) -> Result<(), Error> {
         let Some(PendingSession { ninep }) = self.pending.write().await.remove(&sid) else {
             return Err(Error::SessionNotExist);
         };
@@ -156,9 +156,18 @@ where
         let command = self.launcher.launch(port);
         let mut command = Command::from(command);
         if cmd.ninep {
-            let Some(_ninep_port) = ninep_port else {
-                    return Err(Error::No9pPort);
+            let Some(ninep_port) = ninep_port else {
+                return Err(Error::No9pPort);
             };
+            for tab in &mut cmd.fstab {
+                if tab.vfstype == "9p"
+                    && tab.file == format!("{}/{}", cmd.tmp_mnt, crate::NINEP_MOUNT)
+                {
+                    tab.spec = format!("127.0.0.1");
+                    tab.mntops = format!("version=9p2000.L,trans=tcp,port={}", ninep_port);
+                    break;
+                }
+            }
         }
 
         let (stdin, stdout, stderr) = if cmd.tty {
@@ -298,13 +307,95 @@ where
 
     pub async fn ninep_forward(
         &self,
-        _sid: &I,
-        mut _in_stream: impl Stream<Item = Vec<u8>> + Unpin + Send + 'static,
+        sid: &I,
+        mut in_stream: impl Stream<Item = Vec<u8>> + Unpin + Send + 'static,
     ) -> Result<impl Stream<Item = Vec<u8>>, Error> {
-        // Not implemented yet
-        let (_tx, rx) = mpsc::channel(10);
-        let stream = ReceiverStream::new(rx);
-        Ok(stream)
+        let pending = self.pending.write().await;
+        let session = pending.get(sid).ok_or(Error::SessionNotExist)?;
+        let addr = std::net::SocketAddrV4::new(std::net::Ipv4Addr::new(127, 0, 0, 1), 0);
+        let listener = std::net::TcpListener::bind(addr).map_err(Error::BindFail)?;
+        let port = listener.local_addr().map_err(Error::BindFail)?.port();
+        log::info!("Session {}: started 9p listener on 127.0.0.1:{}", sid, port);
+        let (tcp_listener_tx, mut tcp_listener_rx) = mpsc::channel(1);
+        std::thread::spawn(move || {
+            async fn accept_timeout(
+                std_listener: std::net::TcpListener,
+                duration: std::time::Duration,
+            ) -> Result<(std::net::TcpStream, std::net::SocketAddr), std::io::Error> {
+                std_listener.set_nonblocking(true)?;
+                let listener = tokio::net::TcpListener::from_std(std_listener)?;
+                let sleep = tokio::time::sleep(duration);
+                let maybe_peer = tokio::select! {
+                    () = sleep => Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "")),
+                    maybe_peer = listener.accept() => maybe_peer,
+                };
+                maybe_peer.and_then(|(stream, peer)| {
+                    let std_stream = stream.into_std()?;
+                    Ok((std_stream, peer))
+                })
+            }
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            let ret =
+                runtime.block_on(accept_timeout(listener, std::time::Duration::from_secs(60)));
+            if tcp_listener_tx.blocking_send(ret).is_err() {
+                log::error!("tcp_listener_rx is main runtime is down");
+            }
+        });
+
+        let (tx, rx) = mpsc::channel(10);
+        let sid_copy = sid.clone();
+        // std::os::linux::net::TcpStreamExt
+        let f = async move {
+            println!("forwarding thread started");
+            let Some(maybe_peer) = tcp_listener_rx.recv().await else {
+                return Err(Error::ChannelClosed);
+            };
+            let Ok((std_stream, peer)) = maybe_peer else {
+                println!("get stream fail");
+                return Ok::<(), Error>(());
+            };
+            log::info!(
+                "Session {}: get 9p request from client {:?}",
+                &sid_copy,
+                peer
+            );
+            std_stream.set_nonblocking(true).map_err(Error::IoErr)?;
+            let mut stream = tokio::net::TcpStream::from_std(std_stream).map_err(Error::IoErr)?;
+            let (mut reader, mut writer) = stream.split();
+            loop {
+                let mut buf = vec![0; 128];
+                tokio::select! {
+                    len = reader.read(&mut buf) => {
+                        let len = len.map_err(Error::IoErr)?;
+                        if len == 0 {
+                            log::info!("buf from reader is 0");
+                            break;
+                        }
+                        buf.truncate(len);
+                        tx.send(buf).await?;
+                    }
+                    in_item = in_stream.next() => {
+                        let Some(in_item) = in_item else {
+                            log::info!("in item is none");
+                            break
+                        };
+                        let len = writer.write(&in_item).await.map_err(Error::IoErr)?;
+                        if len == 0 {
+                            log::info!("send bytes to os client is o");
+                            break;
+                        }
+                    }
+                }
+            }
+            log::info!("Session {}: 9p is done.", &sid_copy);
+            Ok(())
+        };
+        let handle = tokio::spawn(f);
+        *session.ninep.write().await = Some((port, handle));
+        Ok(ReceiverStream::new(rx))
     }
 }
 
