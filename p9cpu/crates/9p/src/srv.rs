@@ -323,7 +323,11 @@ where
     Ok(response)
 }
 
-async fn dispatch<Fs, Reader, Writer>(filesystem: Fs, reader: Reader, writer: Writer) -> Result<()>
+pub async fn dispatch<Fs, Reader, Writer>(
+    filesystem: Fs,
+    reader: Reader,
+    writer: Writer,
+) -> Result<()>
 where
     Fs: 'static + Filesystem + Send + Sync,
     Reader: 'static + AsyncRead + Send + std::marker::Unpin,

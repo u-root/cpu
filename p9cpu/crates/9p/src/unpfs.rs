@@ -1,11 +1,11 @@
 use {
+    crate::{
+        srv::{Fid, Filesystem},
+        *,
+    },
     async_trait::async_trait,
     filetime::FileTime,
     nix::libc::{O_CREAT, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY},
-    rs9p::{
-        srv::{srv_async, Fid, Filesystem},
-        *,
-    },
     std::{
         io::SeekFrom,
         os::unix::{fs::PermissionsExt, io::FromRawFd},
@@ -20,7 +20,7 @@ use {
 };
 
 mod utils;
-use crate::utils::*;
+use crate::unpfs::utils::*;
 
 // Some clients will incorrectly set bits in 9p flags that don't make sense.
 // For exmaple, the linux 9p kernel client propagates O_DIRECT to TCREATE and TOPEN
@@ -38,14 +38,14 @@ use crate::utils::*;
 const UNIX_FLAGS: u32 = (O_WRONLY | O_RDONLY | O_RDWR | O_CREAT | O_TRUNC) as u32;
 
 #[derive(Default)]
-struct UnpfsFid {
+pub struct UnpfsFid {
     realpath: RwLock<PathBuf>,
     file: Mutex<Option<fs::File>>,
 }
 
 #[derive(Clone)]
-struct Unpfs {
-    realroot: PathBuf,
+pub struct Unpfs {
+    pub realroot: PathBuf,
 }
 
 #[async_trait]
@@ -388,40 +388,4 @@ impl Filesystem for Unpfs {
             statfs: From::from(fs),
         })
     }
-}
-
-async fn unpfs_main(args: Vec<String>) -> rs9p::Result<i32> {
-    if args.len() < 3 {
-        eprintln!("Usage: {} proto!address!port mountpoint", args[0]);
-        eprintln!("  where: proto = tcp | unix");
-        return Ok(-1);
-    }
-
-    let (addr, mountpoint) = (&args[1], PathBuf::from(&args[2]));
-    if !fs::metadata(&mountpoint).await?.is_dir() {
-        return res!(io_err!(Other, "mount point must be a directory"));
-    }
-
-    println!("[*] Ready to accept clients: {}", addr);
-    srv_async(
-        Unpfs {
-            realroot: mountpoint,
-        },
-        addr,
-    )
-    .await
-    .and(Ok(0))
-}
-
-#[tokio::main]
-async fn main() {
-    env_logger::init();
-
-    let args = std::env::args().collect();
-    let exit_code = unpfs_main(args).await.unwrap_or_else(|e| {
-        eprintln!("Error: {:?}", e);
-        -1
-    });
-
-    std::process::exit(exit_code);
 }
