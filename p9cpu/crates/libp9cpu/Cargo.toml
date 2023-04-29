@@ -20,7 +20,7 @@ thiserror = "1"
 justerror = "1"
 uuid = { version = "1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 log = "0.4"
-tokio-stream = { version = "0.1.12", features = ["net"] }
+tokio-stream = { version = "0.1.14", features = ["net"] }
 nix = "0.26.2"
 
 [build-dependencies]

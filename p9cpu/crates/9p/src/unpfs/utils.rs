@@ -1,22 +1,8 @@
 use {
-    rs9p::fcall::*,
+    crate::fcall::*,
     std::{fs::Metadata, os::unix::prelude::*, path::Path},
     tokio::fs,
 };
-
-#[macro_export]
-macro_rules! res {
-    ($err:expr) => {
-        Err(From::from($err))
-    };
-}
-
-#[macro_export]
-macro_rules! io_err {
-    ($kind:ident, $msg:expr) => {
-        ::std::io::Error::new(::std::io::ErrorKind::$kind, $msg)
-    };
-}
 
 #[macro_export]
 macro_rules! INVALID_FID {
@@ -33,7 +19,7 @@ pub fn create_buffer(size: usize) -> Vec<u8> {
     buffer
 }
 
-pub async fn get_qid<T: AsRef<Path> + ?Sized>(path: &T) -> rs9p::Result<Qid> {
+pub async fn get_qid<T: AsRef<Path> + ?Sized>(path: &T) -> crate::Result<Qid> {
     Ok(qid_from_attr(&fs::symlink_metadata(path.as_ref()).await?))
 }
 
@@ -48,7 +34,7 @@ pub fn qid_from_attr(attr: &Metadata) -> Qid {
 pub async fn get_dirent_from<P: AsRef<Path> + ?Sized>(
     p: &P,
     offset: u64,
-) -> rs9p::Result<DirEntry> {
+) -> crate::Result<DirEntry> {
     Ok(DirEntry {
         qid: get_qid(p).await?,
         offset,
@@ -57,7 +43,7 @@ pub async fn get_dirent_from<P: AsRef<Path> + ?Sized>(
     })
 }
 
-pub async fn get_dirent(entry: &fs::DirEntry, offset: u64) -> rs9p::Result<DirEntry> {
+pub async fn get_dirent(entry: &fs::DirEntry, offset: u64) -> crate::Result<DirEntry> {
     Ok(DirEntry {
         qid: qid_from_attr(&entry.metadata().await?),
         offset,
