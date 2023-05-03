@@ -95,9 +95,8 @@ func main() {
 			tmpMnt = "/tmp"
 		}
 
-		// This can happy if the user gets clever and
+		// This can happen if the user gets clever and
 		// invokes cpu with, e.g., nothing but switches.
-		// We could potentially assume os.Getenv("SHELL")?
 		if len(args) == 0 {
 			shell, ok := os.LookupEnv("SHELL")
 			if !ok {
