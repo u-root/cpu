@@ -130,8 +130,8 @@ func register(network, addr string, timeout time.Duration) error {
 	return nil
 }
 
-func serve() error {
-	s, err := server.New(*pubKeyFile, *hostKeyFile)
+func serve(cpud string) error {
+	s, err := server.New(*pubKeyFile, *hostKeyFile, cpud)
 	if err != nil {
 		log.Printf(`New(%q, %q): %v`, *pubKeyFile, *hostKeyFile, err)
 		hang()

@@ -116,7 +116,7 @@ func main() {
 				log.Fatal(err)
 			}
 		}
-		if err := serve(); err != nil {
+		if err := serve(os.Args[0]); err != nil {
 			log.Fatal(err)
 		}
 	}

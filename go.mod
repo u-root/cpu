@@ -18,7 +18,6 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	golang.org/x/exp v0.0.0-20221002003631-540bb7301a08
 	google.golang.org/grpc v1.55.0
-	google.golang.org/grpc/examples v0.0.0-20230524173754-59134c303c31
 	google.golang.org/protobuf v1.30.0
 )
 

@@ -61,7 +61,7 @@ func main() {
 		if err := initsetup(); err != nil {
 			log.Fatal(err)
 		}
-		if err := serve(); err != nil {
+		if err := serve(os.Args[0]); err != nil {
 			log.Fatal(err)
 		}
 	case *remote:
@@ -79,7 +79,7 @@ func main() {
 		if err := commonsetup(); err != nil {
 			log.Fatal(err)
 		}
-		if err := serve(); err != nil {
+		if err := serve(os.Args[0]); err != nil {
 			log.Fatal(err)
 		}
 	}

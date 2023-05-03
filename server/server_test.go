@@ -21,9 +21,9 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
-	s, err := New("", "")
+	s, err := New("", "", os.Args[0])
 	if err != nil {
-		t.Fatalf(`New("", ""): %v != nil`, err)
+		t.Fatalf(`New("", "", %q): %v != nil`, os.Args[0], err)
 	}
 	t.Logf("New server: %v", s)
 }
@@ -74,9 +74,9 @@ func gendotssh(dir, config string) (string, error) {
 
 func TestDaemonStart(t *testing.T) {
 	v = t.Logf
-	s, err := New("", "")
+	s, err := New("", "", os.Args[0])
 	if err != nil {
-		t.Fatalf(`New("", ""): %v != nil`, err)
+		t.Fatalf(`New("", "", %q): %v != nil`, os.Args[0], err)
 	}
 
 	ln, err := net.Listen("tcp", "")
