@@ -87,9 +87,9 @@ func TestDaemonSession(t *testing.T) {
 	}
 
 	pubKey := filepath.Join(dotSSH, "server.pub")
-	s, err := New(pubKey, "")
+	s, err := New(pubKey, "", os.Args[0])
 	if err != nil {
-		t.Fatalf("New(%q, %q): %v != nil", pubKey, "", err)
+		t.Fatalf("New(%q, %q, %q): %v != nil", pubKey, "", os.Args[0], err)
 	}
 
 	ln, err := net.Listen("tcp", "")
@@ -177,9 +177,9 @@ func TestDaemonConnect(t *testing.T) {
 	}
 
 	v = t.Logf
-	s, err := New(filepath.Join(d, ".ssh", "server.pub"), filepath.Join(d, ".ssh", "hostkey"))
+	s, err := New(filepath.Join(d, ".ssh", "server.pub"), filepath.Join(d, ".ssh", "hostkey"), os.Args[0])
 	if err != nil {
-		t.Fatalf(`New(%q, %q): %v != nil`, filepath.Join(d, ".ssh", "server.pub"), filepath.Join(d, ".ssh", "hostkey"), err)
+		t.Fatalf(`New(%q, %q, %q): %v != nil`, filepath.Join(d, ".ssh", "server.pub"), filepath.Join(d, ".ssh", "hostkey"), os.Args[0], err)
 	}
 
 	ln, err := net.Listen("tcp", "")
@@ -209,6 +209,7 @@ func TestDaemonConnect(t *testing.T) {
 	// hack for lack in ssh_config
 	// https://github.com/kevinburke/ssh_config/issues/2
 	cfg, err := config.Decode(bytes.NewBuffer([]byte(hackconfig)))
+
 	if err != nil {
 		t.Fatal(err)
 	}

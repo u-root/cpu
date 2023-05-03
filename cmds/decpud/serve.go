@@ -120,8 +120,8 @@ func (w *handleWrapper) handler(s ssh.Session) {
 	ds.Tenant(-1)
 }
 
-func serve() error {
-	s, err := server.New(*pubKeyFile, *hostKeyFile)
+func serve(cpud string) error {
+	s, err := server.New(*pubKeyFile, *hostKeyFile, cpud)
 	if err != nil {
 		log.Printf(`New(%q, %q): %v`, *pubKeyFile, *hostKeyFile, err)
 		hang()
