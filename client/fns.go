@@ -106,8 +106,9 @@ func (c *Cmd) HostKeyConfig(hostKeyFile string) error {
 }
 
 // SetEnv sets zero or more environment variables for a Session.
+// If envs is nil or a zero length slice, no variables are set.
 func (c *Cmd) SetEnv(envs ...string) error {
-	for _, v := range append(os.Environ(), envs...) {
+	for _, v := range envs {
 		env := strings.SplitN(v, "=", 2)
 		if len(env) == 1 {
 			env = append(env, "")
