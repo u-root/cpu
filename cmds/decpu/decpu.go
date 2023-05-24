@@ -159,6 +159,9 @@ func newCPU(host, port string, args ...string) error {
 		client.WithTimeout(*timeout9P)); err != nil {
 		log.Fatal(err)
 	}
+
+	c.Env = os.Environ()
+
 	if err := c.Dial(); err != nil {
 		return fmt.Errorf("Dial: %v", err)
 	}
