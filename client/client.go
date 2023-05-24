@@ -462,9 +462,16 @@ func (c *Cmd) Start() error {
 		return nil
 	})
 
+	// The rules for the environment follow those of os/exec:
+	// if c.Env is nil, os.Environ is used.
+	if c.Env == nil {
+		c.Env = os.Environ()
+	}
+
 	if err := c.SetEnv(c.Env...); err != nil {
 		return err
 	}
+
 	if c.SessionIn, err = c.session.StdinPipe(); err != nil {
 		return err
 	}
