@@ -142,6 +142,8 @@ func newCPU(host string, args ...string) (retErr error) {
 		verbose("close done")
 	}()
 
+	c.Env = os.Environ()
+
 	if err := c.SetOptions(
 		client.WithPrivateKeyFile(*keyFile),
 		client.WithHostKeyFile(*hostKeyFile),
