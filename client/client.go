@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hugelgupf/p9/p9"
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/crypto/ssh"
@@ -72,11 +73,12 @@ type Cmd struct {
 	// Ninep determines if client will run a 9P server
 	Ninep bool
 
-	nonce   nonce
-	network string // This is a variable but we expect it will always be tcp
-	port9p  uint16 // port on which we serve 9p
-	cmd     string // The command is built up, bit by bit, as we configure the client
-	closers []func() error
+	nonce      nonce
+	network    string // This is a variable but we expect it will always be tcp
+	port9p     uint16 // port on which we serve 9p
+	cmd        string // The command is built up, bit by bit, as we configure the client
+	closers    []func() error
+	fileServer p9.Attacher
 }
 
 // SetOptions sets various options into the Command.
@@ -141,6 +143,16 @@ func Command(host string, args ...string) *Cmd {
 
 // Set is the type of function used to set options in SetOptions.
 type Set func(*Cmd) error
+
+// WithServer allows setting custom 9P servers.
+// One use: should users with to serve from a flattened
+// docker container saved as a cpio or tar.
+func WithServer(a p9.Attacher) Set {
+	return func(c *Cmd) error {
+		c.fileServer = a
+		return nil
+	}
+}
 
 // With9P enables the 9P2000 server in cpu.
 // The server is by default disabled. Ninep is sticky; if set by,
@@ -436,6 +448,11 @@ func (c *Cmd) Start() error {
 
 	if err := c.SetEnv(c.Env...); err != nil {
 		return err
+	}
+
+	// if they did not set an attacher, provide a default one
+	if c.fileServer == nil {
+		c.fileServer = &CPU9P{path: c.Root}
 	}
 
 	if c.SessionIn, err = c.session.StdinPipe(); err != nil {

@@ -17,7 +17,7 @@ import (
 )
 
 // SetAttr implements p9.File.SetAttr.
-func (l *cpu9p) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
+func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 	var err error
 	// Any or ALL can be set.
 	// A setattr could include things to set,

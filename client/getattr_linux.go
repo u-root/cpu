@@ -23,7 +23,7 @@ import (
 // GetAttr implements p9.File.GetAttr.
 //
 // Not fully implemented.
-func (l *cpu9p) GetAttr(req p9.AttrMask) (p9.QID, p9.AttrMask, p9.Attr, error) {
+func (l *CPU9P) GetAttr(req p9.AttrMask) (p9.QID, p9.AttrMask, p9.Attr, error) {
 	qid, fi, err := l.info()
 	if err != nil {
 		return qid, p9.AttrMask{}, p9.Attr{}, err

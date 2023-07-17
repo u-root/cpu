@@ -43,7 +43,7 @@ func Test9pUnix(t *testing.T) {
 		DataVersion: true,
 	}
 
-	c := &cpu9p{
+	c := &CPU9P{
 		path: f,
 	}
 
@@ -205,7 +205,7 @@ func Test9pRemove(t *testing.T) {
 	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
 		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
-	c := &cpu9p{
+	c := &CPU9P{
 		path: f,
 	}
 
@@ -224,7 +224,7 @@ func Test9pUnlinkat(t *testing.T) {
 	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
 		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
-	c := &cpu9p{
+	c := &CPU9P{
 		path: d,
 	}
 
@@ -243,13 +243,13 @@ func Test9pRenameAt(t *testing.T) {
 	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
 		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
-	c := &cpu9p{
+	c := &CPU9P{
 		path: filepath.Join(d, "nd"),
 	}
 	if err := os.Mkdir(c.path, 0777); err != nil {
 		t.Fatalf("Mkdir(%q, 0777): %v != nil", c.path, err)
 	}
-	oldPath := &cpu9p{
+	oldPath := &CPU9P{
 		path: d,
 	}
 	if err := oldPath.RenameAt("a", c, "z"); err != nil {
