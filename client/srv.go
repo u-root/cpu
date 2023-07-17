@@ -63,7 +63,7 @@ func (c *Cmd) srv(l net.Listener) error {
 			log.SetFlags(log.Ltime | log.Lmicroseconds)
 			ulog.Log = log.New(DumpWriter, "9p", log.Ltime|log.Lmicroseconds)
 		}
-		if err := p9.NewServer(&cpu9p{path: c.Root}, p9.WithServerLogger(ulog.Log)).Handle(s, s); err != nil {
+		if err := p9.NewServer(&CPU9P{path: c.Root}, p9.WithServerLogger(ulog.Log)).Handle(s, s); err != nil {
 			if err != io.EOF {
 				log.Printf("Serving cpu remote: %v", err)
 				return err
@@ -71,7 +71,8 @@ func (c *Cmd) srv(l net.Listener) error {
 		}
 		return nil
 	}
-	if err := p9.NewServer(&cpu9p{path: c.Root}).Handle(s, s); err != nil {
+
+	if err := p9.NewServer(c.fileServer).Handle(s, s); err != nil {
 		if err != io.EOF {
 			log.Printf("Serving cpu remote: %v", err)
 			return err

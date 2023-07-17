@@ -28,26 +28,31 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// cpu9p is a p9.Attacher.
-type cpu9p struct {
+// CPU9P is a p9.Attacher.
+type CPU9P struct {
 	p9.DefaultWalkGetAttr
 
 	path string
 	file *os.File
 }
 
+// NewCPU9P returns a CPU9P, properly initialized.
+func NewCPU9P(root string) *CPU9P {
+	return &CPU9P{path: root}
+}
+
 // Attach implements p9.Attacher.Attach.
-func (l *cpu9p) Attach() (p9.File, error) {
-	return &cpu9p{path: l.path}, nil
+func (l *CPU9P) Attach() (p9.File, error) {
+	return &CPU9P{path: l.path}, nil
 }
 
 var (
-	_ p9.File     = &cpu9p{}
-	_ p9.Attacher = &cpu9p{}
+	_ p9.File     = &CPU9P{}
+	_ p9.Attacher = &CPU9P{}
 )
 
 // info constructs a QID for this file.
-func (l *cpu9p) info() (p9.QID, os.FileInfo, error) {
+func (l *CPU9P) info() (p9.QID, os.FileInfo, error) {
 	var (
 		qid p9.QID
 		fi  os.FileInfo
@@ -74,40 +79,40 @@ func (l *cpu9p) info() (p9.QID, os.FileInfo, error) {
 }
 
 // SetXattr implements p9.File.SetXattr
-func (l *cpu9p) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
+func (l *CPU9P) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
 	return unix.Setxattr(l.path, attr, data, int(flags))
 }
 
 // ListXattrs implements p9.File.ListXattrs
-func (l *cpu9p) ListXattrs() ([]string, error) {
+func (l *CPU9P) ListXattrs() ([]string, error) {
 	return xattr.List(l.path)
 }
 
 // GetXattr implements p9.File.GetXattr
-func (l *cpu9p) GetXattr(attr string) ([]byte, error) {
+func (l *CPU9P) GetXattr(attr string) ([]byte, error) {
 	return xattr.Get(l.path, attr)
 }
 
 // RemoveXattr implements p9.File.RemoveXattr
-func (l *cpu9p) RemoveXattr(attr string) error {
+func (l *CPU9P) RemoveXattr(attr string) error {
 	return unix.Removexattr(l.path, attr)
 }
 
-func (l *cpu9p) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
+func (l *CPU9P) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
 	verbose("Lock: not implemented")
 	return p9.LockStatusError, syscall.ENOSYS
 }
 
 // Walk implements p9.File.Walk.
-func (l *cpu9p) Walk(names []string) ([]p9.QID, p9.File, error) {
+func (l *CPU9P) Walk(names []string) ([]p9.QID, p9.File, error) {
 	var qids []p9.QID
-	last := &cpu9p{path: l.path}
+	last := &CPU9P{path: l.path}
 	// If the names are empty we return info for l
 	// An extra stat is never hurtful; all servers
 	// are a bundle of race conditions and there's no need
 	// to make things worse.
 	if len(names) == 0 {
-		c := &cpu9p{path: last.path}
+		c := &CPU9P{path: last.path}
 		qid, fi, err := c.info()
 		verbose("Walk to %v: %v, %v, %v", *c, qid, fi, err)
 		if err != nil {
@@ -119,7 +124,7 @@ func (l *cpu9p) Walk(names []string) ([]p9.QID, p9.File, error) {
 	}
 	verbose("Walk: %v", names)
 	for _, name := range names {
-		c := &cpu9p{path: filepath.Join(last.path, name)}
+		c := &CPU9P{path: filepath.Join(last.path, name)}
 		qid, fi, err := c.info()
 		verbose("Walk to %v: %v, %v, %v", *c, qid, fi, err)
 		if err != nil {
@@ -133,12 +138,12 @@ func (l *cpu9p) Walk(names []string) ([]p9.QID, p9.File, error) {
 }
 
 // FSync implements p9.File.FSync.
-func (l *cpu9p) FSync() error {
+func (l *CPU9P) FSync() error {
 	return l.file.Sync()
 }
 
 // Close implements p9.File.Close.
-func (l *cpu9p) Close() error {
+func (l *CPU9P) Close() error {
 	if l.file != nil {
 		return l.file.Close()
 	}
@@ -146,7 +151,7 @@ func (l *cpu9p) Close() error {
 }
 
 // Open implements p9.File.Open.
-func (l *cpu9p) Open(mode p9.OpenFlags) (p9.QID, uint32, error) {
+func (l *CPU9P) Open(mode p9.OpenFlags) (p9.QID, uint32, error) {
 	qid, fi, err := l.info()
 	verbose("Open %v: (%v, %v, %v", *l, qid, fi, err)
 	if err != nil {
@@ -168,7 +173,7 @@ func (l *cpu9p) Open(mode p9.OpenFlags) (p9.QID, uint32, error) {
 }
 
 // Read implements p9.File.ReadAt.
-func (l *cpu9p) ReadAt(p []byte, offset int64) (int, error) {
+func (l *CPU9P) ReadAt(p []byte, offset int64) (int, error) {
 	return l.file.ReadAt(p, int64(offset))
 }
 
@@ -180,7 +185,7 @@ func (l *cpu9p) ReadAt(p []byte, offset int64) (int, error) {
 // so it is very cheap to try the WriteAt, check the
 // error, and call Write if it is the rare case of a second write
 // to an append-only file..
-func (l *cpu9p) WriteAt(p []byte, offset int64) (int, error) {
+func (l *CPU9P) WriteAt(p []byte, offset int64) (int, error) {
 	n, err := l.file.WriteAt(p, int64(offset))
 	if err != nil {
 		if strings.Contains(err.Error(), "os: invalid use of WriteAt on file opened with O_APPEND") {
@@ -191,13 +196,13 @@ func (l *cpu9p) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 // Create implements p9.File.Create.
-func (l *cpu9p) Create(name string, mode p9.OpenFlags, permissions p9.FileMode, _ p9.UID, _ p9.GID) (p9.File, p9.QID, uint32, error) {
+func (l *CPU9P) Create(name string, mode p9.OpenFlags, permissions p9.FileMode, _ p9.UID, _ p9.GID) (p9.File, p9.QID, uint32, error) {
 	f, err := os.OpenFile(filepath.Join(l.path, name), os.O_CREATE|mode.OSFlags(), os.FileMode(permissions))
 	if err != nil {
 		return nil, p9.QID{}, 0, err
 	}
 
-	l2 := &cpu9p{path: filepath.Join(l.path, name), file: f}
+	l2 := &CPU9P{path: filepath.Join(l.path, name), file: f}
 	qid, _, err := l2.info()
 	if err != nil {
 		l2.Close()
@@ -212,7 +217,7 @@ func (l *cpu9p) Create(name string, mode p9.OpenFlags, permissions p9.FileMode, 
 // Mkdir implements p9.File.Mkdir.
 //
 // Not properly implemented.
-func (l *cpu9p) Mkdir(name string, permissions p9.FileMode, _ p9.UID, _ p9.GID) (p9.QID, error) {
+func (l *CPU9P) Mkdir(name string, permissions p9.FileMode, _ p9.UID, _ p9.GID) (p9.QID, error) {
 	if err := os.Mkdir(filepath.Join(l.path, name), os.FileMode(permissions)); err != nil {
 		return p9.QID{}, err
 	}
@@ -224,7 +229,7 @@ func (l *cpu9p) Mkdir(name string, permissions p9.FileMode, _ p9.UID, _ p9.GID) 
 // Symlink implements p9.File.Symlink.
 //
 // Not properly implemented.
-func (l *cpu9p) Symlink(oldname string, newname string, _ p9.UID, _ p9.GID) (p9.QID, error) {
+func (l *CPU9P) Symlink(oldname string, newname string, _ p9.UID, _ p9.GID) (p9.QID, error) {
 	if err := os.Symlink(oldname, filepath.Join(l.path, newname)); err != nil {
 		return p9.QID{}, err
 	}
@@ -236,12 +241,12 @@ func (l *cpu9p) Symlink(oldname string, newname string, _ p9.UID, _ p9.GID) (p9.
 // Link implements p9.File.Link.
 //
 // Not properly implemented.
-func (l *cpu9p) Link(target p9.File, newname string) error {
-	return os.Link(target.(*cpu9p).path, filepath.Join(l.path, newname))
+func (l *CPU9P) Link(target p9.File, newname string) error {
+	return os.Link(target.(*CPU9P).path, filepath.Join(l.path, newname))
 }
 
 // Readdir implements p9.File.Readdir.
-func (l *cpu9p) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
+func (l *CPU9P) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
 	fi, err := ioutil.ReadDir(l.path)
 	if err != nil {
 		return nil, err
@@ -249,7 +254,7 @@ func (l *cpu9p) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
 	var dirents p9.Dirents
 	//log.Printf("readdir %q returns %d entries start at offset %d", l.path, len(fi), offset)
 	for i := int(offset); i < len(fi); i++ {
-		entry := cpu9p{path: filepath.Join(l.path, fi[i].Name())}
+		entry := CPU9P{path: filepath.Join(l.path, fi[i].Name())}
 		qid, _, err := entry.info()
 		if err != nil {
 			continue
@@ -266,7 +271,7 @@ func (l *cpu9p) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
 }
 
 // Readlink implements p9.File.Readlink.
-func (l *cpu9p) Readlink() (string, error) {
+func (l *CPU9P) Readlink() (string, error) {
 	n, err := os.Readlink(l.path)
 	if false && err != nil {
 		log.Printf("Readlink(%v): %v, %v", *l, n, err)
@@ -275,17 +280,17 @@ func (l *cpu9p) Readlink() (string, error) {
 }
 
 // Flush implements p9.File.Flush.
-func (l *cpu9p) Flush() error {
+func (l *CPU9P) Flush() error {
 	return nil
 }
 
 // Renamed implements p9.File.Renamed.
-func (l *cpu9p) Renamed(parent p9.File, newName string) {
-	l.path = filepath.Join(parent.(*cpu9p).path, newName)
+func (l *CPU9P) Renamed(parent p9.File, newName string) {
+	l.path = filepath.Join(parent.(*CPU9P).path, newName)
 }
 
 // Remove implements p9.File.Remove
-func (l *cpu9p) Remove() error {
+func (l *CPU9P) Remove() error {
 	err := os.Remove(l.path)
 	verbose("Remove(%q): (%v)", l.path, err)
 	return err
@@ -294,7 +299,7 @@ func (l *cpu9p) Remove() error {
 // UnlinkAt implements p9.File.UnlinkAt.
 // The flags docs are not very clear, but we
 // always block on the unlink anyway.
-func (l *cpu9p) UnlinkAt(name string, flags uint32) error {
+func (l *CPU9P) UnlinkAt(name string, flags uint32) error {
 	f := filepath.Join(l.path, name)
 	err := os.Remove(f)
 	verbose("UnlinkAt(%q=(%q, %q), %#x): (%v)", f, l.path, name, flags, err)
@@ -302,22 +307,22 @@ func (l *cpu9p) UnlinkAt(name string, flags uint32) error {
 }
 
 // Mknod implements p9.File.Mknod.
-func (*cpu9p) Mknod(name string, mode p9.FileMode, major uint32, minor uint32, _ p9.UID, _ p9.GID) (p9.QID, error) {
+func (*CPU9P) Mknod(name string, mode p9.FileMode, major uint32, minor uint32, _ p9.UID, _ p9.GID) (p9.QID, error) {
 	verbose("Mknod: not implemented")
 	return p9.QID{}, syscall.ENOSYS
 }
 
 // Rename implements p9.File.Rename.
-func (*cpu9p) Rename(directory p9.File, name string) error {
+func (*CPU9P) Rename(directory p9.File, name string) error {
 	verbose("Rename: not implemented")
 	return syscall.ENOSYS
 }
 
 // RenameAt implements p9.File.RenameAt.
 // There is no guarantee that there is not a zipslip issue.
-func (l *cpu9p) RenameAt(oldName string, newDir p9.File, newName string) error {
+func (l *CPU9P) RenameAt(oldName string, newDir p9.File, newName string) error {
 	oldPath := path.Join(l.path, oldName)
-	nd, ok := newDir.(*cpu9p)
+	nd, ok := newDir.(*CPU9P)
 	if !ok {
 		// This is extremely serious and points to an internal error.
 		// Hence the non-optional log.Printf. It should not ever happen.
@@ -332,7 +337,7 @@ func (l *cpu9p) RenameAt(oldName string, newDir p9.File, newName string) error {
 // StatFS implements p9.File.StatFS.
 //
 // Not implemented.
-func (*cpu9p) StatFS() (p9.FSStat, error) {
+func (*CPU9P) StatFS() (p9.FSStat, error) {
 	verbose("StatFS: not implemented")
 	return p9.FSStat{}, syscall.ENOSYS
 }
