@@ -16,7 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Setup protoc
+      uses: arduino/setup-protoc@v2.0.0
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --manifest-path=p9cpu/Cargo.toml --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --manifest-path=p9cpu/Cargo.toml --verbose
