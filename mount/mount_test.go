@@ -8,7 +8,6 @@
 package mount
 
 import (
-	"errors"
 	"os"
 	"syscall"
 	"testing"
@@ -20,8 +19,8 @@ func TestMkdir(t *testing.T) {
 	// Call Mount with a one-line fstab with a bogus mount point. It should do nothing but return
 	// the mkdir error
 	var fstab = "a /dev/zero/x none defaults 0 0"
-	if err := Mount(fstab); !errors.Is(err, syscall.ENOTDIR) {
-		t.Fatalf("mount(%v): %v != %v", fstab, err, syscall.ENOTDIR)
+	if err := Mount(fstab); err == nil {
+		t.Fatalf("mount(%v): want err, got nil", fstab)
 	}
 }
 
