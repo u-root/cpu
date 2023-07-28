@@ -390,6 +390,8 @@ func (c *Cmd) Dial() error {
 		c.nonce = nonce
 		c.Env = append(c.Env, "CPUNONCE="+nonce.String())
 		verbose("Set NONCE to %q", nonce.String())
+		c.Env = append(c.Env, "CPU_TMPMNT="+c.TmpMnt)
+		verbose("Set CPU_TMPMNT to %q", "CPU_TMPMNT="+c.TmpMnt)
 		go func(l net.Listener) {
 			if err := c.srv(l); err != nil {
 				log.Printf("9p server error: %v", err)
@@ -399,9 +401,6 @@ func (c *Cmd) Dial() error {
 	if len(c.FSTab) > 0 {
 		c.Env = append(c.Env, "CPU_FSTAB="+c.FSTab)
 	}
-
-	c.Env = append(c.Env, "CPU_TMPMNT="+c.TmpMnt)
-	verbose("Set CPU_TMPMNT to %q", "CPU_TMPMNT="+c.TmpMnt)
 
 	return nil
 }
