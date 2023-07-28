@@ -10,7 +10,7 @@ import (
 
 // Not sure testing this is a great idea but ... it works so ...
 func TestDropPrivs(t *testing.T) {
-	s := New("", "/tmp", "/bin/true")
+	s := New("", "/bin/true")
 	if err := s.DropPrivs(); err != nil {
 		t.Fatalf("s.DropPrivs(): %v != nil", err)
 	}

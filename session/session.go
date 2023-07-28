@@ -43,7 +43,6 @@ type Session struct {
 	port9p string
 	cmd    string
 	args   []string
-	tmpMnt string
 }
 
 var (
@@ -111,18 +110,19 @@ func (s *Session) TmpMounts() error {
 	// It's true we are making this directory while still root.
 	// This ought to be safe as it is a private namespace mount.
 	// (or we are started with a clean namespace in Plan 9).
+	t := os.TempDir()
 	for _, n := range []string{
-		filepath.Join(s.tmpMnt, "cpu"),
-		filepath.Join(s.tmpMnt, "local"),
-		filepath.Join(s.tmpMnt, "merge"),
-		filepath.Join(s.tmpMnt, "root"),
+		filepath.Join(t, "cpu"),
+		filepath.Join(t, "local"),
+		filepath.Join(t, "merge"),
+		filepath.Join(t, "root"),
 		"/home"} {
 		if err := os.MkdirAll(n, 0666); err != nil && !os.IsExist(err) {
 			log.Println(err)
 		}
 	}
 
-	if err := osMounts(s.tmpMnt); err != nil {
+	if err := osMounts(); err != nil {
 		log.Println(err)
 	}
 	return nil
@@ -139,7 +139,7 @@ func (s *Session) TmpMounts() error {
 func (s *Session) Run() error {
 	var errs error
 
-	if err := runSetup(s.tmpMnt); err != nil {
+	if err := runSetup(); err != nil {
 		return err
 	}
 	if err := s.TmpMounts(); err != nil {
@@ -228,12 +228,12 @@ func (s *Session) Run() error {
 // New returns a New session with defaults set. It requires a port for
 // 9p (which can be the empty string, but is usually not) and a
 // command name.
-func New(port9p, tmpMnt, cmd string, args ...string) *Session {
+func New(port9p, cmd string, args ...string) *Session {
 	// Measurement has shown that 64K is a good number. 8K is too small.
 	// History: why was it ever 8K? You have to go back to the 90s and see:
 	// Page size on 68K Sun systems was 8K
 	// There was this amazing new thing called Jumbo Packets
 	// The 9P designers had the wisdom to make msize negotiation part of session initiation,
 	// so we had a way out!
-	return &Session{msize: 64 * 1024, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, tmpMnt: tmpMnt, cmd: cmd, args: args}
+	return &Session{msize: 64 * 1024, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, cmd: cmd, args: args}
 }

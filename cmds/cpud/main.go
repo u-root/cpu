@@ -90,10 +90,6 @@ func main() {
 	args := flag.Args()
 	if *remote {
 		verbose("args %q, port9p %v", args, *port9p)
-		tmpMnt, ok := os.LookupEnv("CPU_TMPMNT")
-		if !ok || len(tmpMnt) == 0 {
-			tmpMnt = "/tmp"
-		}
 
 		// This can happen if the user gets clever and
 		// invokes cpu with, e.g., nothing but switches.
@@ -104,7 +100,7 @@ func main() {
 			}
 			args = []string{shell}
 		}
-		s := session.New(*port9p, tmpMnt, args[0], args[1:]...)
+		s := session.New(*port9p, args[0], args[1:]...)
 		if err := s.Run(); err != nil {
 			log.Fatalf("CPUD(remote): %v", err)
 		}

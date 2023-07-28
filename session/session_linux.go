@@ -115,7 +115,7 @@ func (s *Session) Namespace() error {
 	if len(s.mopts) > 0 {
 		opts += "," + s.mopts
 	}
-	mountTarget := filepath.Join(s.tmpMnt, "cpu")
+	mountTarget := filepath.Join(os.TempDir(), "cpu")
 	verbose("mount 127.0.0.1 on %s 9p %#x %s", mountTarget, flags, opts)
 	if err := unix.Mount("localhost", mountTarget, "9p", flags, opts); err != nil {
 		return fmt.Errorf("9p mount %v", err)
@@ -125,8 +125,9 @@ func (s *Session) Namespace() error {
 	return nil
 }
 
-func osMounts(tmpMnt string) error {
+func osMounts() error {
 	var errs error
+	tmpMnt := os.TempDir()
 	// Further, bind / onto /tmp/local so a non-hacked-on version may be visible.
 	if err := unix.Mount("/", filepath.Join(tmpMnt, "local"), "", syscall.MS_BIND, ""); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("CPUD:Warning: binding / over %s did not work: %v, continuing anyway", filepath.Join(tmpMnt, "local"), err))
@@ -135,10 +136,8 @@ func osMounts(tmpMnt string) error {
 }
 
 // runSetup performs kernel-specific operations for starting a Session.
-func runSetup(tmpMnt string) error {
-	if err := os.MkdirAll(tmpMnt, 0666); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("cannot create %s: %v", tmpMnt, err)
-	}
+func runSetup() error {
+	tmpMnt := os.TempDir()
 	if err := unix.Mount("cpu", tmpMnt, "tmpfs", 0, ""); err != nil {
 		return fmt.Errorf(`unix.Mount("cpu", %s, "tmpfs", 0, ""); %v != nil`, tmpMnt, err)
 	}
