@@ -47,7 +47,7 @@ func TestListen(t *testing.T) {
 			var sysErr *os.SyscallError
 			if errors.As(err, &sysErr) && sysErr.Err == syscall.EAFNOSUPPORT {
 				// e.g. no ipv4 or vsock
-				continue;
+				continue
 			}
 			t.Errorf("Listen(%v, %v): err != nil", tt.network, tt.port)
 			continue

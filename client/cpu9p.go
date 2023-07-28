@@ -314,3 +314,4 @@ func (*cpu9p) StatFS() (p9.FSStat, error) {
 	verbose("StatFS: not implemented")
 	return p9.FSStat{}, syscall.ENOSYS
 }
+

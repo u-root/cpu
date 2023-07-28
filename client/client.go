@@ -72,8 +72,6 @@ type Cmd struct {
 	// Ninep determines if client will run a 9P server
 	Ninep bool
 
-	TmpMnt string
-
 	nonce   nonce
 	network string // This is a variable but we expect it will always be tcp
 	port9p  uint16 // port on which we serve 9p
@@ -179,14 +177,6 @@ func WithFSTab(fstab string) Set {
 			return fmt.Errorf("Reading fstab: %w", err)
 		}
 		c.FSTab = string(b)
-		return nil
-	}
-}
-
-// WithTempMount sets the private namespace mount point.
-func WithTempMount(tmpMnt string) Set {
-	return func(c *Cmd) error {
-		c.TmpMnt = tmpMnt
 		return nil
 	}
 }
@@ -305,7 +295,7 @@ func unixVsockDial(path, port string) (net.Conn, error) {
 // to avoid callers getting ordering of setting variables
 // in the Cmd wrong.
 func (c *Cmd) Dial() error {
-	fstab, err := parseBinds(c.NameSpace, c.TmpMnt)
+	fstab, err := parseBinds(c.NameSpace)
 	if err != nil {
 		return err
 	}
@@ -399,9 +389,6 @@ func (c *Cmd) Dial() error {
 	if len(c.FSTab) > 0 {
 		c.Env = append(c.Env, "CPU_FSTAB="+c.FSTab)
 	}
-
-	c.Env = append(c.Env, "CPU_TMPMNT="+c.TmpMnt)
-	verbose("Set CPU_TMPMNT to %q", "CPU_TMPMNT="+c.TmpMnt)
 
 	return nil
 }

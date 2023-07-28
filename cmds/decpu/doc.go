@@ -109,8 +109,6 @@
 //			     remote port, default 17010
 //			-timeout9p time.Duration
 //			      How long to wait for the server to connect to 9p (default100ms)
-//			-tmpMnt
-//		       Mount point of the private namespaces (default /tmp)
 //
 //		 URI is either a hostname or a DNS-SD URI string or . (signifying defaults)
 //	   (e.g. dnssd://_ncpu._tcp?arch=arm64&sort=load5)
