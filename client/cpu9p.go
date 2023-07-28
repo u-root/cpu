@@ -71,6 +71,11 @@ func (l *cpu9p) info() (p9.QID, os.FileInfo, error) {
 	return qid, fi, nil
 }
 
+func (l *cpu9p) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
+	verbose("Lock: not implemented")
+	return p9.LockStatusError, syscall.ENOSYS
+}
+
 // Walk implements p9.File.Walk.
 func (l *cpu9p) Walk(names []string) ([]p9.QID, p9.File, error) {
 	var qids []p9.QID
@@ -309,3 +314,4 @@ func (*cpu9p) StatFS() (p9.FSStat, error) {
 	verbose("StatFS: not implemented")
 	return p9.FSStat{}, syscall.ENOSYS
 }
+
