@@ -33,20 +33,19 @@ const defaultPort = "17010"
 
 var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
-	debug       = flag.Bool("d", false, "enable debug prints")
-	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
-	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
-	fstab       = flag.String("fstab", "", "pass an fstab to the cpud")
-	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
-	keyFile     = flag.String("key", "", "key file")
-	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
-	network     = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
-	numCPUs     = flag.Int("n", 1, "number CPUs to run on")
-	sp          = flag.String("sp", "", "cpu default port")
-	root        = flag.String("root", "/", "9p root")
-	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
-	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
-	tmpMnt      = flag.String("tmpMnt", "/tmp", "Mount point of the private namespace.")
+	debug          = flag.Bool("d", false, "enable debug prints")
+	dbg9p          = flag.Bool("dbg9p", false, "show 9p io")
+	dump           = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
+	fstab          = flag.String("fstab", "", "pass an fstab to the cpud")
+	hostKeyFile    = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
+	keyFile        = flag.String("key", "", "key file")
+	namespace      = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
+	network        = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
+	numCPUs        = flag.Int("n", 1, "number CPUs to run on")
+	sp             = flag.String("sp", "", "cpu default port")
+	root           = flag.String("root", "/", "9p root")
+	timeout9P      = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
+	ninep          = flag.Bool("9p", true, "Enable the 9p mount in the client")
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
 	v          = func(string, ...interface{}) {}
@@ -152,7 +151,6 @@ func newCPU(host, port string, args ...string) error {
 		client.With9P(*ninep),
 		client.WithFSTab(*fstab),
 		client.WithNetwork(*network),
-		client.WithTempMount(*tmpMnt),
 		client.WithTimeout(*timeout9P)); err != nil {
 		log.Fatal(err)
 	}

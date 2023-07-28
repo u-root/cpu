@@ -255,20 +255,13 @@ func (c *Cmd) Outputs() ([]bytes.Buffer, error) {
 }
 
 // parseBinds parses a CPU_NAMESPACE-style string to a
-// an fstab format string. It is not intended to be called
-// outside this package, because it is sensitive to values
-// in the Cmd struct (e.g. c.TmpMnt) and users might set things
-// in the wrong order. E.g., were we to call this function before
-// before code called WithTmpMnt, the binds will be to the wrong
-// place. This might be fixed with more complex cpud
-// behavior, e.g. pass fstab as a template and let cpud change it
-// before use, but for now, we will see if we can get away
-// with limiting the mistakes a client can make.
-func parseBinds(s, tmp string) (string, error) {
+// an fstab format string.
+func parseBinds(s string) (string, error) {
 	var fstab string
 	if len(s) == 0 {
 		return fstab, nil
 	}
+	tmpMnt := os.TempDir()
 	binds := strings.Split(s, ":")
 	for i, bind := range binds {
 		if len(bind) == 0 {
@@ -299,10 +292,10 @@ func parseBinds(s, tmp string) (string, error) {
 			return fstab, fmt.Errorf("bind: element %d(%q): remote is 0 length:%w", i, bind, strconv.ErrSyntax)
 		}
 
-		// The convention is that the remote side is relative to filepath.Join(c.TmpMnt, "cpu")
+		// The convention is that the remote side is relative to filepath.Join(tmpMnt, "cpu")
 		// and the left side is taken exactly as written. Further, recall that in bind mounts, the
 		// remote side is the "device", and the local side is the "target."
-		fstab = fstab + fmt.Sprintf("%s %s none defaults,bind 0 0\n", filepath.Join(tmp, "cpu", remote), local)
+		fstab = fstab + fmt.Sprintf("%s %s none defaults,bind 0 0\n", filepath.Join(tmpMnt, "cpu", remote), local)
 	}
 	return fstab, nil
 }

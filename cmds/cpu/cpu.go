@@ -45,7 +45,6 @@ var (
 	root        = flag.String("root", "/", "9p root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
-	tmpMnt      = flag.String("tmpMnt", "/tmp", "Mount point of the private namespace.")
 
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
@@ -152,7 +151,6 @@ func newCPU(host string, args ...string) (retErr error) {
 		client.With9P(*ninep),
 		client.WithFSTab(*fstab),
 		client.WithNetwork(*network),
-		client.WithTempMount(*tmpMnt),
 		client.WithTimeout(*timeout9P)); err != nil {
 		log.Fatal(err)
 	}
