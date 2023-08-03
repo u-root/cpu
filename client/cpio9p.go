@@ -374,6 +374,26 @@ func (l *CPIO9PFID) RenameAt(oldName string, newDir p9.File, newName string) err
 	return syscall.ENOSYS
 }
 
+// SetXattr implements p9.File.SetXattr
+func (l *CPIO9PFID) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
+	return syscall.ENOSYS
+}
+
+// ListXattrs implements p9.File.ListXattrs
+func (l *CPIO9PFID) ListXattrs() ([]string, error) {
+	return nil, syscall.ENOSYS
+}
+
+// GetXattr implements p9.File.GetXattr
+func (l *CPIO9PFID) GetXattr(attr string) ([]byte, error) {
+	return nil, syscall.ENOSYS
+}
+
+// RemoveXattr implements p9.File.RemoveXattr
+func (l *CPIO9PFID) RemoveXattr(attr string) error {
+	return syscall.ENOSYS
+}
+
 // StatFS implements p9.File.StatFS.
 //
 // Not implemented.
@@ -387,7 +407,7 @@ func (l *CPIO9PFID) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 }
 
 // Lock implements lock by doing nothing.
-func (*CPIO9PFID) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error){
+func (*CPIO9PFID) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
 	return p9.LockStatus(0), nil
 }
 
