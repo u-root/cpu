@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/gliderlabs/ssh v0.3.5
-	github.com/hugelgupf/p9 v0.2.1-0.20230102222142-5cb68b4d03bb
+	github.com/hugelgupf/p9 v0.2.1-0.20230803231326-7b9704081cf5
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/u-root/u-root v0.11.0
 	golang.org/x/crypto v0.10.0

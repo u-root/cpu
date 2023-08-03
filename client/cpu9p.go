@@ -23,7 +23,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/hugelgupf/p9/fsimpl/xattr"
 	"github.com/hugelgupf/p9/p9"
+	"golang.org/x/sys/unix"
 )
 
 // cpu9p is a p9.Attacher.
@@ -69,6 +71,26 @@ func (l *cpu9p) info() (p9.QID, os.FileInfo, error) {
 	// Save the path from the Ino.
 	qid.Path = fi.Sys().(*syscall.Stat_t).Ino
 	return qid, fi, nil
+}
+
+// SetXattr implements p9.File.SetXattr
+func (l *cpu9p) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
+	return unix.Setxattr(l.path, attr, data, int(flags))
+}
+
+// ListXattrs implements p9.File.ListXattrs
+func (l *cpu9p) ListXattrs() ([]string, error) {
+	return xattr.List(l.path)
+}
+
+// GetXattr implements p9.File.GetXattr
+func (l *cpu9p) GetXattr(attr string) ([]byte, error) {
+	return xattr.Get(l.path, attr)
+}
+
+// RemoveXattr implements p9.File.RemoveXattr
+func (l *cpu9p) RemoveXattr(attr string) error {
+	return unix.Removexattr(l.path, attr)
 }
 
 func (l *cpu9p) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
@@ -314,4 +336,3 @@ func (*cpu9p) StatFS() (p9.FSStat, error) {
 	verbose("StatFS: not implemented")
 	return p9.FSStat{}, syscall.ENOSYS
 }
-

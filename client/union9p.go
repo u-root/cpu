@@ -394,3 +394,23 @@ func (u *union9PFID) GetAttr(req p9.AttrMask) (p9.QID, p9.AttrMask, p9.Attr, err
 
 	return p9.QID{Type: p9.TypeDir, Path: 0, Version: 0}, valid, attr, nil
 }
+
+// SetXattr implements p9.File.SetXattr
+func (u *union9PFID) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
+	return syscall.ENOSYS
+}
+
+// ListXattrs implements p9.File.ListXattrs
+func (u *union9PFID) ListXattrs() ([]string, error) {
+	return nil, syscall.ENOSYS
+}
+
+// GetXattr implements p9.File.GetXattr
+func (u *union9PFID) GetXattr(attr string) ([]byte, error) {
+	return nil, syscall.ENOSYS
+}
+
+// RemoveXattr implements p9.File.RemoveXattr
+func (u *union9PFID) RemoveXattr(attr string) error {
+	return syscall.ENOSYS
+}
