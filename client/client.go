@@ -145,7 +145,7 @@ func Command(host string, args ...string) *Cmd {
 type Set func(*Cmd) error
 
 // WithServer allows setting custom 9P servers.
-// One use: should users with to serve from a flattened
+// One use: should users wish to serve from a flattened
 // docker container saved as a cpio or tar.
 func WithServer(a p9.Attacher) Set {
 	return func(c *Cmd) error {
