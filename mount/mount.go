@@ -63,12 +63,10 @@ func mount(m mounter, fstab string) error {
 		// surprise! It turns out that correct behavior from mount is to follow symlinks
 		// on where and device and use that. That's why /bin -> /usr/bin gets mounted
 		// correctly.
-		 w, err := filepath.EvalSymlinks(where)
-		if  err == nil {
+		if w, err := filepath.EvalSymlinks(where); err == nil {
 			where = w
 		}
-		w, err = filepath.EvalSymlinks(dev)
-		if  err == nil {
+		if w, err := filepath.EvalSymlinks(dev); err == nil {
 			dev = w
 		}
 
