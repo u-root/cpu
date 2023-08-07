@@ -9,16 +9,17 @@ package mount
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 
 	"golang.org/x/sys/unix"
 )
 
-func TestMkdir(t *testing.T) {
-	// Call Mount with a one-line fstab with a bogus mount point. It should do nothing but return
-	// the mkdir error
-	var fstab = "a /dev/zero/x none defaults 0 0"
+func TestNoDir(t *testing.T) {
+	bad := filepath.Join(t.TempDir(), "nonexistent")
+	// Call Mount with a one-line fstab with a bogus mount point.
+	var fstab = "a " + bad + " none defaults 0 0"
 	if err := Mount(fstab); err == nil {
 		t.Fatalf("mount(%v): want err, got nil", fstab)
 	}

@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -58,6 +59,17 @@ func mount(m mounter, fstab string) error {
 		// This note is here in case someone gets confused in the future.
 		// Setting MS_PRIVATE will get an EINVAL.
 		dev, where, fstype, opts := f[0], f[1], f[2], f[3]
+
+		// surprise! It turns out that correct behavior from mount is to follow symlinks
+		// on where and device and use that. That's why /bin -> /usr/bin gets mounted
+		// correctly.
+		if w, err := filepath.EvalSymlinks(where); err == nil {
+			where = w
+		}
+		if w, err := filepath.EvalSymlinks(dev); err == nil {
+			dev = w
+		}
+
 		// The man page implies that the Linux kernel handles flags of "defaults"
 		// we do no further manipulation of opts.
 		flags, data := parse(opts)
