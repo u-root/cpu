@@ -141,6 +141,7 @@ func newCPU(host string, args ...string) (retErr error) {
 	}()
 
 	c.Env = os.Environ()
+	client.Debug9p = *dbg9p
 
 	if err := c.SetOptions(
 		client.WithPrivateKeyFile(*keyFile),
