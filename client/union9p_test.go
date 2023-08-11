@@ -25,6 +25,10 @@ func TestUnion9PWalkReadlink(t *testing.T) {
 
 	u, err := NewUnion9P([]UnionMount{UnionMount{walk: []string{}, mount: c}})
 
+	if err != nil {
+		t.Fatalf("NewUnion9P: got %v, want nil", err)
+	}
+
 	attach, err := u.Attach()
 	if err != nil {
 		t.Fatalf("union attach: want nil, got %v", err)
@@ -62,6 +66,10 @@ func TestUnion9POne(t *testing.T) {
 	t.Logf("root:%v", c)
 
 	u, err := NewUnion9P([]UnionMount{UnionMount{walk: []string{}, mount: c}})
+
+	if err != nil {
+		t.Fatalf("NewUnion9P: got %v, want nil", err)
+	}
 
 	attach, err := u.Attach()
 	if err != nil {
@@ -177,6 +185,10 @@ func TestUnion9POne(t *testing.T) {
 func TestBadOperators(t *testing.T) {
 	u, err := NewUnion9P([]UnionMount{})
 
+	if err != nil {
+		t.Fatalf("NewUnion9P: got %v, want nil", err)
+	}
+
 	attach, err := u.Attach()
 	if err != nil {
 		t.Fatalf("union attach: want nil, got %v", err)
@@ -251,6 +263,10 @@ func TestUnion9PTwoCPIO(t *testing.T) {
 		UnionMount{walk: []string{}, mount: a},
 	})
 
+	if err != nil {
+		t.Fatalf("NewUnion9P: got %v, want nil", err)
+	}
+
 	attach, err := u.Attach()
 	if err != nil {
 		t.Fatalf("union attach: want nil, got %v", err)
@@ -300,6 +316,10 @@ func TestUnion9PTwoCPIOSymlinkAtRoot(t *testing.T) {
 		UnionMount{walk: []string{"home"}, mount: b},
 		UnionMount{walk: []string{}, mount: a},
 	})
+
+	if err != nil {
+		t.Fatalf("NewUnion9P: got %v, want nil", err)
+	}
 
 	attach, err := u.Attach()
 	if err != nil {
@@ -351,6 +371,10 @@ func TestUnion9PTwoCPIOEmptyHome(t *testing.T) {
 		UnionMount{walk: []string{"root"}, mount: b},
 		UnionMount{walk: []string{}, mount: a},
 	})
+
+	if err != nil {
+		t.Fatalf("NewUnion9P: got %v, want nil", err)
+	}
 
 	attach, err := u.Attach()
 	if err != nil {

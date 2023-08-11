@@ -45,7 +45,7 @@ type Union9P struct {
 // The Open is required to properly support Readdir.
 // Walk is used to walk to one of the underlying
 // file systems. Readdir reads the union of the
-// top level of all the underyling file systems,
+// top level of all the underlying file systems,
 // as in Plan 9. E.g., if the tables
 // include home and a cpio, Readdir will return
 // the top level of home and the cpio, including
@@ -271,18 +271,18 @@ func (u *union9PFID) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
 	for _, bind := range u.u.mounts[1:] {
 		_, dir, err := bind.mount.Walk([]string{})
 		if err != nil {
-			err = errors.Join(errs, err)
+			errs = errors.Join(errs, err)
 			continue
 		}
 		// Must open and close each time. But it's cheap.
 		if _, _, err := dir.Open(0); err != nil {
-			err = errors.Join(errs, err)
+			errs = errors.Join(errs, err)
 			continue
 		}
 		defer dir.Close()
 		d, err := dir.Readdir(offset, count)
 		if err != nil {
-			err = errors.Join(errs, err)
+			errs = errors.Join(errs, err)
 		}
 		v("union9p:readdir %v", dir)
 		for _, de := range d {
