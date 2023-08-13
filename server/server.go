@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -181,5 +182,6 @@ func New(publicKeyFile, hostKeyFile, cpud string) (*ssh.Server, error) {
 	// we ignore the SetOption error; if it does not work out, we
 	// actually don't care.
 	_ = server.SetOption(ssh.HostKeyFile(hostKeyFile))
+	server.Version = fmt.Sprintf("%s %s", runtime.GOOS, runtime.GOARCH)
 	return server, nil
 }
