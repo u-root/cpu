@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/hugelgupf/p9/fsimpl/templatefs"
 	"github.com/hugelgupf/p9/p9"
 	"github.com/u-root/u-root/pkg/cpio"
 )
@@ -41,6 +42,10 @@ type CPIO9P struct {
 // for every FID. Luckily they go away when clunked.
 type CPIO9PFID struct {
 	p9.DefaultWalkGetAttr
+	templatefs.XattrUnimplemented
+	templatefs.NilCloser
+	templatefs.NilSyncer
+	templatefs.NoopRenamed
 
 	fs   *CPIO9P
 	path uint64
@@ -178,16 +183,6 @@ func (l *CPIO9PFID) Walk(names []string) ([]p9.QID, p9.File, error) {
 	}
 	verbose("cpio:Walk: return %v, %v, nil", qids, last)
 	return qids, last, nil
-}
-
-// FSync implements p9.File.FSync.
-func (l *CPIO9PFID) FSync() error {
-	return nil
-}
-
-// Close implements p9.File.Close.
-func (l *CPIO9PFID) Close() error {
-	return nil
 }
 
 // Open implements p9.File.Open.
@@ -349,10 +344,6 @@ func (l *CPIO9PFID) Flush() error {
 	return nil
 }
 
-// Renamed implements p9.File.Renamed.
-func (l *CPIO9PFID) Renamed(parent p9.File, newName string) {
-}
-
 // UnlinkAt implements p9.File.UnlinkAt.
 func (l *CPIO9PFID) UnlinkAt(name string, flags uint32) error {
 	return os.ErrPermission
@@ -371,26 +362,6 @@ func (*CPIO9PFID) Rename(directory p9.File, name string) error {
 // RenameAt implements p9.File.RenameAt.
 // There is no guarantee that there is not a zipslip issue.
 func (l *CPIO9PFID) RenameAt(oldName string, newDir p9.File, newName string) error {
-	return syscall.ENOSYS
-}
-
-// SetXattr implements p9.File.SetXattr
-func (l *CPIO9PFID) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
-	return syscall.ENOSYS
-}
-
-// ListXattrs implements p9.File.ListXattrs
-func (l *CPIO9PFID) ListXattrs() ([]string, error) {
-	return nil, syscall.ENOSYS
-}
-
-// GetXattr implements p9.File.GetXattr
-func (l *CPIO9PFID) GetXattr(attr string) ([]byte, error) {
-	return nil, syscall.ENOSYS
-}
-
-// RemoveXattr implements p9.File.RemoveXattr
-func (l *CPIO9PFID) RemoveXattr(attr string) error {
 	return syscall.ENOSYS
 }
 
