@@ -38,6 +38,21 @@
 //            timeout in time.Duration format (e.g. 25s, 1m, etc.)
 //            for connection to succeed.
 //
+//      If it is build with mDNS tags, the following switches are enabled.
+//		- dsEnabled (default true)
+//			  advertise service using DNSSD
+//		- dsInstance
+//			  DNSSD instance name (default $HOSTNAME-cpud)
+//		- dsDomain
+//			  DNSSD domain (default local)
+//		- dsService
+//			  DNSSD Service Type (default "_ncpu._tcp")
+//	 - dsInterface
+//			  DNSSD Interface
+//		- dsTxt
+//			  Additional string key-value pair meta-data for host
+//
+//
 // cpud is the daemon side of a cpu session.
 // In the original Plan 9 implementation, cpu was a command that contained
 // both server and client sides of a cpu session. The server side was started
