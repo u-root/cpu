@@ -1,7 +1,7 @@
-package main
-
 //go:build mDNS
 // +build mDNS
+
+package main
 
 import (
 	"errors"
