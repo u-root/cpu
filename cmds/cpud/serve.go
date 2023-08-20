@@ -28,6 +28,29 @@ import (
 
 const any = math.MaxUint32
 
+type modifier struct {
+	name string
+	f    func(*ssh.Server) error
+}
+
+func (m *modifier) String() string {
+	return fmt.Sprintf("%s", m.name)
+}
+
+var (
+	// modifiers are called once the ssh server is set up and before s.Serve() in serve()
+	// is called.
+	// There is only one current use, namely, mDNS.
+	// Once we better understand how to structure modifiers it may be time for another
+	// package.
+	// Before the modifier runs, the ssh server is ready for operation. The question remains:
+	// what if a modifier fails? For now, code will log errors but continue.
+	// This makes debugging failed modifiers far easier.
+	// Therefore, it is the responsibility of modifiers not to break the ssh server.
+	// They should ensure correctness before commiting changes.
+	modifiers []*modifier
+)
+
 // hang hangs for a VERY long time.
 // This aids diagnosis, else you lose all messages in the
 // kernel panic as init exits.
@@ -162,6 +185,12 @@ func serve(cpud string) error {
 			log.Printf("Shutdown done")
 		}
 	}()
+
+	for _, m := range modifiers {
+		if err := m.f(s); err != nil {
+			log.Printf("Error %v from modifier %s", err, m)
+		}
+	}
 
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
 		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)

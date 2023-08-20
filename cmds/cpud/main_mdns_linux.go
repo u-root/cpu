@@ -16,7 +16,6 @@ import (
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
 	"github.com/u-root/cpu/ds"
-	"github.com/u-root/cpu/server"
 )
 
 var (
@@ -29,11 +28,8 @@ var (
 	dsTxt       map[string]string
 )
 
-func runDS(debug bool) {
-	if debug {
-		ds.Verbose(log.Printf)
-	}
-	dsTxt = ds.ParseKv(*dsTxtStr)
+func init() {
+	modifiers = append(modifiers, &modifier{f: servemDNS, name: "mDNS"})
 }
 
 type handleWrapper struct {
@@ -46,18 +42,12 @@ func (w *handleWrapper) handler(s ssh.Session) {
 	ds.Tenant(-1)
 }
 
-func servemDNS(cpud string) error {
-	s, err := server.New(*pubKeyFile, *hostKeyFile, cpud)
-	if err != nil {
-		log.Printf(`New(%q, %q): %v`, *pubKeyFile, *hostKeyFile, err)
-		hang()
+// servemDNS wraps an existing ssh session with an mDNS instance.
+func servemDNS(s *ssh.Server) error {
+	if *debug {
+		ds.Verbose(log.Printf)
 	}
-	verbose("Server is %v", s)
-
-	ln, err := listen(*network, *port)
-	if err != nil {
-		return err
-	}
+	dsTxt = ds.ParseKv(*dsTxtStr)
 
 	v("Advertising w/dnssd %q", dsTxt)
 	p, err := strconv.Atoi(*port)
@@ -76,12 +66,5 @@ func servemDNS(cpud string) error {
 	}
 	s.Handler = wrap.handler
 
-	v("Listening on %v", ln.Addr())
-	if err := s.Serve(ln); err != ssh.ErrServerClosed {
-		log.Printf("s.Daemon(): %v != %v", err, ssh.ErrServerClosed)
-		hang()
-	}
-	v("Daemon returns")
-	hang()
 	return nil
 }
