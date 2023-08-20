@@ -7,24 +7,16 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
-	"math"
-	"net"
-	"os"
-	"os/exec"
 	"strconv"
-	"syscall"
-	"time"
 
 	// We use this ssh because it implements port redirection.
 	// It can not, however, unpack password-protected keys yet.
 	"github.com/gliderlabs/ssh"
-	"github.com/mdlayher/vsock"
 	"github.com/u-root/cpu/ds"
 	"github.com/u-root/cpu/server"
-	"github.com/u-root/u-root/pkg/ulog"
-	"golang.org/x/sys/unix"
 )
 
 var (
@@ -41,7 +33,7 @@ func runDS(debug bool) {
 	if debug {
 		ds.Verbose(log.Printf)
 	}
-		dsTxt = ds.ParseKv(*dsTxtStr)
+	dsTxt = ds.ParseKv(*dsTxtStr)
 }
 
 type handleWrapper struct {
@@ -54,29 +46,35 @@ func (w *handleWrapper) handler(s ssh.Session) {
 	ds.Tenant(-1)
 }
 
-func serve(cpud string) error {
+func servemDNS(cpud string) error {
+	s, err := server.New(*pubKeyFile, *hostKeyFile, cpud)
+	if err != nil {
+		log.Printf(`New(%q, %q): %v`, *pubKeyFile, *hostKeyFile, err)
+		hang()
+	}
+	verbose("Server is %v", s)
+
 	ln, err := listen(*network, *port)
 	if err != nil {
 		return err
 	}
 
+	v("Advertising w/dnssd %q", dsTxt)
+	p, err := strconv.Atoi(*port)
+	if err != nil {
+		return fmt.Errorf("Could not parse port: %s, %w", *port, err)
+	}
 
-		v("Advertising w/dnssd %q", dsTxt)
-		p, err := strconv.Atoi(*port)
-		if err != nil {
-			return fmt.Errorf("Could not parse port: %s, %w", *port, err)
-		}
+	err = ds.Register(*dsInstance, *dsDomain, *dsService, *dsInterface, p, dsTxt)
+	if err != nil {
+		return fmt.Errorf("Could not advertise with dns-sd: %w", err)
+	}
+	defer ds.Unregister()
 
-		err = ds.Register(*dsInstance, *dsDomain, *dsService, *dsInterface, p, dsTxt)
-		if err != nil {
-			return fmt.Errorf("Could not advertise with dns-sd: %w", err)
-		}
-		defer ds.Unregister()
-
-		wrap := &handleWrapper{
-			handle: s.Handler,
-		}
-		s.Handler = wrap.handler
+	wrap := &handleWrapper{
+		handle: s.Handler,
+	}
+	s.Handler = wrap.handler
 
 	v("Listening on %v", ln.Addr())
 	if err := s.Serve(ln); err != ssh.ErrServerClosed {
