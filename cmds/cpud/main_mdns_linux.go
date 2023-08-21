@@ -59,7 +59,7 @@ func servemDNS(s *ssh.Server) error {
 	if err != nil {
 		return fmt.Errorf("Could not advertise with dns-sd: %w", err)
 	}
-	defer ds.Unregister()
+//	defer ds.Unregister()
 
 	wrap := &handleWrapper{
 		handle: s.Handler,
