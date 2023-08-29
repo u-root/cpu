@@ -6,6 +6,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -111,7 +112,7 @@ func main() {
 				log.Fatal(err)
 			}
 		}
-		if err := serve(os.Args[0]); err != nil {
+		if err := serve(os.Args[0], fmt.Sprintf("-d=%t", *debug)); err != nil {
 			log.Fatal(err)
 		}
 	}

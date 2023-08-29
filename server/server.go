@@ -60,10 +60,12 @@ func errval(err error) error {
 	return err
 }
 
-func handler(s ssh.Session, cpud string) {
+func handler(s ssh.Session, cpud string, cpudArgs ...string) {
 	a := s.Command()
 	verbose("handler: cmd is %q", a)
-	cmd := command(cpud, append([]string{"-remote"}, a...)...)
+	cmdArgs := append([]string{"-remote"}, cpudArgs...)
+	cmdArgs = append(cmdArgs, a...)
+	cmd := command(cpud, cmdArgs...)
 
 	sigChan := make(chan ssh.Signal, 1)
 	defer close(sigChan)
@@ -138,7 +140,7 @@ func handler(s ssh.Session, cpud string) {
 
 // New sets up a cpud. cpud is really just an SSH server with a special
 // handler and support for port forwarding for the 9p port.
-func New(publicKeyFile, hostKeyFile, cpud string) (*ssh.Server, error) {
+func New(publicKeyFile, hostKeyFile, cpud string, cpudArgs ...string) (*ssh.Server, error) {
 	verbose("configure SSH server")
 	publicKeyOption := func(ctx ssh.Context, key ssh.PublicKey) bool {
 		data, err := ioutil.ReadFile(publicKeyFile)
@@ -175,7 +177,7 @@ func New(publicKeyFile, hostKeyFile, cpud string) (*ssh.Server, error) {
 			"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
 		},
 		Handler: func(s ssh.Session) {
-			handler(s, cpud)
+			handler(s, cpud, cpudArgs...)
 		},
 	}
 
