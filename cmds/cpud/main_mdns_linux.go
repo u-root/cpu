@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build mDNS
+//go:build !nomDNS
 
 package main
 
@@ -59,7 +59,7 @@ func servemDNS(s *ssh.Server) error {
 	if err != nil {
 		return fmt.Errorf("Could not advertise with dns-sd: %w", err)
 	}
-//	defer ds.Unregister()
+	//	defer ds.Unregister()
 
 	wrap := &handleWrapper{
 		handle: s.Handler,

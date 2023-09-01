@@ -1,5 +1,5 @@
-//go:build mDNS
-// +build mDNS
+//go:build !nomDNS
+// +build !nomDNS
 
 package main
 
