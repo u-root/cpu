@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -32,8 +31,8 @@ func TestHelperProcess(t *testing.T) {
 	vanish := filepath.Join(v, "vanish")
 	t.Logf("Mount ok, try to create %q", vanish)
 	msg := "This should not be visible in the parent"
-	if err := ioutil.WriteFile(vanish, []byte(msg), 0644); err != nil {
-		t.Fatalf(`ioutil.WriteFile(%q, %q, 0644): %v != nil`, vanish, msg, err)
+	if err := os.WriteFile(vanish, []byte(msg), 0644); err != nil {
+		t.Fatalf(`os.WriteFile(%q, %q, 0644): %v != nil`, vanish, msg, err)
 	}
 	t.Logf("Created %q", vanish)
 }

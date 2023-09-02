@@ -5,7 +5,7 @@
 package client
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -18,7 +18,7 @@ func TestCPIO9P(t *testing.T) {
 	if _, err := NewCPIO9P(bogus); err == nil {
 		t.Fatalf("Opening non-existent file: got nil, want err")
 	}
-	if err := ioutil.WriteFile(bogus, []byte("bogus"), 0666); err != nil {
+	if err := os.WriteFile(bogus, []byte("bogus"), 0666); err != nil {
 		t.Fatal(err)
 	}
 

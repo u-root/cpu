@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -65,7 +64,7 @@ func gendotssh(dir, config string) (string, error) {
 		{name: "server", val: privateKey},
 		{name: "server.pub", val: publicKey},
 	} {
-		if err := ioutil.WriteFile(filepath.Join(dotssh, f.name), f.val, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dotssh, f.name), f.val, 0644); err != nil {
 			return "", err
 		}
 	}

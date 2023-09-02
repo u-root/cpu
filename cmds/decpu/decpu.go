@@ -9,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -68,7 +67,7 @@ func flags() {
 	}
 	if *dump {
 		var err error
-		dumpWriter, err = ioutil.TempFile("", "cpu")
+		dumpWriter, err = os.CreateTemp("", "cpu")
 		if err != nil {
 			log.Fatal(err)
 		}
