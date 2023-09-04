@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -78,7 +77,7 @@ func (c *Cmd) UserKeyConfig() error {
 	if strings.HasPrefix(kf, "~/") {
 		kf = filepath.Join(os.Getenv("HOME"), kf[1:])
 	}
-	key, err := ioutil.ReadFile(kf)
+	key, err := os.ReadFile(kf)
 	if err != nil {
 		return fmt.Errorf("unable to read private key %q: %v", kf, err)
 	}
@@ -93,7 +92,7 @@ func (c *Cmd) UserKeyConfig() error {
 
 // HostKeyConfig sets the host key. It is optional.
 func (c *Cmd) HostKeyConfig(hostKeyFile string) error {
-	hk, err := ioutil.ReadFile(hostKeyFile)
+	hk, err := os.ReadFile(hostKeyFile)
 	if err != nil {
 		return fmt.Errorf("unable to read host key %v: %v", hostKeyFile, err)
 	}

@@ -7,7 +7,6 @@ package server
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -141,7 +140,7 @@ func handler(s ssh.Session, cpud string) {
 func New(publicKeyFile, hostKeyFile, cpud string) (*ssh.Server, error) {
 	verbose("configure SSH server")
 	publicKeyOption := func(ctx ssh.Context, key ssh.PublicKey) bool {
-		data, err := ioutil.ReadFile(publicKeyFile)
+		data, err := os.ReadFile(publicKeyFile)
 		if err != nil {
 			fmt.Print(err)
 			return false
