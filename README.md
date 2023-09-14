@@ -346,6 +346,7 @@ https://danielmiessler.com/study/tcpdump/) to get familiar with it.
   ](https://fosdem.org/2022/schedule/event/plan_9_cpu_cmd/)
 * ["Drivers From Outer Space at CLT 2022 - Fast, Simple Driver Development"
   ](https://chemnitzer.linux-tage.de/2022/de/programm/beitrag/226)
+* Short demo of [Attaching CPUs via USB](https://media.ccc.de/v/all-systems-go-2023-246-attaching-cpus-via-usb)
 
 ### History
 
