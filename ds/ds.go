@@ -334,7 +334,7 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 	dnssd.LookupType(ctx, service, addFn, rmvFn)
 
 	if len(responses) == 0 {
-		return nil, fmt.Errorf("dnssd found no suitable service %w", os.ErrNotExist)
+		return nil, fmt.Errorf("dnssd: %q: %w", service, os.ErrNotExist)
 	}
 
 	dsSort(query.Text, responses)
