@@ -174,6 +174,22 @@ machine.
 We can use the same trick to cpu to Linux from OSX, but instead of having an Arm tree under `pwd`
 we'll need a Linux binary tree to pick binaries from.
 
+### cpu over USB
+
+There are many IoT like devices that do not have an ethernet port.
+Fear not though: The Linux USB gadget drivers offer ethernet via USB!
+
+There are [tutorials out
+there](https://linuxlink.timesys.com/docs/wiki/engineering/HOWTO_Use_USB_Gadget_Ethernet), and here is the gist:
+
+- enable the Linux kernel options
+  * `CONFIG_USB_GADGET`
+  * `CONFIG_USB_ETH`
+  * `CONFIG_USB_ETH_RNDIS` (for Windows support)
+  * `CONFIG_INET`
+- add the MAC addresses for your gadget device and the machine you connect to in
+  the kernel `CMDLINE`, e.g., `g_ether.dev_addr=12:34:56:78:9a:bc g_ether.host_addr=12:34:56:78:9a:bd`
+
 ## cpu will be familiar to ssh users
 
 As mentioned, cpu looks and feels a lot like ssh, to the point of honoring ssh config files.
@@ -330,6 +346,7 @@ https://danielmiessler.com/study/tcpdump/) to get familiar with it.
   ](https://fosdem.org/2022/schedule/event/plan_9_cpu_cmd/)
 * ["Drivers From Outer Space at CLT 2022 - Fast, Simple Driver Development"
   ](https://chemnitzer.linux-tage.de/2022/de/programm/beitrag/226)
+* Short demo of [Attaching CPUs via USB](https://media.ccc.de/v/all-systems-go-2023-246-attaching-cpus-via-usb)
 
 ### History
 
