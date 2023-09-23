@@ -6,7 +6,7 @@ require (
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/hugelgupf/p9 v0.2.1-0.20230814004337-e6037077d6dc
 	github.com/kevinburke/ssh_config v1.2.0
-	github.com/u-root/u-root v0.11.1-0.20230807200058-f87ad7ccb594
+	github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d
 	golang.org/x/crypto v0.12.0
 	golang.org/x/sys v0.11.0
 )
