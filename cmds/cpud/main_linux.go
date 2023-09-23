@@ -61,7 +61,7 @@ func verbose(f string, a ...interface{}) {
 // the args to remote and the args to server are different.
 // This invocation requirement is known to the server package.
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "-remote" {
+	if len(os.Args) > 1 && (os.Args[1] == "-remote" || os.Args[1] == "-remote=true") {
 		*remote = true
 	}
 
@@ -78,8 +78,13 @@ func main() {
 			v = log.Printf
 			session.SetVerbose(verbose)
 		}
+		// If we are here, no matter what they may set, *remote must be true.
+		// sadly, cpud -d -remote=true -remote=false ... works.
+		*remote = true
 	} else {
 		flag.Parse()
+		// If we are here, no matter what they may set, *remote must be false.
+		*remote = false
 		if err := commonsetup(); err != nil {
 			log.Fatal(err)
 		}

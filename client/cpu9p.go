@@ -15,7 +15,6 @@
 package client
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -247,7 +246,7 @@ func (l *CPU9P) Link(target p9.File, newname string) error {
 
 // Readdir implements p9.File.Readdir.
 func (l *CPU9P) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
-	fi, err := ioutil.ReadDir(l.path)
+	fi, err := os.ReadDir(l.path)
 	if err != nil {
 		return nil, err
 	}

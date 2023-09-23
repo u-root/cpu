@@ -300,8 +300,6 @@ type LookupResult struct {
 // default for domain is local, default type _ncpu._tcp, and instance is wildcard
 // can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
 func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
-	var err error
-
 	ctx, cancel := context.WithTimeout(context.Background(), dsTimeout)
 	context.Canceled = errors.New("")
 	context.DeadlineExceeded = errors.New("")
@@ -336,7 +334,7 @@ func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
 	dnssd.LookupType(ctx, service, addFn, rmvFn)
 
 	if len(responses) == 0 {
-		return nil, fmt.Errorf("dnssd found no suitable service %w", err)
+		return nil, fmt.Errorf("dnssd: %q: %w", service, os.ErrNotExist)
 	}
 
 	dsSort(query.Text, responses)

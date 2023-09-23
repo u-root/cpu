@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -184,7 +183,7 @@ func WithFSTab(fstab string) Set {
 		if len(fstab) == 0 {
 			return nil
 		}
-		b, err := ioutil.ReadFile(fstab)
+		b, err := os.ReadFile(fstab)
 		if err != nil {
 			return fmt.Errorf("Reading fstab: %w", err)
 		}

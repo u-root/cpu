@@ -8,7 +8,6 @@
 package client
 
 import (
-	"io/ioutil"
 	"os"
 	"reflect"
 
@@ -22,8 +21,8 @@ import (
 func Test9pUnix(t *testing.T) {
 	d := t.TempDir()
 	f := filepath.Join(d, "a")
-	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
-		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
+	if err := os.WriteFile(f, []byte("hi"), 0666); err != nil {
+		t.Fatalf(`os.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
 	// First test: do nothing
 	m := p9.AttrMask{
@@ -202,8 +201,8 @@ func Test9pUnix(t *testing.T) {
 func Test9pRemove(t *testing.T) {
 	d := t.TempDir()
 	f := filepath.Join(d, "a")
-	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
-		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
+	if err := os.WriteFile(f, []byte("hi"), 0666); err != nil {
+		t.Fatalf(`os.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
 	c := &CPU9P{
 		path: f,
@@ -221,8 +220,8 @@ func Test9pRemove(t *testing.T) {
 func Test9pUnlinkat(t *testing.T) {
 	d := t.TempDir()
 	f := filepath.Join(d, "a")
-	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
-		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
+	if err := os.WriteFile(f, []byte("hi"), 0666); err != nil {
+		t.Fatalf(`os.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
 	c := &CPU9P{
 		path: d,
@@ -240,8 +239,8 @@ func Test9pUnlinkat(t *testing.T) {
 func Test9pRenameAt(t *testing.T) {
 	d := t.TempDir()
 	f := filepath.Join(d, "a")
-	if err := ioutil.WriteFile(f, []byte("hi"), 0666); err != nil {
-		t.Fatalf(`ioutil.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
+	if err := os.WriteFile(f, []byte("hi"), 0666); err != nil {
+		t.Fatalf(`os.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
 	c := &CPU9P{
 		path: filepath.Join(d, "nd"),
