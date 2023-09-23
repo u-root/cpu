@@ -36,6 +36,11 @@ var (
 	registerAddr = flag.String("register", "", "address and port to register with after listen on cpu server port")
 	registerTO   = flag.Duration("registerTO", time.Duration(5*time.Second), "time.Duration for Dial address for registering")
 
+	// if we start up too quickly, mDNS won't work correctly.
+	// This sleep may be useful for other cases, so it is here,
+	// not specifically for mDNS uses.
+	sleepBeforeServing = flag.Duration("sleepBeforeServing", 0, "add a sleep before serving -- usually only needed if cpud runs as init with mDNS")
+
 	pid1 bool
 )
 
@@ -89,9 +94,10 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	pid1 = os.Getpid() == 1
+	pid := os.Getpid()
+	pid1 = pid == 1
 	*runAsInit = *runAsInit || pid1
-	verbose("Args %v pid %d *runasinit %v *remote %v env %v", os.Args, os.Getpid(), *runAsInit, *remote, os.Environ())
+	verbose("Args %v pid %d *runasinit %v *remote %v env %v", os.Args, pid, *runAsInit, *remote, os.Environ())
 	args := flag.Args()
 	if *remote {
 		verbose("args %q, port9p %v", args, *port9p)
@@ -110,12 +116,14 @@ func main() {
 			log.Fatalf("CPUD(remote): %v", err)
 		}
 	} else {
-		log.Printf("CPUD:running as a server (a.k.a. starter of cpud's for sessions)")
+		log.Printf("CPUD:PID(%d):running as a server (a.k.a. starter of cpud's for sessions)", pid)
 		if *runAsInit {
+			log.Printf("CPUD:also running as init")
 			if err := initsetup(); err != nil {
 				log.Fatal(err)
 			}
 		}
+		time.Sleep(*sleepBeforeServing)
 		if err := serve(os.Args[0]); err != nil {
 			log.Fatal(err)
 		}
