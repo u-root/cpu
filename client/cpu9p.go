@@ -97,11 +97,6 @@ func (l *CPU9P) RemoveXattr(attr string) error {
 	return unix.Removexattr(l.path, attr)
 }
 
-func (l *CPU9P) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
-	verbose("Lock: not implemented")
-	return p9.LockStatusError, syscall.ENOSYS
-}
-
 // Walk implements p9.File.Walk.
 func (l *CPU9P) Walk(names []string) ([]p9.QID, p9.File, error) {
 	var qids []p9.QID

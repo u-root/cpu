@@ -73,3 +73,40 @@ func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 	}
 	return err
 }
+
+// Lock implements p9.File.Lock.
+func (l *CPU9P) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
+	var cmd int
+	switch flags {
+	case p9.LockFlagsBlock:
+		cmd = unix.F_SETLKW
+	case p9.LockFlagsReclaim:
+		return p9.LockStatusError, unix.ENOSYS
+	default:
+		cmd = unix.F_SETLK
+	}
+	var t int16
+	switch locktype {
+	case p9.ReadLock:
+		t = unix.F_RDLCK
+	case p9.WriteLock:
+		t = unix.F_WRLCK
+	case p9.Unlock:
+		t = unix.F_UNLCK
+	default:
+		return p9.LockStatusError, unix.ENOSYS
+	}
+	lk := &unix.Flock_t{
+		Type:   t,
+		Whence: unix.SEEK_SET,
+		Start:  int64(start),
+		Len:    int64(length),
+	}
+	if err := unix.FcntlFlock(l.file.Fd(), cmd, lk); err != nil {
+		if errors.Is(err, unix.EAGAIN) {
+			return p9.LockStatusBlocked, nil
+		}
+		return p9.LockStatusError, err
+	}
+	return p9.LockStatusOK, nil
+}
