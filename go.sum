@@ -53,8 +53,8 @@ github.com/tklauser/numcpus v0.6.0/go.mod h1:FEZLMke0lhOUG6w2JadTzp0a+Nl8PF/GFkQ
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
 github.com/tklauser/numcpus v0.6.1/go.mod h1:1XfjsgE2zo8GVw7POkMbHENHzVg3GzmoZ9fESEdAacY=
 github.com/u-root/gobusybox/src v0.0.0-20230806212452-e9366a5b9fdc h1:udgfN9Qy573qgHWMEORFgy6YXNDiN/Fd5LlKdlp+/Mo=
-github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d h1:gMLGaE12VpD7C+XbCsDQ4p+BC4pw26X46ezR3kXhUu0=
-github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d/go.mod h1:PQzg9XJGp6Y1hRmTUruSO7lR7kKR6FpoSObf5n5bTfE=
+github.com/u-root/u-root v1.0.1 h1:whxd3I9dKS8TZQueq1buXLsVw01M/mN/mc+tey/L1/M=
+github.com/u-root/u-root v1.0.1/go.mod h1:Dog44Z3KdqyYHvX0cCkTdMQFWP5eX6PhaIx40TKCvEc=
 github.com/u-root/uio v0.0.0-20230305220412-3e8cd9d6bf63 h1:YcojQL98T/OO+rybuzn2+5KrD5dBwXIvYBvQ2cD3Avg=
 github.com/u-root/uio v0.0.0-20230305220412-3e8cd9d6bf63/go.mod h1:eLL9Nub3yfAho7qB0MzZizFhTU2QkLeoVsWdHtDW264=
 github.com/ulikunitz/xz v0.5.11 h1:kpFauv27b6ynzBNT/Xy+1k+fK4WswhN/6PN5WhFAGw8=
