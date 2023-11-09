@@ -20,7 +20,7 @@ import (
 
 // GetAttr implements p9.File.GetAttr.
 //
-// Not fully implemented.
+// The only thing curently implemented is Mode.
 func (l *CPU9P) GetAttr(req p9.AttrMask) (p9.QID, p9.AttrMask, p9.Attr, error) {
 	qid, fi, err := l.info()
 	if err != nil {
@@ -46,15 +46,15 @@ func (l *CPU9P) GetAttr(req p9.AttrMask) (p9.QID, p9.AttrMask, p9.Attr, error) {
 	}
 	valid := p9.AttrMask{
 		Mode:   true,
-		UID:    true,
-		GID:    true,
-		NLink:  true,
-		RDev:   true,
-		Size:   true,
-		Blocks: true,
-		ATime:  true,
-		MTime:  true,
-		CTime:  true,
+		UID:    false,
+		GID:    false,
+		NLink:  false,
+		RDev:   false,
+		Size:   false,
+		Blocks: false,
+		ATime:  false,
+		MTime:  false,
+		CTime:  false,
 	}
 
 	return qid, valid, attr, nil
