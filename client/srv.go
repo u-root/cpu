@@ -57,22 +57,17 @@ func (c *Cmd) srv(l net.Listener) error {
 	}
 	// If we are debugging, add the option to trace records.
 	verbose("Start serving on %v", c.Root)
+	var opts []p9.ServerOpt
 	if Debug9p {
 		if Dump9p {
 			log.SetOutput(DumpWriter)
 			log.SetFlags(log.Ltime | log.Lmicroseconds)
 			ulog.Log = log.New(DumpWriter, "9p", log.Ltime|log.Lmicroseconds)
 		}
-		if err := p9.NewServer(&CPU9P{path: c.Root}, p9.WithServerLogger(ulog.Log)).Handle(s, s); err != nil {
-			if err != io.EOF {
-				log.Printf("Serving cpu remote: %v", err)
-				return err
-			}
-		}
-		return nil
+		opts = append(opts, p9.WithServerLogger(ulog.Log))
 	}
 
-	if err := p9.NewServer(c.fileServer).Handle(s, s); err != nil {
+	if err := p9.NewServer(c.fileServer, opts...).Handle(s, s); err != nil {
 		if err != io.EOF {
 			log.Printf("Serving cpu remote: %v", err)
 			return err
