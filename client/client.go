@@ -17,8 +17,8 @@ import (
 
 	"github.com/hugelgupf/p9/p9"
 	"github.com/mdlayher/vsock"
-	"github.com/u-root/u-root/pkg/termios"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/term"
 )
 
 const (
@@ -111,11 +111,11 @@ func Command(host string, args ...string) *Cmd {
 	}
 
 	col, row := 80, 40
-	if w, err := termios.GetWinSize(0); err != nil {
+	if c, r, err := term.GetSize(int(os.Stdin.Fd())); err != nil {
 		verbose("Can not get winsize: %v; assuming %dx%d and non-interactive", err, col, row)
 	} else {
 		hasTTY = true
-		col, row = int(w.Col), int(w.Row)
+		col, row = c, r
 	}
 
 	return &Cmd{
@@ -588,23 +588,14 @@ func (c *Cmd) TTYIn(s *ssh.Session, w io.WriteCloser, r io.Reader) {
 }
 
 // SetupInteractive sets up a cpu client for interactive access.
-// It returns a function to be run when the session ends.
+// It adds a function to c.Closers to clean up the terminal.
 func (c *Cmd) SetupInteractive() error {
-	t, err := termios.New()
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		return err
-	}
-	r, err := t.Get()
-	if err != nil {
-		return err
-	}
-	if _, err = t.Raw(); err != nil {
 		return err
 	}
 	c.closers = append(c.closers, func() error {
-		if err := t.Set(r); err != nil {
-			return err
-		}
+		term.Restore(int(os.Stdin.Fd()), oldState)
 		return nil
 	})
 

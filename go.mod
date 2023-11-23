@@ -17,6 +17,7 @@ require (
 	github.com/mdlayher/vsock v1.2.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
+	golang.org/x/term v0.13.0
 )
 
 require (

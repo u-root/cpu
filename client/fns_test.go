@@ -6,7 +6,6 @@ package client
 
 import (
 	"errors"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -40,7 +39,11 @@ func TestVsockIdPort(t *testing.T) {
 
 func TestParseBinds(t *testing.T) {
 	td := func(s string) string {
-		return path.Join(os.TempDir(), s)
+		// Because cpud only runs on Linux, for now,
+		// the name of tmp is /tmp, not os.TempDir.
+		// This allows running many of these tests on
+		// non-Linux systems.
+		return path.Join("/tmp", s)
 	}
 	for _, tt := range []struct {
 		namespace string
