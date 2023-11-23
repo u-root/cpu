@@ -6,7 +6,10 @@ package client
 
 import (
 	"errors"
+	"os"
+	"path"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -36,17 +39,22 @@ func TestVsockIdPort(t *testing.T) {
 }
 
 func TestParseBinds(t *testing.T) {
+	td := func(s string) string {
+		return path.Join(os.TempDir(), s)
+	}
 	for _, tt := range []struct {
 		namespace string
 		fstab     string
 		err       error
 	}{
+		// N.B.: Even on windows, the separator is OK, b/c this is a path for a Linux
+		// fstab. This is also why we must use path.Join, not filepath.Join.
 		{"", "", nil},
-		{"/lib", "/tmp/cpu/lib /lib none defaults,bind 0 0\n", nil},
-		{"/lib=/arm/lib", "/tmp/cpu/arm/lib /lib none defaults,bind 0 0\n", nil},
-		{"/lib=/arm/lib:/bin", "/tmp/cpu/arm/lib /lib none defaults,bind 0 0\n/tmp/cpu/bin /bin none defaults,bind 0 0\n", nil},
-		{"/lib=/arm/lib:/bin=/b/bin", "/tmp/cpu/arm/lib /lib none defaults,bind 0 0\n/tmp/cpu/b/bin /bin none defaults,bind 0 0\n", nil},
-		{"/a:/b:/c:/d", "/tmp/cpu/a /a none defaults,bind 0 0\n/tmp/cpu/b /b none defaults,bind 0 0\n/tmp/cpu/c /c none defaults,bind 0 0\n/tmp/cpu/d /d none defaults,bind 0 0\n", nil},
+		{"/lib", td("cpu/lib") + " /lib none defaults,bind 0 0\n", nil},
+		{"/lib=/arm/lib", td("cpu/arm/lib") + " /lib none defaults,bind 0 0\n", nil},
+		{"/lib=/arm/lib:/bin", td("cpu/arm/lib") + " /lib none defaults,bind 0 0\n" + td("cpu/bin") + " /bin none defaults,bind 0 0\n", nil},
+		{"/lib=/arm/lib:/bin=/b/bin", td("cpu/arm/lib") + " /lib none defaults,bind 0 0\n" + td("cpu/b/bin") + " /bin none defaults,bind 0 0\n", nil},
+		{"/a:/b:/c:/d", td("cpu/a") + " /a none defaults,bind 0 0\n" + td("cpu/b") + " /b none defaults,bind 0 0\n" + td("cpu/c") + " /c none defaults,bind 0 0\n" + td("cpu/d") + " /d none defaults,bind 0 0\n", nil},
 		{"/lib=:/bin=/b/bin", "", strconv.ErrSyntax},
 		{"=/lib:/bin=/b/bin", "", strconv.ErrSyntax},
 		{"/a::/bin=/b/bin", "", strconv.ErrSyntax},
@@ -54,11 +62,30 @@ func TestParseBinds(t *testing.T) {
 		// There is not imaginable case where we need this but ...
 		// note also that only remote names contain = signs pending
 		// more complex parsing. Perhaps it should not be allowed at all.
-		{"/a:/bin==/b/bin", "/tmp/cpu/a /a none defaults,bind 0 0\n/tmp/cpu/=/b/bin /bin none defaults,bind 0 0\n", nil},
+		{"/a:/bin==/b/bin", td("cpu/a") + " /a none defaults,bind 0 0\n" + td("cpu/=/b/bin") + " /bin none defaults,bind 0 0\n", nil},
 	} {
 		f, err := parseBinds(tt.namespace)
-		if !errors.Is(err, tt.err) || f != tt.fstab {
-			t.Errorf("parseBinds(%q): (%q,%v) != (%q,%v)", tt.namespace, f, err, tt.fstab, tt.err)
+		if !errors.Is(err, tt.err) {
+			t.Errorf("parseBinds(%q): %v != %v", tt.namespace, err, tt.err)
+			continue
+		}
+		if f != tt.fstab {
+			t.Errorf("parseBinds(%q): %q != %q", tt.namespace, f, tt.fstab)
+			w := strings.Split(f, "\n")
+			g := strings.Split(tt.fstab, "\n")
+			if len(w) == len(g) {
+				for i := range g {
+					t.Errorf("\n%d:%q\n%d:%q", i, g[i], i, w[i])
+				}
+				continue
+			}
+			t.Errorf("got %d lines, want %d lines", len(g), len(w))
+			for i := range g {
+				t.Logf("%d:%q", i, g[i])
+			}
+			for i := range w {
+				t.Logf("%d:%q", i, w[i])
+			}
 		}
 	}
 }
