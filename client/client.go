@@ -113,6 +113,12 @@ func Command(host string, args ...string) *Cmd {
 	col, row := 80, 40
 	if c, r, err := term.GetSize(int(os.Stdin.Fd())); err != nil {
 		verbose("Can not get winsize: %v; assuming %dx%d and non-interactive", err, col, row)
+		// ah, windows. You suck.
+		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+		if err == nil {
+			hasTTY = true
+		}
+		term.Restore(int(os.Stdin.Fd()), oldState)
 	} else {
 		hasTTY = true
 		col, row = c, r
