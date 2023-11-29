@@ -117,8 +117,8 @@ func Command(host string, args ...string) *Cmd {
 		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 		if err == nil {
 			hasTTY = true
+			term.Restore(int(os.Stdin.Fd()), oldState)
 		}
-		term.Restore(int(os.Stdin.Fd()), oldState)
 	} else {
 		hasTTY = true
 		col, row = c, r
