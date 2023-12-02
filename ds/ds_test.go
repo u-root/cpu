@@ -16,20 +16,20 @@ func TestParse(t *testing.T) {
 
 	var tus = []struct {
 		uri    string
-		result dsQuery
+		result Query
 		error  bool
 	}{
-		{"bad", dsQuery{}, true},
-		{"dnssd://", dsQuery{Type: "_ncpu._tcp", Domain: "local"}, false},
-		{"dnssd://local", dsQuery{Type: "_ncpu._tcp", Domain: "local"}, false},
-		{"dnssd://localhost", dsQuery{Type: "_ncpu._tcp", Domain: "localhost"}, false},
-		{"dnssd://example.com", dsQuery{Type: "_ncpu._tcp", Domain: "example.com"}, false},
-		{"dnssd://_ncpu._tcp", dsQuery{Type: "_ncpu._tcp", Domain: "local"}, false},
-		{"dnssd://_nobody._tcp", dsQuery{Type: "_nobody._tcp", Domain: "local"}, false},
-		{"dnssd://_nobody", dsQuery{Type: "_nobody", Domain: "local"}, false}, // malformed
-		{"dnssd://instance._ncpu._tcp", dsQuery{Instance: "instance", Type: "_ncpu._tcp", Domain: "local"}, false},
-		{"dnssd://instance._ncpu._tcp.example.com", dsQuery{Instance: "instance", Type: "_ncpu._tcp", Domain: "example.com"}, false},
-		{"dnssd://?sort=cpu.pcnt", dsQuery{Type: "_ncpu._tcp", Domain: "local"}, false},
+		{"bad", Query{}, true},
+		{"dnssd://", Query{Type: "_ncpu._tcp", Domain: "local"}, false},
+		{"dnssd://local", Query{Type: "_ncpu._tcp", Domain: "local"}, false},
+		{"dnssd://localhost", Query{Type: "_ncpu._tcp", Domain: "localhost"}, false},
+		{"dnssd://example.com", Query{Type: "_ncpu._tcp", Domain: "example.com"}, false},
+		{"dnssd://_ncpu._tcp", Query{Type: "_ncpu._tcp", Domain: "local"}, false},
+		{"dnssd://_nobody._tcp", Query{Type: "_nobody._tcp", Domain: "local"}, false},
+		{"dnssd://_nobody", Query{Type: "_nobody", Domain: "local"}, false}, // malformed
+		{"dnssd://instance._ncpu._tcp", Query{Instance: "instance", Type: "_ncpu._tcp", Domain: "local"}, false},
+		{"dnssd://instance._ncpu._tcp.example.com", Query{Instance: "instance", Type: "_ncpu._tcp", Domain: "example.com"}, false},
+		{"dnssd://?sort=cpu.pcnt", Query{Type: "_ncpu._tcp", Domain: "local"}, false},
 	}
 
 	for _, x := range tus {
@@ -66,7 +66,7 @@ func TestParse(t *testing.T) {
 func TestClient(t *testing.T) {
 	v = t.Logf
 
-	q := dsQuery{
+	q := Query{
 		Type:   "_nobody._tcp",
 		Domain: "local",
 	}
@@ -88,7 +88,7 @@ func TestDnsSdStart(t *testing.T) {
 	}
 	time.Sleep(10 * time.Second)
 
-	q := dsQuery{
+	q := Query{
 		Type:   "_ncpu._tcp",
 		Domain: "local",
 	}
