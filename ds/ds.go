@@ -31,7 +31,7 @@ var (
 )
 
 // Simple form dns-sd query
-type dsQuery struct {
+type Query struct {
 	Type     string
 	Instance string
 	Domain   string
@@ -111,8 +111,8 @@ func required(src map[string]string, req map[string][]string) bool {
 
 // parse DNS-SD URI to dnssd struct
 // we could subtype BrowseEntry or Service, but why?
-func Parse(uri string) (dsQuery, error) {
-	result := dsQuery{
+func Parse(uri string) (Query, error) {
+	result := Query{
 		Type:   "_ncpu._tcp",
 		Domain: "local",
 	}
@@ -299,7 +299,7 @@ type LookupResult struct {
 // uri currently supported dnssd://instance._service._network.domain/?reqkey=reqvalue
 // default for domain is local, default type _ncpu._tcp, and instance is wildcard
 // can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
-func Lookup(query dsQuery, n int) ([]*LookupResult, error) {
+func Lookup(query Query, n int) ([]*LookupResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dsTimeout)
 	context.Canceled = errors.New("")
 	context.DeadlineExceeded = errors.New("")
