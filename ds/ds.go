@@ -39,10 +39,12 @@ type Query struct {
 }
 
 const (
-	DsDefault  = "dnssd://?sort=tenants&sort=cpu.pcnt"
-	dsTimeout  = 1 * time.Second // query-timeout
+	// Default is the default query.
+	Default  = "dnssd://?sort=tenants&sort=cpu.pcnt"
+	// Timeout is the default query timeout.
+	Timeout  = 1 * time.Second // query-timeout
 	timeFormat = "15:04:05.000"
-	dsUpdate   = 60 * time.Second // server meta-data refresh
+	update   = 60 * time.Second // server meta-data refresh
 )
 
 // client relative code
@@ -176,17 +178,17 @@ func Parse(uri string) (Query, error) {
 
 // --- sort and compare code ---
 
-type dsLessFunc func(p1, p2 *dnssd.BrowseEntry) bool
-type dsMultiSorter struct {
+type lessFunc func(p1, p2 *dnssd.BrowseEntry) bool
+type multiSorter struct {
 	entries []dnssd.BrowseEntry
-	less    []dsLessFunc
+	less    []lessFunc
 }
 
-func (ms *dsMultiSorter) Len() int {
+func (ms *multiSorter) Len() int {
 	return len(ms.entries)
 }
 
-func (ms *dsMultiSorter) Swap(i, j int) {
+func (ms *multiSorter) Swap(i, j int) {
 	ms.entries[i], ms.entries[j] = ms.entries[j], ms.entries[i]
 }
 
@@ -196,7 +198,7 @@ func (ms *dsMultiSorter) Swap(i, j int) {
 // less functions twice per call. We could change the functions to return
 // -1, 0, 1 and reduce the number of calls for greater efficiency: an
 // exercise for the reader.
-func (ms *dsMultiSorter) Less(i, j int) bool {
+func (ms *multiSorter) Less(i, j int) bool {
 	p, q := &ms.entries[i], &ms.entries[j]
 	// Try all but the last comparison.
 	var k int
@@ -218,7 +220,7 @@ func (ms *dsMultiSorter) Less(i, j int) bool {
 }
 
 // generate sort functions for dnssd BrowseEntry based on txt key
-func dsGenSortTxt(key string, operator byte) dsLessFunc {
+func genSortTxt(key string, operator byte) lessFunc {
 	return func(c1, c2 *dnssd.BrowseEntry) bool {
 		switch operator {
 		case '=': // key existence prioritizes entry
@@ -260,12 +262,12 @@ func dsGenSortTxt(key string, operator byte) dsLessFunc {
 	}
 }
 
-// perform numeric sort based on a particular key (assumes numeric values)
-func dsSort(req map[string][]string, entries []dnssd.BrowseEntry) {
+//sortentries performs a numeric sort based on a particular key (assumes numeric values)
+func sortEntries(req map[string][]string, entries []dnssd.BrowseEntry) {
 	if len(req["sort"]) == 0 {
 		return
 	}
-	ms := &dsMultiSorter{
+	ms := &multiSorter{
 		entries: entries,
 	}
 	// generate a sort function list based on sort entry
@@ -281,7 +283,7 @@ func dsSort(req map[string][]string, entries []dnssd.BrowseEntry) {
 			}
 			element = element[1:]
 		}
-		ms.less = append(ms.less, dsGenSortTxt(element, operator))
+		ms.less = append(ms.less, genSortTxt(element, operator))
 	}
 	sort.Sort(ms)
 }
@@ -300,7 +302,7 @@ type LookupResult struct {
 // default for domain is local, default type _ncpu._tcp, and instance is wildcard
 // can omit to underspecify, e.g. dnssd:?arch=arm64 to pick any arm64 cpu server
 func Lookup(query Query, n int) ([]*LookupResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), dsTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	context.Canceled = errors.New("")
 	context.DeadlineExceeded = errors.New("")
 	defer cancel()
@@ -337,7 +339,7 @@ func Lookup(query Query, n int) ([]*LookupResult, error) {
 		return nil, fmt.Errorf("dnssd: %q: %w", service, os.ErrNotExist)
 	}
 
-	dsSort(query.Text, responses)
+	sortEntries(query.Text, responses)
 
 	var ret []*LookupResult
 	for _, l := range responses {
@@ -398,7 +400,7 @@ func UpdateSysInfo(txtFlag map[string]string) {
 	}
 	txtFlag["tenants"] = strconv.Itoa(tenants)
 
-	v(" dsUpdateSysInfo %v", txtFlag)
+	v(" updateSysInfo %v", txtFlag)
 }
 
 func DefaultTxt(txtFlag map[string]string) {
@@ -479,7 +481,7 @@ func Register(instanceFlag, domainFlag, serviceFlag, interfaceFlag string, portF
 		}()
 
 		for {
-			time.Sleep(dsUpdate)
+			time.Sleep(update)
 			tenChan <- 0
 		}
 	}()

@@ -99,7 +99,7 @@ func TestDnsSdStart(t *testing.T) {
 	}
 
 	// default uri parse
-	if _, err := Parse(DsDefault); err != nil {
+	if _, err := Parse(Default); err != nil {
 		t.Fatal(err)
 	}
 }
