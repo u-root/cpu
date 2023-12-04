@@ -176,7 +176,7 @@ func newCPU(host, port string, args ...string) error {
 func main() {
 	flags()
 	args := flag.Args()
-	host := ds.DsDefault
+	host := ds.Default
 	port := *sp
 	a := []string{}
 	if len(args) > 0 {
@@ -184,7 +184,7 @@ func main() {
 		a = args[1:]
 	}
 	if host == "." {
-		host = ds.DsDefault
+		host = ds.Default
 	}
 	if len(a) == 0 {
 		if *numCPUs > 1 {
