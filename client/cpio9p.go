@@ -31,7 +31,6 @@ import (
 type CPIO9P struct {
 	p9.DefaultWalkGetAttr
 
-	file *os.File
 	rr   cpio.RecordReader
 	m    map[string]uint64
 	recs []cpio.Record
@@ -51,22 +50,23 @@ type CPIO9PFID struct {
 	path uint64
 }
 
-// NewCPIO9P returns a CPIO9P, properly initialized.
+// NewCPIO9P returns a CPIO9P, properly initialized, from a path.
 func NewCPIO9P(c string) (*CPIO9P, error) {
 	f, err := os.Open(c)
 	if err != nil {
 		return nil, err
 	}
+	return NewCPIO9PReaderAt(f)
+}
 
+// NewCPIO9PReaderAt returns a CPIO9P, properly initialized, from an io.ReaderAt.
+func NewCPIO9PReaderAt(r io.ReaderAt) (*CPIO9P, error) {
 	archive, err := cpio.Format("newc")
 	if err != nil {
 		return nil, err
 	}
 
-	rr, err := archive.NewFileReader(f)
-	if err != nil {
-		return nil, err
-	}
+	rr := archive.Reader(r)
 
 	recs, err := cpio.ReadAllRecords(rr)
 	if len(recs) == 0 {
@@ -83,7 +83,7 @@ func NewCPIO9P(c string) (*CPIO9P, error) {
 		m[r.Info.Name] = uint64(i)
 	}
 
-	return &CPIO9P{file: f, rr: rr, recs: recs, m: m}, nil
+	return &CPIO9P{rr: rr, recs: recs, m: m}, nil
 }
 
 // Attach implements p9.Attacher.Attach.
