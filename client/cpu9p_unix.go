@@ -10,8 +10,10 @@ package client
 import (
 	"errors"
 	"os"
+	"syscall"
 	"time"
 
+	"github.com/hugelgupf/p9/fsimpl/xattr"
 	"github.com/hugelgupf/p9/p9"
 	"golang.org/x/sys/unix"
 )
@@ -109,4 +111,28 @@ func (l *CPU9P) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, l
 		return p9.LockStatusError, err
 	}
 	return p9.LockStatusOK, nil
+}
+
+func inode(fi os.FileInfo) uint64 {
+	return fi.Sys().(*syscall.Stat_t).Ino
+}
+
+// SetXattr implements p9.File.SetXattr
+func (l *CPU9P) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
+	return unix.Setxattr(l.path, attr, data, int(flags))
+}
+
+// ListXattrs implements p9.File.ListXattrs
+func (l *CPU9P) ListXattrs() ([]string, error) {
+	return xattr.List(l.path)
+}
+
+// GetXattr implements p9.File.GetXattr
+func (l *CPU9P) GetXattr(attr string) ([]byte, error) {
+	return xattr.Get(l.path, attr)
+}
+
+// RemoveXattr implements p9.File.RemoveXattr
+func (l *CPU9P) RemoveXattr(attr string) error {
+	return unix.Removexattr(l.path, attr)
 }

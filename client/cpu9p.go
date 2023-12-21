@@ -22,9 +22,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/hugelgupf/p9/fsimpl/xattr"
 	"github.com/hugelgupf/p9/p9"
-	"golang.org/x/sys/unix"
 )
 
 // CPU9P is a p9.Attacher.
@@ -73,28 +71,8 @@ func (l *CPU9P) info() (p9.QID, os.FileInfo, error) {
 	qid.Type = p9.ModeFromOS(fi.Mode()).QIDType()
 
 	// Save the path from the Ino.
-	qid.Path = fi.Sys().(*syscall.Stat_t).Ino
+	qid.Path = inode(fi)
 	return qid, fi, nil
-}
-
-// SetXattr implements p9.File.SetXattr
-func (l *CPU9P) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
-	return unix.Setxattr(l.path, attr, data, int(flags))
-}
-
-// ListXattrs implements p9.File.ListXattrs
-func (l *CPU9P) ListXattrs() ([]string, error) {
-	return xattr.List(l.path)
-}
-
-// GetXattr implements p9.File.GetXattr
-func (l *CPU9P) GetXattr(attr string) ([]byte, error) {
-	return xattr.Get(l.path, attr)
-}
-
-// RemoveXattr implements p9.File.RemoveXattr
-func (l *CPU9P) RemoveXattr(attr string) error {
-	return unix.Removexattr(l.path, attr)
 }
 
 // Walk implements p9.File.Walk.

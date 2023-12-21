@@ -19,7 +19,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
+	"strings"
 	"syscall"
 
 	"github.com/hugelgupf/p9/fsimpl/templatefs"
@@ -166,7 +167,7 @@ func (l *CPIO9PFID) Walk(names []string) ([]p9.QID, p9.File, error) {
 		fullpath = r.Name
 	}
 	for _, name := range names {
-		fullpath = filepath.Join(fullpath, name)
+		fullpath = path.Join(fullpath, name)
 		ix, ok := l.fs.m[fullpath]
 		verbose("cpio:Walk %q get %v, %v", fullpath, ix, ok)
 		if !ok {
@@ -258,13 +259,16 @@ func (l *CPIO9PFID) readdir() ([]uint64, error) {
 	// contents of all subdirs.
 	var list []uint64
 	for i, r := range l.fs.recs[l.path+1:] {
+		// We can not use filepath.Rel, thank you Windows.
 		// filepath.Rel fails, we're done here.
-		b, err := filepath.Rel(dn, r.Name)
-		if err != nil {
-			verbose("cpio:r.Name %q: DONE", r.Name)
+		// b, err := filepath.Rel(dn, r.Name)
+		if dn != "." && !strings.HasPrefix(r.Name, dn) {
+			verbose("cpio:dn %q, r.Name %q: DONE", dn, r.Name)
 			break
 		}
-		dir, _ := filepath.Split(b)
+		b := strings.TrimPrefix(strings.TrimPrefix(r.Name, dn), "/")
+		dir, _ := path.Split(b)
+		verbose("readdir: dn %q, r.Name %q, dir %q, b %q", dn, r.Name, dir, b)
 		if len(dir) > 0 {
 			continue
 		}
@@ -309,11 +313,11 @@ func (l *CPIO9PFID) Readdir(offset uint64, count uint32) (p9.Dirents, error) {
 		if err != nil {
 			continue
 		}
-		verbose("cpio:add path %d %q", i, filepath.Base(r.Info.Name))
+		verbose("cpio:add path %d %q", i, path.Base(r.Info.Name))
 		dirents = append(dirents, p9.Dirent{
 			QID:    qid,
 			Type:   qid.Type,
-			Name:   filepath.Base(r.Info.Name),
+			Name:   path.Base(r.Info.Name),
 			Offset: i,
 		})
 	}
