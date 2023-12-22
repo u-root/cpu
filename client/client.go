@@ -96,6 +96,11 @@ func SetVerbose(f func(string, ...interface{})) {
 	v = f
 }
 
+// Listen implements net.Listen on the ssh socket.
+func (c *Cmd) Listen(n, addr string) (net.Listener, error) {
+	return c.client.Listen(n, addr)
+}
+
 // Command implements exec.Command. The required parameter is a host.
 // The args arg args to $SHELL. If there are no args, then starting $SHELL
 // is assumed.
