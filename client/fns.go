@@ -260,7 +260,11 @@ func parseBinds(s string) (string, error) {
 	if len(s) == 0 {
 		return fstab, nil
 	}
-	tmpMnt := os.TempDir()
+	// This is bit tricky. For now we have to assume
+	// cpud is on Linux, since only Linux has the features we
+	// need for private name spaces. Therefore, to run this test on
+	// (e.g.) Darwin, we just use /tmp, not os.TempDir()
+	tmpMnt := "/tmp"
 	binds := strings.Split(s, ":")
 	for i, bind := range binds {
 		if len(bind) == 0 {
