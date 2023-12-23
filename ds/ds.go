@@ -40,11 +40,11 @@ type Query struct {
 
 const (
 	// Default is the default query.
-	Default  = "dnssd://?sort=tenants&sort=cpu.pcnt"
+	Default = "dnssd://?sort=tenants&sort=cpu.pcnt"
 	// Timeout is the default query timeout.
-	Timeout  = 1 * time.Second // query-timeout
+	Timeout    = 1 * time.Second // query-timeout
 	timeFormat = "15:04:05.000"
-	update   = 60 * time.Second // server meta-data refresh
+	update     = 60 * time.Second // server meta-data refresh
 )
 
 // client relative code
@@ -71,7 +71,7 @@ func required(src map[string]string, req map[string][]string) bool {
 				v("error: poorly formed comparison in requirements")
 				return false
 			}
-			reqval, err := strconv.ParseFloat(req[k][0][1:], 10)
+			reqval, err := strconv.ParseFloat(req[k][0][1:], 64)
 			if err != nil {
 				v("error: non-numeric comparison in requirement")
 				return false
@@ -79,7 +79,7 @@ func required(src map[string]string, req map[string][]string) bool {
 			if len(src[k]) == 0 { // key not present, so requirement not met
 				return false
 			}
-			val, err := strconv.ParseFloat(src[k], 10)
+			val, err := strconv.ParseFloat(src[k], 64)
 			if err != nil {
 				v("error: non-numeric comparison in providing meta-data")
 				return false
@@ -121,11 +121,11 @@ func Parse(uri string) (Query, error) {
 
 	u, err := url.Parse(uri)
 	if err != nil {
-		return result, fmt.Errorf("Trouble parsing url %s: %w", uri, err)
+		return result, fmt.Errorf("trouble parsing url %s: %w", uri, err)
 	}
 
 	if u.Scheme != "dnssd" {
-		return result, fmt.Errorf("Not an dns-sd URI")
+		return result, fmt.Errorf("not an dns-sd URI")
 	}
 
 	// following dns-sd URI conventions from CUPS
@@ -158,7 +158,7 @@ func Parse(uri string) (Query, error) {
 				break
 			}
 		}
-		if found == false {
+		if !found {
 			result.Domain = u.Hostname()
 		}
 	}
@@ -236,12 +236,12 @@ func genSortTxt(key string, operator byte) lessFunc {
 				return false
 			}
 		}
-		n1, err := strconv.ParseFloat(c1.Text[key], 10)
+		n1, err := strconv.ParseFloat(c1.Text[key], 64)
 		if err != nil {
 			v("Bad format in entry TXT")
 			return false
 		}
-		n2, err := strconv.ParseFloat(c2.Text[key], 10)
+		n2, err := strconv.ParseFloat(c2.Text[key], 64)
 		if err != nil {
 			v("Bad format in entry TXT")
 			return false
@@ -262,7 +262,7 @@ func genSortTxt(key string, operator byte) lessFunc {
 	}
 }
 
-//sortentries performs a numeric sort based on a particular key (assumes numeric values)
+// sortentries performs a numeric sort based on a particular key (assumes numeric values)
 func sortEntries(req map[string][]string, entries []dnssd.BrowseEntry) {
 	if len(req["sort"]) == 0 {
 		return
