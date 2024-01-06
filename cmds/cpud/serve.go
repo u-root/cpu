@@ -34,7 +34,7 @@ type modifier struct {
 }
 
 func (m *modifier) String() string {
-	return fmt.Sprintf("%s", m.name)
+	return m.name
 }
 
 var (
