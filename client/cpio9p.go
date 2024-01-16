@@ -329,7 +329,7 @@ func (l *CPIO9PFID) Readlink() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	link := make([]byte, r.FileSize, r.FileSize)
+	link := make([]byte, r.FileSize)
 	v("cpio:readlink: %d byte link", len(link))
 	if n, err := r.ReadAt(link, 0); err != nil || n != len(link) {
 		v("cpio:readlink: fail with (%d,%v)", n, err)
