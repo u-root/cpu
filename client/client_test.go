@@ -40,3 +40,16 @@ func TestQuoteArg(t *testing.T) {
 		}
 	}
 }
+
+func TestCmdWithDisablePrivateKey(t *testing.T) {
+	c := Command("someserver", "bash")
+	if c.DisablePrivateKey {
+		t.Fatal("DisablePrivateKey of Cmd created by Command() is expected to be false, got true")
+	}
+	if err := c.SetOptions(WithDisablePrivateKey(true)); err != nil {
+		t.Fatalf("WithDisablePrivateKey returns unexpected err %v", err)
+	}
+	if !c.DisablePrivateKey {
+		t.Fatal("WithDisablePrivateKey(true) should set DisablePrivateKey to true, got false")
+	}
+}

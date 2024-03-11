@@ -139,19 +139,6 @@ func handler(s ssh.Session, cpud string) {
 // handler and support for port forwarding for the 9p port.
 func New(publicKeyFile, hostKeyFile, cpud string) (*ssh.Server, error) {
 	verbose("configure SSH server")
-	publicKeyOption := func(ctx ssh.Context, key ssh.PublicKey) bool {
-		data, err := os.ReadFile(publicKeyFile)
-		if err != nil {
-			fmt.Print(err)
-			return false
-		}
-		allowed, _, _, _, err := ssh.ParseAuthorizedKey(data)
-		if err != nil {
-			fmt.Print(err)
-			return false
-		}
-		return ssh.KeysEqual(key, allowed)
-	}
 
 	// Now we run as an ssh server, and each time we get a connection,
 	// we run that command after setting things up for it.
@@ -163,8 +150,7 @@ func New(publicKeyFile, hostKeyFile, cpud string) (*ssh.Server, error) {
 		}),
 		// Pick a reasonable default, which can be used for a call to listen and which
 		// will be overridden later from a listen.Addr
-		Addr:             ":" + defaultPort,
-		PublicKeyHandler: publicKeyOption,
+		Addr: ":" + defaultPort,
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
 			verbose("ReversePortForwardingCallback: attempt to bind %v %v granted", host, port)
 			return true
@@ -176,6 +162,24 @@ func New(publicKeyFile, hostKeyFile, cpud string) (*ssh.Server, error) {
 		Handler: func(s ssh.Session) {
 			handler(s, cpud)
 		},
+	}
+
+	if len(publicKeyFile) > 0 {
+		server.PublicKeyHandler = func(ctx ssh.Context, key ssh.PublicKey) bool {
+			data, err := os.ReadFile(publicKeyFile)
+			if err != nil {
+				fmt.Print(err)
+				return false
+			}
+			allowed, _, _, _, err := ssh.ParseAuthorizedKey(data)
+			if err != nil {
+				fmt.Print(err)
+				return false
+			}
+			return ssh.KeysEqual(key, allowed)
+		}
+	} else {
+		log.Printf("Not encrypting SSH connections with a key file")
 	}
 
 	// we ignore the SetOption error; if it does not work out, we

@@ -48,23 +48,24 @@ type Cmd struct {
 	// be set directly.
 	Host string
 	// HostName as found in .ssh/config; set to Host if not found
-	HostName       string
-	Args           []string
-	Root           string
-	HostKeyFile    string
-	PrivateKeyFile string
-	Port           string
-	Timeout        time.Duration
-	Env            []string
-	SessionIn      io.WriteCloser
-	SessionOut     io.Reader
-	SessionErr     io.Reader
-	Stdin          io.Reader
-	Stdout         io.Writer
-	Stderr         io.Writer
-	Row            int
-	Col            int
-	hasTTY         bool // Set if we have a TTY
+	HostName          string
+	Args              []string
+	Root              string
+	HostKeyFile       string
+	PrivateKeyFile    string
+	DisablePrivateKey bool
+	Port              string
+	Timeout           time.Duration
+	Env               []string
+	SessionIn         io.WriteCloser
+	SessionOut        io.Reader
+	SessionErr        io.Reader
+	Stdin             io.Reader
+	Stdout            io.Writer
+	Stderr            io.Writer
+	Row               int
+	Col               int
+	hasTTY            bool // Set if we have a TTY
 	// NameSpace is a string as defined in the cpu documentation.
 	NameSpace string
 	// FSTab is an fstab(5)-format string
@@ -214,6 +215,15 @@ func WithTimeout(timeout string) Set {
 func WithPrivateKeyFile(key string) Set {
 	return func(c *Cmd) error {
 		c.PrivateKeyFile = key
+		return nil
+	}
+}
+
+// WithDisablePrivateKey disables using private keys to encrypt the SSH
+// connection.
+func WithDisablePrivateKey(disable bool) Set {
+	return func(c *Cmd) error {
+		c.DisablePrivateKey = disable
 		return nil
 	}
 }
