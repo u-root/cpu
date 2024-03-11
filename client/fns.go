@@ -65,6 +65,10 @@ func (n nonce) String() string {
 // UserKeyConfig sets up authentication for a User Key.
 // It is required in almost all cases.
 func (c *Cmd) UserKeyConfig() error {
+	if c.DisablePrivateKey {
+		verbose("Not using a key file to encrypt the ssh connection")
+		return nil
+	}
 	kf := c.PrivateKeyFile
 	if len(kf) == 0 {
 		kf = config.Get(c.Host, "IdentityFile")

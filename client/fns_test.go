@@ -110,3 +110,16 @@ func TestJoinFSTab(t *testing.T) {
 		}
 	}
 }
+
+func TestUserKeyConfigWithDisablePrivateKey(t *testing.T) {
+	cmd := &Cmd{
+		PrivateKeyFile:    DefaultKeyFile,
+		DisablePrivateKey: true,
+	}
+	if err := cmd.UserKeyConfig(); err != nil {
+		t.Fatalf("UserKeyConfig() returns unexpected err: %v", err)
+	}
+	if len(cmd.config.Auth) != 0 {
+		t.Fatalf("cmd.config.Auth: got %v, want []", cmd.config.Auth)
+	}
+}

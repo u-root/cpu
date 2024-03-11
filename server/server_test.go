@@ -20,9 +20,23 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
+	s, err := New("key.pub", "", os.Args[0])
+	if err != nil {
+		t.Fatalf(`New("key.pub", "", %q): %v != nil`, os.Args[0], err)
+	}
+	if s.PublicKeyHandler == nil {
+		t.Fatalf(`New("key.pub", "", %q) returns a server without a public key handler`, os.Args[0])
+	}
+	t.Logf("New server: %v", s)
+}
+
+func TestNewServerWithoutKey(t *testing.T) {
 	s, err := New("", "", os.Args[0])
 	if err != nil {
 		t.Fatalf(`New("", "", %q): %v != nil`, os.Args[0], err)
+	}
+	if s.PublicKeyHandler != nil {
+		t.Fatalf(`New("", "", %q) returns a server with a public key handler`, os.Args[0])
 	}
 	t.Logf("New server: %v", s)
 }

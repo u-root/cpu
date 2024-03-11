@@ -38,6 +38,7 @@ var (
 	fstab       = flag.String("fstab", "", "pass an fstab to the cpud")
 	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
 	keyFile     = flag.String("key", "", "key file")
+	useKey      = flag.Bool("useKey", true, "Use key file to encrypt the ssh connection")
 	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
 	network     = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
 	port        = flag.String("sp", "", "cpu default port")
@@ -80,6 +81,9 @@ func flags() {
 // getKeyFile picks a keyfile if none has been set.
 // It will use sshconfig, else use a default.
 func getKeyFile(host, kf string) string {
+	if !*useKey {
+		return ""
+	}
 	verbose("getKeyFile for %q", kf)
 	if len(kf) == 0 {
 		kf = config.Get(host, "IdentityFile")
@@ -143,6 +147,7 @@ func newCPU(host string, args ...string) (retErr error) {
 	client.Debug9p = *dbg9p
 
 	if err := c.SetOptions(
+		client.WithDisablePrivateKey(!*useKey),
 		client.WithPrivateKeyFile(*keyFile),
 		client.WithHostKeyFile(*hostKeyFile),
 		client.WithPort(*port),
