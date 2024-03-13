@@ -67,11 +67,8 @@ func (n nonce) String() string {
 func (c *Cmd) UserKeyConfig() error {
 	kf := c.PrivateKeyFile
 	if len(kf) == 0 {
-		kf = config.Get(c.Host, "IdentityFile")
-		verbose("key file from config is %q", kf)
-		if len(kf) == 0 {
-			kf = DefaultKeyFile
-		}
+		verbose("Not using a key file to encrypt the ssh connection")
+		return nil
 	}
 	// The kf will always be non-zero at this point.
 	if strings.HasPrefix(kf, "~/") {
