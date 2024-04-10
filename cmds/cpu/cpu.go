@@ -46,6 +46,9 @@ var (
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
 
+	srvnfs = flag.Bool("nfs", false, "start nfs")
+	cpioRoot = flag.String("cpio", "", "cpio initrd")
+
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
 	v          = func(string, ...interface{}) {}
@@ -169,6 +172,35 @@ func newCPU(host string, args ...string) (retErr error) {
 	defer signal.Stop(sigChan)
 	errChan := make(chan error, 1)
 	defer close(errChan)
+
+	// TODO: add sidecore support for talking to multiple cpud.
+	if *srvnfs {
+		var fstab string
+		for _, r := range c.Env {
+			if !strings.HasPrefix(r, "CPU_FSTAB=") {
+				continue
+			}
+			s := strings.SplitN(r, "=", 2)
+			if len(s) == 2 {
+				fstab = s[1]
+			}
+			break
+		}
+		// for now, the cpio is empty, unlike sidecore.
+		f, nfsmount, err := client.SrvNFS(c, *cpioRoot, "/")
+		if err != nil {
+			return err
+		}
+		// wg.Add(1) (for multiple cpud case -- left here as
+		// a reminder.
+		go func() {
+			err := f()
+			log.Printf("nfs: %v", err)
+			// wg.Done()
+		}()
+		log.Printf("nfsmount %q fstab %q join %q", nfsmount, fstab, client.JoinFSTab(nfsmount, fstab))
+		c.Env = append(c.Env, "CPU_FSTAB="+client.JoinFSTab(nfsmount, fstab))
+	}
 
 	go func() {
 		verbose("start")
