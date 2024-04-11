@@ -36,7 +36,7 @@ type CPIO9P struct {
 	recs []cpio.Record
 }
 
-// CPIO9PFile defines a FID.
+// CPIO9PFID defines a FID.
 // It kind of sucks because it has a pointer
 // for every FID. Luckily they go away when clunked.
 type CPIO9PFID struct {
@@ -204,7 +204,7 @@ func (l *CPIO9PFID) Open(mode p9.OpenFlags) (p9.QID, uint32, error) {
 	return qid, 0, nil
 }
 
-// Read implements p9.File.ReadAt.
+// ReadAt implements p9.File.ReadAt.
 func (l *CPIO9PFID) ReadAt(p []byte, offset int64) (int, error) {
 	r, err := l.rec()
 	if err != nil {
@@ -213,7 +213,7 @@ func (l *CPIO9PFID) ReadAt(p []byte, offset int64) (int, error) {
 	return r.ReadAt(p, offset)
 }
 
-// Write implements p9.File.WriteAt.
+// WriteAt implements p9.File.WriteAt.
 func (l *CPIO9PFID) WriteAt(p []byte, offset int64) (int, error) {
 	return -1, os.ErrPermission
 }
