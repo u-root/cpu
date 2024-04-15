@@ -325,7 +325,7 @@ func (c *Cmd) Dial() error {
 	if err != nil {
 		return err
 	}
-	c.FSTab = joinFSTab(c.FSTab, fstab)
+	c.FSTab = JoinFSTab(c.FSTab, fstab)
 
 	if err := c.UserKeyConfig(); err != nil {
 		return err

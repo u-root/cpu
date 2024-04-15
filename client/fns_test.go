@@ -104,9 +104,10 @@ func TestJoinFSTab(t *testing.T) {
 		{tables: []string{"a b c\n\n", "d e f"}, fstab: "a b c\nd e f\n"},
 		{tables: []string{"a b c\n\n", "d e f"}, fstab: "a b c\nd e f\n"},
 		{tables: []string{"a b c\n\n", "d e f\n1 2 3"}, fstab: "a b c\nd e f\n1 2 3\n"},
+		{tables: []string{"a b c\n\n", "\nd e f\n1 2 3"}, fstab: "a b c\nd e f\n1 2 3\n"},
 	} {
-		if fstab := joinFSTab(tt.tables...); fstab != tt.fstab {
-			t.Errorf("joinFSTab(%q): %q != %q", tt.tables, fstab, tt.fstab)
+		if fstab := JoinFSTab(tt.tables...); fstab != tt.fstab {
+			t.Errorf("JoinFSTab(%q): %q != %q", tt.tables, fstab, tt.fstab)
 		}
 	}
 }

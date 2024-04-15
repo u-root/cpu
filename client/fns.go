@@ -307,10 +307,10 @@ func parseBinds(s string) (string, error) {
 	return fstab, nil
 }
 
-// joinFSTab joins an arbitrary number of fstab-style strings.
+// JoinFSTab joins an arbitrary number of fstab-style strings.
 // The intent is to deal with strings that may not be well formatted
 // as provided by users, e.g. too many newlines, not enough, and so on.
-func joinFSTab(tables ...string) string {
+func JoinFSTab(tables ...string) string {
 	if len(tables) == 0 {
 		return ""
 	}
@@ -318,7 +318,7 @@ func joinFSTab(tables ...string) string {
 		if len(tables[i]) == 0 {
 			continue
 		}
-		tables[i] = strings.TrimRight(tables[i], "\n")
+		tables[i] = strings.TrimLeft(strings.TrimRight(tables[i], "\n"), "\n")
 	}
 	return strings.Join(tables, "\n") + "\n"
 }
