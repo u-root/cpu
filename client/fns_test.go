@@ -67,13 +67,13 @@ func TestParseBinds(t *testing.T) {
 		// more complex parsing. Perhaps it should not be allowed at all.
 		{"/a:/bin==/b/bin", td("cpu/a") + " /a none defaults,bind 0 0\n" + td("cpu/=/b/bin") + " /bin none defaults,bind 0 0\n", nil},
 	} {
-		f, err := parseBinds(tt.namespace)
+		f, err := ParseBinds(tt.namespace)
 		if !errors.Is(err, tt.err) {
-			t.Errorf("parseBinds(%q): %v != %v", tt.namespace, err, tt.err)
+			t.Errorf("ParseBinds(%q): %v != %v", tt.namespace, err, tt.err)
 			continue
 		}
 		if f != tt.fstab {
-			t.Errorf("parseBinds(%q): %q != %q", tt.namespace, f, tt.fstab)
+			t.Errorf("ParseBinds(%q): %q != %q", tt.namespace, f, tt.fstab)
 			w := strings.Split(f, "\n")
 			g := strings.Split(tt.fstab, "\n")
 			if len(w) == len(g) {

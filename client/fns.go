@@ -257,9 +257,9 @@ func (c *Cmd) Outputs() ([]bytes.Buffer, error) {
 	return r[:], nil
 }
 
-// parseBinds parses a CPU_NAMESPACE-style string to a
+// ParseBinds parses a CPU_NAMESPACE-style string to a
 // an fstab format string.
-func parseBinds(s string) (string, error) {
+func ParseBinds(s string) (string, error) {
 	var fstab string
 	if len(s) == 0 {
 		return fstab, nil

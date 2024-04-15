@@ -321,7 +321,7 @@ func unixVsockDial(path, port string) (net.Conn, error) {
 // to avoid callers getting ordering of setting variables
 // in the Cmd wrong.
 func (c *Cmd) Dial() error {
-	fstab, err := parseBinds(c.NameSpace)
+	fstab, err := ParseBinds(c.NameSpace)
 	if err != nil {
 		return err
 	}
