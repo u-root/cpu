@@ -234,7 +234,7 @@ func main() {
 	*port = getPort(host, *port)
 	hn := getHostName(host)
 
-	verbose("Running package-based cpu command")
+	verbose("connecting to %q port %q", hn, *port)
 	if err := newCPU(hn, a...); err != nil {
 		e := 1
 		log.Printf("SSH error %s", err)
