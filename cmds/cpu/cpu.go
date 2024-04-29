@@ -198,7 +198,7 @@ func newCPU(host string, args ...string) (retErr error) {
 			log.Printf("nfs: %v", err)
 			// wg.Done()
 		}()
-		log.Printf("nfsmount %q fstab %q join %q", nfsmount, fstab, client.JoinFSTab(nfsmount, fstab))
+		verbose("nfsmount %q fstab %q join %q", nfsmount, fstab, client.JoinFSTab(nfsmount, fstab))
 		c.Env = append(c.Env, "CPU_FSTAB="+client.JoinFSTab(nfsmount, fstab))
 	}
 

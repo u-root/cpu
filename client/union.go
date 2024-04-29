@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"net"
 	"os"
 	"path"
@@ -67,13 +66,13 @@ func (f *file) Name() string {
 
 // Lock implements billy.Lock
 // There is no need for it, since cpio files are unchanging.
-func (*file) Lock() error { 
+func (*file) Lock() error {
 	return nil
 }
 
 // Unlock implements billy.Unlock
 // There is no need for it, since cpio files are unchanging.
-func (*file) Unlock() error { 
+func (*file) Unlock() error {
 	return nil
 }
 
@@ -126,7 +125,7 @@ type fsCPIO struct {
 // or must be looked for in the recs slice.
 func (f *fsCPIO) hasMount(n string) (*MountPoint, string, error) {
 	verbose("hasMount %q in %d mounts", n, len(f.mnts))
-	if ! filepath.IsAbs(n) {
+	if !filepath.IsAbs(n) {
 		return &f.mnts[0], n, nil
 	}
 	for i, v := range f.mnts {
@@ -704,7 +703,7 @@ func (l *file) Readlink() (string, error) {
 	return string(link), nil
 }
 
-// SrvNFS sets up an nfs server. n, which 
+// SrvNFS sets up an nfs server. n, which
 // can be empty, names a CPIO file for the "backing root".
 // dir is used for a root, or possibly limited to $HOME.
 // dir of more than 1 element is still not supported.
@@ -714,9 +713,9 @@ func SrvNFS(cl *Cmd, n string, dir string) (func() error, string, error) {
 	// The osnfs will be absolute, so the mountdir has to be
 	// relative to the osnfs
 	mdir, err := filepath.Rel("/", dir)
-        if err != nil {
-                return nil, "", err
-        }
+	if err != nil {
+		return nil, "", err
+	}
 	osfs := NewOSFS(dir)
 	verbose("Create New OSFS @ %q with relative mount %q", dir, mdir)
 	mem, err := NewfsCPIO(n, WithMount(mdir, osfs))
@@ -735,7 +734,7 @@ func SrvNFS(cl *Cmd, n string, dir string) (func() error, string, error) {
 			return nil, "", fmt.Errorf("SrvNFS:cpu client listen for forwarded nfs port %v", err)
 		}
 	}
-	log.Printf("ssh.listener %v", l.Addr().String())
+	verbose("ssh.listener %v", l.Addr().String())
 	ap := strings.Split(l.Addr().String(), ":")
 	if len(ap) == 0 {
 		return nil, "", fmt.Errorf("SrvNFS:Can't find a port number in %v", l.Addr().String())
@@ -751,7 +750,7 @@ func SrvNFS(cl *Cmd, n string, dir string) (func() error, string, error) {
 		return nil, "", err
 	}
 	handler := NewNullAuthHandler(l, COS{mem}, u.String())
-	log.Printf("uuid is %q", u.String())
+	verbose("uuid is %q", u.String())
 	cacheHelper := nfshelper.NewCachingHandler(handler, 1024)
 	f := func() error {
 		return nfs.Serve(l, cacheHelper)
