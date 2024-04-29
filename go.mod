@@ -14,21 +14,27 @@ require (
 require (
 	github.com/brutella/dnssd v1.2.9
 	github.com/creack/pty v1.1.18
+	github.com/go-git/go-billy/v5 v5.5.0
+	github.com/google/uuid v1.5.0
 	github.com/mdlayher/vsock v1.2.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
+	github.com/willscott/go-nfs v0.0.2
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 	golang.org/x/term v0.18.0
 )
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/miekg/dns v1.1.55 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
+	github.com/rasky/go-xdr v0.0.0-20170124162913-1a41d1a06c93 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
@@ -36,6 +42,7 @@ require (
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
+	github.com/willscott/go-nfs-client v0.0.0-20240104095149-b44639837b00 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.23.0 // indirect

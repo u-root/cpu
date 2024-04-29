@@ -165,7 +165,7 @@ func WithServer(a p9.Attacher) Set {
 // that it should remain set. Hence, we || it with its current value.
 func With9P(p9 bool) Set {
 	return func(c *Cmd) error {
-		c.Ninep = p9 || c.Ninep
+		c.Ninep = p9
 		return nil
 	}
 }
@@ -176,9 +176,6 @@ func With9P(p9 bool) Set {
 func WithNameSpace(ns string) Set {
 	return func(c *Cmd) error {
 		c.NameSpace = ns
-		if len(ns) > 0 {
-			c.Ninep = true
-		}
 		return nil
 	}
 }
@@ -321,11 +318,11 @@ func unixVsockDial(path, port string) (net.Conn, error) {
 // to avoid callers getting ordering of setting variables
 // in the Cmd wrong.
 func (c *Cmd) Dial() error {
-	fstab, err := parseBinds(c.NameSpace)
+	fstab, err := ParseBinds(c.NameSpace)
 	if err != nil {
 		return err
 	}
-	c.FSTab = joinFSTab(c.FSTab, fstab)
+	c.FSTab = JoinFSTab(c.FSTab, fstab)
 
 	if err := c.UserKeyConfig(); err != nil {
 		return err
