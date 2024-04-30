@@ -42,7 +42,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/u-root/u-root/pkg/cpio"
 	nfs "github.com/willscott/go-nfs"
-	nfshelper "github.com/willscott/go-nfs/helpers"
 )
 
 // Chroot. This is deprecated, so we don't bother.
@@ -751,9 +750,8 @@ func SrvNFS(cl *Cmd, n string, dir string) (func() error, string, error) {
 	}
 	handler := NewNullAuthHandler(l, COS{mem}, u.String())
 	verbose("uuid is %q", u.String())
-	cacheHelper := nfshelper.NewCachingHandler(handler, 1024)
 	f := func() error {
-		return nfs.Serve(l, cacheHelper)
+		return nfs.Serve(l, handler)
 	}
 	fstab := fmt.Sprintf("127.0.0.1:%s /tmp/cpu nfs rw,relatime,vers=3,rsize=1048576,wsize=1048576,namlen=255,hard,nolock,proto=tcp,port=%d,timeo=600,retrans=2,sec=sys,mountaddr=127.0.0.1,mountvers=3,mountport=%d,mountproto=tcp,local_lock=all,addr=127.0.0.1 0 0\n", u, portnfs, portnfs)
 	return f, fstab, nil
