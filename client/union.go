@@ -751,7 +751,7 @@ func SrvNFS(cl *Cmd, n string, dir string) (func() error, string, error) {
 	}
 	handler := NewNullAuthHandler(l, COS{mem}, u.String())
 	verbose("uuid is %q", u.String())
-	cacheHelper := nfshelper.NewCachingHandler(handler, 1024)
+	cacheHelper := nfshelper.NewCachingHandler(handler, 1024*1024)
 	f := func() error {
 		return nfs.Serve(l, cacheHelper)
 	}
