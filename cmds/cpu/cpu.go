@@ -261,6 +261,12 @@ func main() {
 		}
 	}
 	verbose("Running as client, to host %q, args %q", host, a)
+	// The remote system, for now, is always Linux or a standard Unix (or Plan 9)
+	// It will never be darwin (go argue with Apple)
+	// so /tmp is *always* /tmp
+	if err := os.Setenv("TMPDIR", "/tmp"); err != nil {
+		log.Printf("Warning: could not set TMPDIR: %v", err)
+	}
 
 	*keyFile = getKeyFile(host, *keyFile)
 	*port = getPort(host, *port)
