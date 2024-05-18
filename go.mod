@@ -7,25 +7,25 @@ require (
 	github.com/hugelgupf/p9 v0.2.1-0.20230814004337-e6037077d6dc
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d
-	golang.org/x/crypto v0.21.0
-	golang.org/x/sys v0.18.0
+	golang.org/x/crypto v0.22.0
+	golang.org/x/sys v0.20.0
 )
 
 require (
 	github.com/brutella/dnssd v1.2.9
 	github.com/creack/pty v1.1.18
-	github.com/go-git/go-billy/v5 v5.5.0
+	github.com/go-git/go-billy/v5 v5.5.1-0.20240514075308-8f1b719cb6a2
 	github.com/google/uuid v1.5.0
 	github.com/mdlayher/vsock v1.2.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/willscott/go-nfs v0.0.2
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
-	golang.org/x/term v0.18.0
+	golang.org/x/term v0.19.0
 )
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
-	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
+	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -35,7 +35,7 @@ require (
 	github.com/miekg/dns v1.1.55 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/rasky/go-xdr v0.0.0-20170124162913-1a41d1a06c93 // indirect
-	github.com/stretchr/testify v1.8.0 // indirect
+	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/u-root/uio v0.0.0-20230305220412-3e8cd9d6bf63 // indirect
@@ -45,7 +45,7 @@ require (
 	github.com/willscott/go-nfs-client v0.0.0-20240104095149-b44639837b00 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/tools v0.12.0 // indirect
 	google.golang.org/grpc v1.56.3 // indirect
