@@ -16,7 +16,7 @@ func verbose(f string, a ...interface{}) {
 	v("session:"+f, a...)
 }
 
-func runCmd(c *exec.Cmd) error {
+func RunCmd(c *exec.Cmd) error {
 	sigChan := make(chan os.Signal, 1)
 	defer close(sigChan)
 	signal.Notify(sigChan, unix.SIGTERM, unix.SIGINT)
