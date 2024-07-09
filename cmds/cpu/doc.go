@@ -254,4 +254,11 @@
 // If you want to learn more read the factotum paper by Grosse et. al. and the original
 // Plan 9 papers on cpu, but be aware there are many subtle details visible only
 // in code.
+//
+// You can now tentatively talk to standard sshd.
+// Here is an example:
+// ./cpu -nfs=true -9p=false -d -key ~/.ssh/homemac -sp 22 127.0.0.1
+// A few things: 9p has to be off, since sshd don't understand the -9 switch
+// Failing to Setenv is no longer an error, so you may not be able to set things
+// like SHELL.
 package main

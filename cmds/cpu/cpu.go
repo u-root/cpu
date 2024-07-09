@@ -115,9 +115,6 @@ func getHostName(host string) string {
 }
 
 // getPort gets a port.
-// The rules here are messy, since config.Get will return "22" if
-// there is no entry in .ssh/config. 22 is not allowed. So in the case
-// of "22", convert to defaultPort
 func getPort(host, port string) string {
 	p := port
 	verbose("getPort(%q, %q)", host, port)
@@ -127,7 +124,7 @@ func getPort(host, port string) string {
 			p = cp
 		}
 	}
-	if len(p) == 0 || p == "22" {
+	if len(p) == 0  {
 		p = defaultPort
 		verbose("getPort: return default %q", p)
 	}
