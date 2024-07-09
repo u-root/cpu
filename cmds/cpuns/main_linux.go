@@ -75,6 +75,10 @@ func sudoUnshareCpunfs(args ...string) error {
 // of a fork bomb. Such bombs rarely if ever take systems down any
 // more anyway ...
 func main() {
+	fmt.Printf("uid %v git %v", os.Getuid(), os.Getgid())
+	if err := checkprivate(); err != nil {
+		log.Fatal(err)
+	}
 	flag.CommandLine = flag.NewFlagSet("cpuns", flag.ExitOnError)
 	debug := flag.Bool("d", false, "enable debug prints")
 	flag.Parse()

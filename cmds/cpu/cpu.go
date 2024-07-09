@@ -114,7 +114,7 @@ func getPort(host, port string) string {
 			p = cp
 		}
 	}
-	if len(p) == 0 {
+	if len(p) == 0  {
 		p = defaultPort
 		verbose("getPort: return default %q", p)
 	}
