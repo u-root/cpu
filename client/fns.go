@@ -7,6 +7,7 @@ package client
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -111,16 +112,17 @@ func (c *Cmd) HostKeyConfig(hostKeyFile string) error {
 // SetEnv sets zero or more environment variables for a Session.
 // If envs is nil or a zero length slice, no variables are set.
 func (c *Cmd) SetEnv(envs ...string) error {
+	var err error
 	for _, v := range envs {
 		env := strings.SplitN(v, "=", 2)
 		if len(env) == 1 {
 			env = append(env, "")
 		}
 		if err := c.session.Setenv(env[0], env[1]); err != nil {
-			return fmt.Errorf("Warning: c.session.Setenv(%q, %q): %v", v, os.Getenv(v), err)
+			err = errors.Join(fmt.Errorf("Warning: c.session.Setenv(%q, %q): %v", v, os.Getenv(v), err))
 		}
 	}
-	return nil
+	return err
 }
 
 // SSHStdin implements an ssh-like reader, honoring ~ commands.
@@ -223,8 +225,7 @@ func GetHostUser(n string) (host, user string) {
 
 // GetPort gets a port. It verifies that the port fits in 16-bit space.
 // The rules here are messy, since config.Get will return "22" if
-// there is no entry in .ssh/config. 22 is not allowed. So in the case
-// of "22", convert to defaultPort.
+// there is no entry in .ssh/config.
 func GetPort(host, port string) (string, error) {
 	p := port
 	verbose("getPort(%q, %q)", host, port)
