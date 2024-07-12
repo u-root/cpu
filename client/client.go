@@ -411,6 +411,7 @@ func (c *Cmd) Dial() error {
 	}
 	if len(c.FSTab) > 0 {
 		c.Env = append(c.Env, "CPU_FSTAB="+c.FSTab)
+		c.Env = append(c.Env, "LC_GLENDA_CPU_FSTAB="+c.FSTab)
 	}
 
 	return nil

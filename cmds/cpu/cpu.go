@@ -46,7 +46,7 @@ var (
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
 
-	srvnfs = flag.Bool("nfs", false, "start nfs")
+	srvnfs   = flag.Bool("nfs", false, "start nfs")
 	cpioRoot = flag.String("cpio", "", "cpio initrd")
 
 	// v allows debug printing.
@@ -124,7 +124,7 @@ func getPort(host, port string) string {
 			p = cp
 		}
 	}
-	if len(p) == 0  {
+	if len(p) == 0 {
 		p = defaultPort
 		verbose("getPort: return default %q", p)
 	}
@@ -174,7 +174,7 @@ func newCPU(host string, args ...string) (retErr error) {
 	if *srvnfs {
 		var fstab string
 		for _, r := range c.Env {
-			if !strings.HasPrefix(r, "CPU_FSTAB=") {
+			if !strings.HasPrefix(r, "CPU_FSTAB=") && !strings.HasPrefix(r, "LC_GLENDA_CPU_FSTAB=") {
 				continue
 			}
 			s := strings.SplitN(r, "=", 2)
@@ -183,7 +183,6 @@ func newCPU(host string, args ...string) (retErr error) {
 			}
 			break
 		}
-		// for now, the cpio is empty, unlike sidecore.
 		f, nfsmount, err := client.SrvNFS(c, *cpioRoot, "/")
 		if err != nil {
 			return err
@@ -196,7 +195,8 @@ func newCPU(host string, args ...string) (retErr error) {
 			// wg.Done()
 		}()
 		verbose("nfsmount %q fstab %q join %q", nfsmount, fstab, client.JoinFSTab(nfsmount, fstab))
-		c.Env = append(c.Env, "CPU_FSTAB="+client.JoinFSTab(nfsmount, fstab))
+		fstab = client.JoinFSTab(nfsmount, fstab)
+		c.Env = append(c.Env, "CPU_FSTAB="+fstab, "LC_GLENDA_CPU_FSTAB="+fstab)
 	}
 
 	go func() {
