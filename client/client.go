@@ -159,10 +159,7 @@ func WithServer(a p9.Attacher) Set {
 	}
 }
 
-// With9P enables the 9P2000 server in cpu.
-// The server is by default disabled. Ninep is sticky; if set by,
-// e.g., WithNameSpace, the Principle of Least Confusion argues
-// that it should remain set. Hence, we || it with its current value.
+// With9P enables the 9P2000 server in cpu. The server is by default disabled.
 func With9P(p9 bool) Set {
 	return func(c *Cmd) error {
 		c.Ninep = p9
@@ -171,8 +168,7 @@ func With9P(p9 bool) Set {
 }
 
 // WithNameSpace sets the namespace to Cmd.There is no default: having some default
-// violates the principle of least surprise for package users. If ns is non-empty
-// the Ninep is forced on.
+// violates the principle of least surprise for package users.
 func WithNameSpace(ns string) Set {
 	return func(c *Cmd) error {
 		c.NameSpace = ns
