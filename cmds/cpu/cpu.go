@@ -133,7 +133,6 @@ func getPort(host, port string) string {
 }
 
 func newCPU(host string, args ...string) (retErr error) {
-	// note that 9P is enabled if namespace is not empty OR if ninep is true
 	c := client.Command(host, args...)
 	defer func() {
 		verbose("close")
