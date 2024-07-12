@@ -154,7 +154,12 @@ func (s *Session) Run() error {
 		return errors.Join(errs, fmt.Errorf("CPUD:Namespace: %v", err))
 	}
 
-	// The CPU_FSTAB environment variable is, literally, an fstab.
+	// There are two environment variables containing and fstab:
+	// CPU_FSTAB, the original, when cpu did not work with sshd
+	// LC_GLENDA_CPU_FSTAB, for communicating to sshd, which generally
+	//   strip all environment variables not starting with LC_
+	//   (a questionable decision, but one we can not change).
+	// The *CPU_FSTAB environment variable is, literally, an fstab.
 	// Why an environment variable and not a file? We do not
 	// want to require any 9p mounts at all. People should be able
 	// to do this:
@@ -165,13 +170,15 @@ func (s *Session) Run() error {
 	// In some cases if you set LD_LIBRARY_PATH it is ignored.
 	// This is disappointing to say the least. We just bind a few things into /
 	// bind *may* hide local resources but for now it's the least worst option.
-	if tab, ok := os.LookupEnv("CPU_FSTAB"); ok {
-		verbose("Mounting %q", tab)
-		if err := mount.Mount(tab); err != nil {
-			verbose("fstab mount failure: %v", err)
-			// Should we die if the mounts fail? For now, we think not;
-			// the user may be able to debug. Just record that it failed.
-			s.fail = true
+	for _, fstab := range []string{"CPU_FSTAB", "LC_GLENDA_CPU_FSTAB"} {
+		if tab, ok := os.LookupEnv(fstab); ok {
+			verbose("Mounting %q", tab)
+			if err := mount.Mount(tab); err != nil {
+				verbose("fstab mount failure: %v", err)
+				// Should we die if the mounts fail? For now, we think not;
+				// the user may be able to debug. Just record that it failed.
+				s.fail = true
+			}
 		}
 	}
 
@@ -265,7 +272,12 @@ func (s *Session) NameSpace() error {
 		return errors.Join(errs, fmt.Errorf("CPUD:Namespace: %v", err))
 	}
 
-	// The CPU_FSTAB environment variable is, literally, an fstab.
+	// There are two environment variables containing and fstab:
+	// CPU_FSTAB, the original, when cpu did not work with sshd
+	// LC_GLENDA_CPU_FSTAB, for communicating to sshd, which generally
+	//   strip all environment variables not starting with LC_
+	//   (a questionable decision, but one we can not change).
+	// The *CPU_FSTAB environment variable is, literally, an fstab.
 	// Why an environment variable and not a file? We do not
 	// want to require any 9p mounts at all. People should be able
 	// to do this:
