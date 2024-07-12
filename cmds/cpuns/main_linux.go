@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
@@ -36,7 +37,6 @@ func checkprivate() error {
 		return fmt.Errorf("got more than 1 mount for /(%v):%v", mnts, os.ErrInvalid)
 	}
 	entry := mnts[0]
-	fmt.Printf("Optional is %q\n", entry.Optional)
 	isShared := strings.Contains(entry.Optional, "shared:1")
 	if isShared {
 		return fmt.Errorf("/ is not private")
@@ -44,17 +44,54 @@ func checkprivate() error {
 	return nil
 }
 
-func main() {
-	fmt.Printf("uid %v git %v", os.Getuid(), os.Getgid())
-	if err := checkprivate(); err != nil {
-		log.Fatal(err)
+func sudoUnshareCpunfs() error {
+	n, err := os.Executable()
+	if err != nil {
+		return err
 	}
+
+	v("Executable: %q", n)
+	// sshd filters most environment variables save LC_*.
+	// sudo strips most LC_* variables.
+	// the cpu command sets LC_GLENDA_CPU_FSTAB to the fstab;
+	// we need to transform it here.
+
+	c := exec.Command("sudo", "-E", "unshare", "-m", n)
+
+	// Find the environment variable, and transform it.
+	// sudo or unshare seem to strip many LC_* variables.
+	fstab, ok := os.LookupEnv("LC_GLENDA_CPU_FSTAB")
+	v("fstab set? %v value %q", ok, fstab)
+	if ok {
+		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
+		v("extended c.Env: %v", c.Env)
+	}
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	v("Run %v", c)
+	return c.Run()
+}
+
+// We make an effort here to make this convenient, accepting the risk
+// of a fork bomb. Such bombs rarely if ever take systems down any
+// more anyway ...
+func main() {
 	flag.CommandLine = flag.NewFlagSet("cpuns", flag.ExitOnError)
 	debug := flag.Bool("d", false, "enable debug prints")
 	flag.Parse()
 	if *debug {
 		v = log.Printf
 		session.SetVerbose(v)
+	}
+	v("LC_GLENDA_CPU_FSTAB %s", os.Getenv("LC_GLENDA_CPU_FSTAB"))
+	v("CPU_FSTAB %s", os.Getenv("CPU_FSTAB"))
+	if os.Getuid() != 0 {
+		if err := sudoUnshareCpunfs(); err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}
+	if err := checkprivate(); err != nil {
+		log.Fatal(err)
 	}
 	args := flag.Args()
 	shell := "/bin/sh"
