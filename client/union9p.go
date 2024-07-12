@@ -112,7 +112,7 @@ func NewUnion9P(mounts []UnionMount) (*Union9P, error) {
 	root := union9PFID{}
 	root.f = &root
 	u := &Union9P{
-		mounts: append([]UnionMount{UnionMount{walk: []string{"/"}, mount: &root}}, mounts...),
+		mounts: append([]UnionMount{{walk: []string{"/"}, mount: &root}}, mounts...),
 	}
 	root.u = u
 
@@ -163,7 +163,7 @@ func (u *union9PFID) Walk(names []string) ([]p9.QID, p9.File, error) {
 	v("union9p: walk(%q)", names)
 	if len(names) == 0 {
 		v("union9p:clonewalk")
-		return []p9.QID{p9.QID{Type: p9.TypeDir, Path: 1, Version: 0}}, &union9PFID{u: u.u, f: u.f}, nil
+		return []p9.QID{{Type: p9.TypeDir, Path: 1, Version: 0}}, &union9PFID{u: u.u, f: u.f}, nil
 	}
 	ix := -1
 	for x, bind := range u.u.mounts {

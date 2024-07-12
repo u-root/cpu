@@ -23,7 +23,7 @@ func TestUnion9PWalkReadlink(t *testing.T) {
 	}
 	t.Logf("root:%v", c)
 
-	u, err := NewUnion9P([]UnionMount{UnionMount{walk: []string{}, mount: c}})
+	u, err := NewUnion9P([]UnionMount{{walk: []string{}, mount: c}})
 
 	if err != nil {
 		t.Fatalf("NewUnion9P: got %v, want nil", err)
@@ -65,7 +65,7 @@ func TestUnion9POne(t *testing.T) {
 	}
 	t.Logf("root:%v", c)
 
-	u, err := NewUnion9P([]UnionMount{UnionMount{walk: []string{}, mount: c}})
+	u, err := NewUnion9P([]UnionMount{{walk: []string{}, mount: c}})
 
 	if err != nil {
 		t.Fatalf("NewUnion9P: got %v, want nil", err)
@@ -259,8 +259,8 @@ func TestUnion9PTwoCPIO(t *testing.T) {
 	t.Logf("root:%v", b)
 
 	u, err := NewUnion9P([]UnionMount{
-		UnionMount{walk: []string{"home"}, mount: b},
-		UnionMount{walk: []string{}, mount: a},
+		{walk: []string{"home"}, mount: b},
+		{walk: []string{}, mount: a},
 	})
 
 	if err != nil {
@@ -313,8 +313,8 @@ func TestUnion9PTwoCPIOSymlinkAtRoot(t *testing.T) {
 	t.Logf("root:%v", b)
 
 	u, err := NewUnion9P([]UnionMount{
-		UnionMount{walk: []string{"home"}, mount: b},
-		UnionMount{walk: []string{}, mount: a},
+		{walk: []string{"home"}, mount: b},
+		{walk: []string{}, mount: a},
 	})
 
 	if err != nil {
@@ -367,9 +367,9 @@ func TestUnion9PTwoCPIOEmptyHome(t *testing.T) {
 	t.Logf("root:%v", b)
 
 	u, err := NewUnion9P([]UnionMount{
-		UnionMount{walk: []string{"home"}, mount: b},
-		UnionMount{walk: []string{"root"}, mount: b},
-		UnionMount{walk: []string{}, mount: a},
+		{walk: []string{"home"}, mount: b},
+		{walk: []string{"root"}, mount: b},
+		{walk: []string{}, mount: a},
 	})
 
 	if err != nil {
