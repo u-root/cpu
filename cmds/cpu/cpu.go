@@ -104,16 +104,6 @@ func getKeyFile(host, kf string) string {
 	return kf
 }
 
-// getHostName reads the host name from the config file,
-// if needed. If it is not found, the host name is returned.
-func getHostName(host string) string {
-	h := config.Get(host, "HostName")
-	if len(h) != 0 {
-		host = h
-	}
-	return host
-}
-
 // getPort gets a port.
 func getPort(host, port string) string {
 	p := port
@@ -266,10 +256,9 @@ func main() {
 
 	*keyFile = getKeyFile(host, *keyFile)
 	*port = getPort(host, *port)
-	hn := getHostName(host)
 
-	verbose("connecting to %q port %q", hn, *port)
-	if err := newCPU(hn, a...); err != nil {
+	verbose("connecting to %q port %q", host, *port)
+	if err := newCPU(host, a...); err != nil {
 		e := 1
 		log.Printf("SSH error %s", err)
 		sshErr := &ossh.ExitError{}
