@@ -124,12 +124,12 @@ func main() {
 		log.Printf("no SUDO_GID; continuing anyway")
 	}
 
-	uid, err := strconv.Atoi(u)
+	uid, err := strconv.ParseUint(u, 0, 32)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	gid, err := strconv.Atoi(g)
+	gid, err := strconv.ParseUint(g, 0, 32)
 	if err != nil {
 		log.Fatal(err)
 	}
