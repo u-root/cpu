@@ -124,9 +124,10 @@ func Command(host string, args ...string) *Cmd {
 		col, row = c, r
 	}
 
+	h, u := GetHostUser(host)
 	return &Cmd{
 		Host:     host,
-		HostName: GetHostName(host),
+		HostName: h,
 		Args:     args,
 		Port:     DefaultPort,
 		Timeout:  defaultTimeOut,
@@ -136,7 +137,7 @@ func Command(host string, args ...string) *Cmd {
 		Row:      row,
 		Col:      col,
 		config: ssh.ClientConfig{
-			User:            os.Getenv("USER"),
+			User:            u,
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		},
 		hasTTY:  hasTTY,
