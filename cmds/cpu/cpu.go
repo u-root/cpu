@@ -257,6 +257,18 @@ func main() {
 	*keyFile = getKeyFile(host, *keyFile)
 	*port = getPort(host, *port)
 
+	// If we care connecting on port 22, 9p is not an option.
+	// It goes back to the way we send the Nonce, and that is
+	// too hard to fix, and not worth fixing, as 9p is just too
+	// slow.
+	if *port == "22" && *ninep {
+		verbose("turning ninep off for ssh usage")
+		*ninep = false
+	}
+	if *port == "22" && !*srvnfs {
+		verbose("turning srvnfs on for ssh usage")
+		*srvnfs = true
+	}
 	verbose("connecting to %q port %q", host, *port)
 	if err := newCPU(host, a...); err != nil {
 		e := 1
