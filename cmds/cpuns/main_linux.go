@@ -44,7 +44,7 @@ func checkprivate() error {
 	return nil
 }
 
-func sudoUnshareCpunfs() error {
+func sudoUnshareCpunfs(args ...string) error {
 	n, err := os.Executable()
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func sudoUnshareCpunfs() error {
 	// the cpu command sets LC_GLENDA_CPU_FSTAB to the fstab;
 	// we need to transform it here.
 
-	c := exec.Command("sudo", "-E", "unshare", "-m", n)
+	c := exec.Command("sudo", append([]string{"-E", "unshare", "-m", n}, args...)...)
 
 	// Find the environment variable, and transform it.
 	// sudo or unshare seem to strip many LC_* variables.
@@ -75,6 +75,10 @@ func sudoUnshareCpunfs() error {
 // of a fork bomb. Such bombs rarely if ever take systems down any
 // more anyway ...
 func main() {
+	fmt.Printf("uid %v git %v", os.Getuid(), os.Getgid())
+	if err := checkprivate(); err != nil {
+		log.Fatal(err)
+	}
 	flag.CommandLine = flag.NewFlagSet("cpuns", flag.ExitOnError)
 	debug := flag.Bool("d", false, "enable debug prints")
 	flag.Parse()
@@ -82,10 +86,11 @@ func main() {
 		v = log.Printf
 		session.SetVerbose(v)
 	}
+	args := flag.Args()
 	v("LC_GLENDA_CPU_FSTAB %s", os.Getenv("LC_GLENDA_CPU_FSTAB"))
 	v("CPU_FSTAB %s", os.Getenv("CPU_FSTAB"))
 	if os.Getuid() != 0 {
-		if err := sudoUnshareCpunfs(); err != nil {
+		if err := sudoUnshareCpunfs(args...); err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(0)
@@ -93,7 +98,6 @@ func main() {
 	if err := checkprivate(); err != nil {
 		log.Fatal(err)
 	}
-	args := flag.Args()
 	shell := "/bin/sh"
 	if len(args) == 0 {
 		sh, ok := os.LookupEnv("SHELL")
@@ -124,12 +128,12 @@ func main() {
 		log.Printf("no SUDO_GID; continuing anyway")
 	}
 
-	uid, err := strconv.Atoi(u)
+	uid, err := strconv.ParseUint(u, 0, 32)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	gid, err := strconv.Atoi(g)
+	gid, err := strconv.ParseUint(g, 0, 32)
 	if err != nil {
 		log.Fatal(err)
 	}
