@@ -6,6 +6,7 @@ package client
 
 import (
 	"errors"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -122,5 +123,28 @@ func TestUserKeyConfigWithDisablePrivateKey(t *testing.T) {
 	}
 	if len(cmd.config.Auth) != 0 {
 		t.Fatalf("cmd.config.Auth: got %v, want []", cmd.config.Auth)
+	}
+}
+
+// test getting a user and host.
+// In a better world, the sshconfig package would let us test our own
+// ssh config, but that package hardwires the path and provides no way to change it.
+func TestUserHost(t *testing.T) {
+	type test struct {
+		name string
+		hn   string
+		host string
+		user string
+	}
+	var tests = []test{
+		{name: "a@b", hn: "a@b", host: "b", user: "a"},
+	}
+	if user, ok := os.LookupEnv("USER"); ok {
+		tests = append(tests, test{name: "host with $USER", hn: "a", host: "a", user: user})
+	}
+	for _, tt := range tests {
+		if h, u := GetHostUser(tt.hn); h != tt.host || u != tt.user {
+			t.Errorf("%s:GetHostUser(%q): (%q,%q) != (%q,%q)", tt.name, tt.hn, h, u, tt.host, tt.user)
+		}
 	}
 }

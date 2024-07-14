@@ -200,6 +200,27 @@ func GetHostName(host string) string {
 	return host
 }
 
+// GetHostUser gets the user and host name. In ssh syntax, these can
+// be in one string, or defined in .ssh/config, or (for user), as
+// $USER. Given that just about anything can be valid, and errors
+// will be caught in other places, it does not return an error.
+// Also, experimentally, in the name@host form, name overrides
+// any use name that might be in .ssh/config. Host, on the other hand,
+// is always determined from .ssh/config. The host name
+// is also pulled from .ssh/config; calls to GetHostName
+// can be replaced as needed, but that's for the future.
+func GetHostUser(n string) (host, user string) {
+	if u, h, ok := strings.Cut(n, "@"); ok {
+		return GetHostName(h), u
+	}
+	// Perhaps a user name is found in .ssh/config
+	if cp := config.Get(n, "User"); len(cp) != 0 {
+		return GetHostName(n), cp
+	}
+	// Last try: the environment.
+	return GetHostName(n), os.Getenv("USER")
+}
+
 // GetPort gets a port. It verifies that the port fits in 16-bit space.
 // The rules here are messy, since config.Get will return "22" if
 // there is no entry in .ssh/config. 22 is not allowed. So in the case
