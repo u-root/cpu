@@ -116,7 +116,7 @@ func getPort(host, port string) string {
 			p = cp
 		}
 	}
-	if len(p) == 0  {
+	if len(p) == 0 {
 		p = defaultPort
 		verbose("getPort: return default %q", p)
 	}
@@ -134,8 +134,12 @@ func newCPU(host string, args ...string) (retErr error) {
 	// If running over ssh, *srvnfs is true, then
 	// we need to start cpuns, and pass the environment
 	// as an argument.
+	// Also, because of how sshd works, we need to pass in
+	// a PWD that is correct; otherwise it gets lost, since
+	// since ssh wants to simulate a login..
 	if *ssh {
-		envargs := "-env=" + strings.Join(os.Environ(), "\n")
+		env := append(os.Environ(), "CPU_PWD="+os.Getenv("PWD"))
+		envargs := "-env=" + strings.Join(env, "\n")
 		args = append([]string{"cpuns", envargs}, args...)
 	}
 	c := client.Command(host, args...)
