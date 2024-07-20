@@ -49,6 +49,8 @@ var (
 	srvnfs   = flag.Bool("nfs", false, "start nfs")
 	cpioRoot = flag.String("cpio", "", "cpio initrd")
 
+	ssh = flag.Bool("ssh", false, "server is sshd, not cpud")
+
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
 	v          = func(string, ...interface{}) {}
@@ -123,6 +125,19 @@ func getPort(host, port string) string {
 }
 
 func newCPU(host string, args ...string) (retErr error) {
+	// When running over ssh, many environment variables
+	// are filtered. sshd will filter some, and sudo
+	// can filter others. sshd typically removes all but
+	// LC_*, and sudo will remove LC_*.
+	// Threading this needle over time is a mess.
+	// So:
+	// If running over ssh, *srvnfs is true, then
+	// we need to start cpuns, and pass the environment
+	// as an argument.
+	if *ssh {
+		envargs := "-env=" + strings.Join(os.Environ(), "\n")
+		args = append([]string{"cpuns", envargs}, args...)
+	}
 	c := client.Command(host, args...)
 	defer func() {
 		verbose("close")
@@ -268,6 +283,9 @@ func main() {
 	if *port == "22" && !*srvnfs {
 		verbose("turning srvnfs on for ssh usage")
 		*srvnfs = true
+	}
+	if *port == "22" {
+		*ssh = true
 	}
 	verbose("connecting to %q port %q", host, *port)
 	if err := newCPU(host, a...); err != nil {
