@@ -44,7 +44,7 @@ func checkprivate() error {
 	return nil
 }
 
-func sudoUnshareCpunfs(args ...string) error {
+func sudoUnshareCpunfs(env string, args ...string) error {
 	n, err := os.Executable()
 	if err != nil {
 		return err
@@ -56,7 +56,8 @@ func sudoUnshareCpunfs(args ...string) error {
 	// the cpu command sets LC_GLENDA_CPU_FSTAB to the fstab;
 	// we need to transform it here.
 
-	c := exec.Command("sudo", append([]string{"-E", "unshare", "-m", n}, args...)...)
+	c := exec.Command("sudo", append([]string{"-E", "unshare", "-m", n, "-env=" + env}, args...)...)
+	v("exec.Cmd args %q", c.Args)
 
 	// Find the environment variable, and transform it.
 	// sudo or unshare seem to strip many LC_* variables.
@@ -67,7 +68,7 @@ func sudoUnshareCpunfs(args ...string) error {
 		v("extended c.Env: %v", c.Env)
 	}
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
-	v("Run %v", c)
+	v("Run %q", c)
 	return c.Run()
 }
 
@@ -81,16 +82,18 @@ func main() {
 	}
 	flag.CommandLine = flag.NewFlagSet("cpuns", flag.ExitOnError)
 	debug := flag.Bool("d", false, "enable debug prints")
+	env := flag.String("env", "", "newline-separated array of environment variables")
 	flag.Parse()
 	if *debug {
 		v = log.Printf
+		verbose("cpuns: os.Args %q", os.Args)
 		session.SetVerbose(v)
 	}
 	args := flag.Args()
 	v("LC_GLENDA_CPU_FSTAB %s", os.Getenv("LC_GLENDA_CPU_FSTAB"))
 	v("CPU_FSTAB %s", os.Getenv("CPU_FSTAB"))
 	if os.Getuid() != 0 {
-		if err := sudoUnshareCpunfs(args...); err != nil {
+		if err := sudoUnshareCpunfs(*env, args...); err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(0)
@@ -138,6 +141,10 @@ func main() {
 		log.Fatal(err)
 	}
 	c := s.Command()
+	if s := strings.Split(*env, "\n"); len(s) > 0 {
+		c.Env = append(c.Env, s...)
+	}
+	verbose("cpuns: Command is %q, with args %q", c, args)
 	c.Stdin, c.Stdout, c.Stderr = s.Stdin, s.Stdout, s.Stderr
 	c.SysProcAttr = &syscall.SysProcAttr{}
 	c.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
