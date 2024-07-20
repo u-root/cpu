@@ -67,7 +67,7 @@ func sudoUnshareCpunfs(env string, args ...string) error {
 		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
 		v("extended c.Env: %v", c.Env)
 	}
-	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	v("Run %q", c)
 	return c.Run()
 }
@@ -76,10 +76,6 @@ func sudoUnshareCpunfs(env string, args ...string) error {
 // of a fork bomb. Such bombs rarely if ever take systems down any
 // more anyway ...
 func main() {
-	fmt.Printf("uid %v git %v", os.Getuid(), os.Getgid())
-	if err := checkprivate(); err != nil {
-		log.Fatal(err)
-	}
 	flag.CommandLine = flag.NewFlagSet("cpuns", flag.ExitOnError)
 	debug := flag.Bool("d", false, "enable debug prints")
 	env := flag.String("env", "", "newline-separated array of environment variables")
