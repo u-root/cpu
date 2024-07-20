@@ -67,7 +67,7 @@ func sudoUnshareCpunfs(env string, args ...string) error {
 		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
 		v("extended c.Env: %v", c.Env)
 	}
-	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	v("Run %q", c)
 	return c.Run()
 }
