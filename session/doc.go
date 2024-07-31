@@ -13,9 +13,9 @@
 // needed and will set one up.
 //
 // Run will also set up a process namespace via 9p and other mounts,
-// if needed. If CPU_FSTAB is set, it
+// if needed. If LC_GLENDA_CPU_FSTAB or CPU_FSTAB is set, it
 // is assumed to be a string in fstab(5) format and Run will mount the
-// specified file systems. CPU_FSTAB is most often used for virtiofs
+// specified file systems. *CPU_FSTAB is most often used for virtiofs
 // mounts from virtual machines.
 //
 // For the moment, servers only call Run(), which

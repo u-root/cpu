@@ -17,6 +17,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.5.1-0.20240514075308-8f1b719cb6a2
 	github.com/google/uuid v1.5.0
 	github.com/mdlayher/vsock v1.2.1
+	github.com/moby/sys/mountinfo v0.7.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/willscott/go-nfs v0.0.2
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad

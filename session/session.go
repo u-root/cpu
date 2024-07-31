@@ -69,7 +69,7 @@ func (s *Session) DropPrivs() error {
 	uid := unix.Getuid()
 	verbose("dropPrives: uid is %v", uid)
 	if uid == 0 {
-		verbose("dropPrivs: not dropping privs")
+		verbose("dropPrivs: uid is 0: not dropping privs")
 		return nil
 	}
 	gid := unix.Getgid()
@@ -165,13 +165,15 @@ func (s *Session) Run() error {
 	// In some cases if you set LD_LIBRARY_PATH it is ignored.
 	// This is disappointing to say the least. We just bind a few things into /
 	// bind *may* hide local resources but for now it's the least worst option.
-	if tab, ok := os.LookupEnv("CPU_FSTAB"); ok {
-		verbose("Mounting %q", tab)
-		if err := mount.Mount(tab); err != nil {
-			verbose("fstab mount failure: %v", err)
-			// Should we die if the mounts fail? For now, we think not;
-			// the user may be able to debug. Just record that it failed.
-			s.fail = true
+	for _, fstab := range []string{"CPU_FSTAB"} {
+		if tab, ok := os.LookupEnv(fstab); ok {
+			verbose("Mounting %q", tab)
+			if err := mount.Mount(tab); err != nil {
+				verbose("fstab mount failure: %v", err)
+				// Should we die if the mounts fail? For now, we think not;
+				// the user may be able to debug. Just record that it failed.
+				s.fail = true
+			}
 		}
 	}
 
@@ -206,10 +208,10 @@ func (s *Session) Run() error {
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = s.Stdin, s.Stdout, s.Stderr, os.Getenv("PWD")
 	dirInfo, err := os.Stat(c.Dir)
 	if err != nil || !dirInfo.IsDir() {
-		log.Printf("CPUD: your $PWD %s is not in the remote namespace", c.Dir)
+		log.Printf("CPUD: your $PWD %q is not in the remote namespace", c.Dir)
 		return os.ErrNotExist
 	}
-	err = runCmd(c)
+	err = RunCmd(c)
 	verbose("Run %v returns %v", c, err)
 	if err != nil {
 		if s.fail && len(wtf) != 0 {
@@ -236,4 +238,61 @@ func New(port9p, cmd string, args ...string) *Session {
 	// The 9P designers had the wisdom to make msize negotiation part of session initiation,
 	// so we had a way out!
 	return &Session{msize: 64 * 1024, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, port9p: port9p, cmd: cmd, args: args}
+}
+
+// The following two functions were set up for cpuns.
+// They provide a bit more flexibility in setting things
+// up until we can agree on how it should all work.
+// Side note: it's probably time to remove all the
+// wtf support, above; it has been years since we needed it.
+// Run starts up a remote cpu session. It is started by a cpu
+// daemon via a -remote switch.
+
+// NameSpace prepares the namespace for the session.
+func (s *Session) NameSpace() error {
+	var errs error
+
+	if err := runSetup(); err != nil {
+		return err
+	}
+	if err := s.TmpMounts(); err != nil {
+		verbose("TmpMounts error: %v", err)
+		s.fail = true
+		errs = errors.Join(errs, err)
+	}
+
+	verbose("call s.NameSpace")
+	err := s.Namespace()
+	if err != nil {
+		return errors.Join(errs, fmt.Errorf("CPUD:Namespace: %v", err))
+	}
+
+	// The CPU_FSTAB environment variable is, literally, an fstab.
+	// Why an environment variable and not a file? We do not
+	// want to require any 9p mounts at all. People should be able
+	// to do this:
+	// CPU_FSTAB=`cat fstab`
+	// and get the mounts they want. The first uses of this will
+	// be building namespaces with drive and virtiofs.
+
+	// In some cases if you set LD_LIBRARY_PATH it is ignored.
+	// This is disappointing to say the least. We just bind a few things into /
+	// bind *may* hide local resources but for now it's the least worst option.
+	if tab, ok := os.LookupEnv("CPU_FSTAB"); ok {
+		verbose("Mounting %q", tab)
+		if err := mount.Mount(tab); err != nil {
+			verbose("fstab mount failure: %v", err)
+			// Should we die if the mounts fail? For now, we think not;
+			// the user may be able to debug. Just record that it failed.
+			s.fail = true
+		}
+	}
+
+	return nil
+}
+
+// Command returns an exec.Command that users can additionally modify.
+// This will all certainly change.
+func (s *Session) Command() *exec.Cmd {
+	return exec.Command(s.cmd, s.args...)
 }
