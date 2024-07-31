@@ -137,7 +137,7 @@ func newCPU(host string, args ...string) (retErr error) {
 	// Also, because of how sshd works, we need to pass in
 	// a PWD that is correct; otherwise it gets lost, since
 	// since ssh wants to simulate a login..
-	if *ssh {
+	if *ssh && *srvnfs {
 		env := append(os.Environ(), "CPU_PWD="+os.Getenv("PWD"))
 		envargs := "-env=" + strings.Join(env, "\n")
 		args = append([]string{"cpuns", envargs}, args...)
@@ -284,7 +284,7 @@ func main() {
 		verbose("turning ninep off for ssh usage")
 		*ninep = false
 	}
-	if *port == "22" && !*srvnfs {
+	if *port == "22" && !*srvnfs && len(*namespace) > 0 {
 		verbose("turning srvnfs on for ssh usage")
 		*srvnfs = true
 	}
