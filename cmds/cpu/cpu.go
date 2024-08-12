@@ -49,7 +49,7 @@ var (
 	srvnfs   = flag.Bool("nfs", false, "start nfs")
 	cpioRoot = flag.String("cpio", "", "cpio initrd")
 
-	ssh = flag.Bool("ssh", false, "server is sshd, not cpud")
+	sshd = flag.Bool("sshd", false, "server is sshd, not cpud")
 
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
@@ -137,7 +137,7 @@ func newCPU(host string, args ...string) (retErr error) {
 	// Also, because of how sshd works, we need to pass in
 	// a PWD that is correct; otherwise it gets lost, since
 	// since ssh wants to simulate a login..
-	if *ssh && *srvnfs {
+	if *sshd && *srvnfs {
 		env := append(os.Environ(), "CPU_PWD="+os.Getenv("PWD"))
 		envargs := "-env=" + strings.Join(env, "\n")
 		args = append([]string{"cpuns", envargs}, args...)
@@ -289,7 +289,7 @@ func main() {
 		*srvnfs = true
 	}
 	if *port == "22" {
-		*ssh = true
+		*sshd = true
 	}
 	verbose("connecting to %q port %q", host, *port)
 	if err := newCPU(host, a...); err != nil {
