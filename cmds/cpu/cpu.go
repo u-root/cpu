@@ -49,6 +49,7 @@ var (
 	srvnfs   = flag.Bool("nfs", false, "start nfs")
 	cpioRoot = flag.String("cpio", "", "cpio initrd")
 
+	ssh = flag.Bool("ssh", false, "ssh only, no internal 9p, nfs, or mounts")
 	sshd = flag.Bool("sshd", false, "server is sshd, not cpud")
 
 	// v allows debug printing.
@@ -80,6 +81,11 @@ func flags() {
 		*dbg9p = true
 		ulog.Log = log.New(dumpWriter, "", log.Ltime|log.Lmicroseconds)
 		v = ulog.Log.Printf
+	}
+	if *ssh {
+		*srvnfs, *ninep, *sshd = false, false, true
+		*namespace = ""
+		log.Printf("Running basic ssh protocol; no mounts")
 	}
 }
 
