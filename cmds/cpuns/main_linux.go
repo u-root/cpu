@@ -2,6 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This program is used when cpud is not available.
+// It takes a mount point environment variable, LC_CPU_FSTAB,
+// and environment specified by -env, and invokes itself
+// several times, as needed, to create a private name space
+// for a user command.
+// This all gets a bit tricky as we must do a few things as
+// root, and setuid back in the end. In an earlier version, we
+// used unshare, but that introduces a dependency we would prefer
+// not to have.
+// The sequence:
+// 1st pass: check if we are uid 0, if not, sudo os.Executable
+// 2nd pass: we are uid 0, check if namespace is private, if not,
+//
+//	execute ourselves with cmd.SysProcattr.Unshareflags set to NS_PRIVATE
+//	This will only succeed or fail; it won't start the process
+//	with a non-private namespace.
+//
+// 3rd pass: create the proper mounts, and execute the user command.
 package main
 
 import (
@@ -44,10 +62,13 @@ func checkprivate() error {
 	return nil
 }
 
-func sudoUnshareCpunfs(env string, args ...string) error {
+// sudo will get us into a root process, with correct environment
+// set up.
+func sudo(env string, args ...string) {
+	log.Printf("sudo: os.Env %v\nenv %v\nargs %v", os.Environ(), env, args)
 	n, err := os.Executable()
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	v("Executable: %q", n)
@@ -56,20 +77,71 @@ func sudoUnshareCpunfs(env string, args ...string) error {
 	// the cpu command sets LC_GLENDA_CPU_FSTAB to the fstab;
 	// we need to transform it here.
 
-	c := exec.Command("sudo", append([]string{"-E", "unshare", "-m", n, "-env=" + env}, args...)...)
+	c := exec.Command("sudo", append([]string{"-E", n, "-env=" + env}, args...)...)
 	v("exec.Cmd args %q", c.Args)
 
 	// Find the environment variable, and transform it.
-	// sudo or unshare seem to strip many LC_* variables.
+	// sudo seems to strip many LC_* variables.
 	fstab, ok := os.LookupEnv("LC_GLENDA_CPU_FSTAB")
 	v("fstab set? %v value %q", ok, fstab)
 	if ok {
 		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
 		v("extended c.Env: %v", c.Env)
 	}
+	if s := strings.Split(env, "\n"); len(s) > 0 {
+		c.Env = append(c.Env, s...)
+	}
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	v("Run %q", c)
+
+	// The return is carefully done here to avoid the caller
+	// making a mistake and fork-bomb.
+	if err := c.Run(); err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(0)
+}
+
+// unshare execs os.Executable with SysProcAttr.Unshareflags set to
+// CLONE_NEWNS. It avoids a need to use the unshare command.
+// Be very careful in modifying this; it is designed to be
+// simple and avoid fork bombs.
+func unshare(env string, args ...string) {
+	log.Printf("unshare: os.Env %v\nenv %v\n args %v", os.Environ(), env, args)
+	n, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// sshd filters most environment variables save LC_*.
+	// sudo strips most LC_* variables.
+	// the cpu command sets LC_GLENDA_CPU_FSTAB to the fstab;
+	// we need to transform it here.
+	// Since we can get here direct from sshd, not sudo,
+	// we have to this twice.
+	v("Executable: %q", n)
+	c := exec.Command(n, args...)
+	v("exec.Cmd args %q", c.Args)
+
+	fstab, ok := os.LookupEnv("LC_GLENDA_CPU_FSTAB")
+	v("fstab set? %v value %q", ok, fstab)
+	if ok {
+		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
+		v("extended c.Env: %v", c.Env)
+		if s := strings.Split(env, "\n"); len(s) > 0 {
+			c.Env = append(c.Env, s...)
+		}
+	}
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	v("Run %q", c)
-	return c.Run()
+
+	c.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
+	// The return is carefully done here to avoid the caller
+	// making a mistake and fork-bomb.
+	if err := c.Run(); err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(0)
 }
 
 // We make an effort here to make this convenient, accepting the risk
@@ -89,14 +161,14 @@ func main() {
 	v("LC_GLENDA_CPU_FSTAB %s", os.Getenv("LC_GLENDA_CPU_FSTAB"))
 	v("CPU_FSTAB %s", os.Getenv("CPU_FSTAB"))
 	if os.Getuid() != 0 {
-		if err := sudoUnshareCpunfs(*env, args...); err != nil {
-			log.Fatal(err)
-		}
-		os.Exit(0)
+		sudo(*env, args...)
 	}
+
 	if err := checkprivate(); err != nil {
-		log.Fatal(err)
+		unshare(*env, args...)
 	}
+
+	log.Printf("mount and run: os.Env %v\n*env %v\n args %v", os.Environ(), *env, args)
 	shell := "/bin/sh"
 	if len(args) == 0 {
 		sh, ok := os.LookupEnv("SHELL")
@@ -118,30 +190,35 @@ func main() {
 		log.Printf("s.Terminal failed(%v); continuing anyway", err)
 	}
 
-	u, ok := os.LookupEnv("SUDO_UID")
-	if !ok {
-		log.Printf("no SUDO_UID; continuing anyway")
+	// the default value of uid, gid is 0
+	uid := uint32(os.Getuid())
+	gid := uint32(os.Getgid())
+	if u, ok := os.LookupEnv("SUDO_UID"); ok {
+		i, err := strconv.ParseUint(u, 0, 32)
+		if err != nil {
+			log.Fatal(err)
+		}
+		uid = uint32(i)
 	}
-	g, ok := os.LookupEnv("SUDO_GID")
-	if !ok {
-		log.Printf("no SUDO_GID; continuing anyway")
+	if g, ok := os.LookupEnv("SUDO_GID"); ok {
+		i, err := strconv.ParseUint(g, 0, 32)
+		if err != nil {
+			log.Fatal(err)
+		}
+		gid = uint32(i)
 	}
 
-	uid, err := strconv.ParseUint(u, 0, 32)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	gid, err := strconv.ParseUint(g, 0, 32)
-	if err != nil {
-		log.Fatal(err)
-	}
 	c := s.Command()
 	if s := strings.Split(*env, "\n"); len(s) > 0 {
 		c.Env = append(c.Env, s...)
 	}
 	verbose("cpuns: Command is %q, with args %q", c, args)
-	c.Stdin, c.Stdout, c.Stderr = s.Stdin, s.Stdout, s.Stderr
+	pwd := os.Getenv("CPU_PWD")
+	if _, err := os.Stat(pwd); err != nil {
+		log.Printf("%v:setting pwd to /", err)
+		pwd = "/"
+	}
+	c.Stdin, c.Stdout, c.Stderr, c.Dir = s.Stdin, s.Stdout, s.Stderr, pwd
 	c.SysProcAttr = &syscall.SysProcAttr{}
 	c.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
 	if err := c.Run(); err != nil {
