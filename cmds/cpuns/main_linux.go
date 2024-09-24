@@ -52,7 +52,7 @@ func checkprivate() error {
 		return err
 	}
 	if len(mnts) != 1 {
-		return fmt.Errorf("got more than 1 mount for /(%v):%v", mnts, os.ErrInvalid)
+		return fmt.Errorf("got more than 1 mount for /(%v):%w", mnts, os.ErrInvalid)
 	}
 	entry := mnts[0]
 	isShared := strings.Contains(entry.Optional, "shared:1")

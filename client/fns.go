@@ -84,7 +84,7 @@ func (c *Cmd) UserKeyConfig() error {
 	}
 	key, err := os.ReadFile(kf)
 	if err != nil {
-		return fmt.Errorf("unable to read private key %q: %v", kf, err)
+		return fmt.Errorf("unable to read private key %q: %w", kf, err)
 	}
 
 	signer, err := ssh.ParsePrivateKey(key)
