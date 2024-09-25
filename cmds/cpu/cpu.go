@@ -46,8 +46,11 @@ var (
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
 
-	srvnfs = flag.Bool("nfs", false, "start nfs")
+	srvnfs   = flag.Bool("nfs", false, "start nfs")
 	cpioRoot = flag.String("cpio", "", "cpio initrd")
+
+	ssh = flag.Bool("ssh", false, "ssh only, no internal 9p, nfs, or mounts")
+	sshd = flag.Bool("sshd", false, "server is sshd, not cpud")
 
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
@@ -79,6 +82,11 @@ func flags() {
 		ulog.Log = log.New(dumpWriter, "", log.Ltime|log.Lmicroseconds)
 		v = ulog.Log.Printf
 	}
+	if *ssh {
+		*srvnfs, *ninep, *sshd = false, false, true
+		*namespace = ""
+		log.Printf("Running basic ssh protocol; no mounts")
+	}
 }
 
 // getKeyFile picks a keyfile if none has been set.
@@ -104,20 +112,7 @@ func getKeyFile(host, kf string) string {
 	return kf
 }
 
-// getHostName reads the host name from the config file,
-// if needed. If it is not found, the host name is returned.
-func getHostName(host string) string {
-	h := config.Get(host, "HostName")
-	if len(h) != 0 {
-		host = h
-	}
-	return host
-}
-
 // getPort gets a port.
-// The rules here are messy, since config.Get will return "22" if
-// there is no entry in .ssh/config. 22 is not allowed. So in the case
-// of "22", convert to defaultPort
 func getPort(host, port string) string {
 	p := port
 	verbose("getPort(%q, %q)", host, port)
@@ -127,7 +122,7 @@ func getPort(host, port string) string {
 			p = cp
 		}
 	}
-	if len(p) == 0 || p == "22" {
+	if len(p) == 0 {
 		p = defaultPort
 		verbose("getPort: return default %q", p)
 	}
@@ -136,7 +131,23 @@ func getPort(host, port string) string {
 }
 
 func newCPU(host string, args ...string) (retErr error) {
-	// note that 9P is enabled if namespace is not empty OR if ninep is true
+	// When running over ssh, many environment variables
+	// are filtered. sshd will filter some, and sudo
+	// can filter others. sshd typically removes all but
+	// LC_*, and sudo will remove LC_*.
+	// Threading this needle over time is a mess.
+	// So:
+	// If running over ssh, *srvnfs is true, then
+	// we need to start cpuns, and pass the environment
+	// as an argument.
+	// Also, because of how sshd works, we need to pass in
+	// a PWD that is correct; otherwise it gets lost, since
+	// since ssh wants to simulate a login..
+	if *sshd && *srvnfs {
+		env := append(os.Environ(), "CPU_PWD="+os.Getenv("PWD"))
+		envargs := "-env=" + strings.Join(env, "\n")
+		args = append([]string{"cpuns", envargs}, args...)
+	}
 	c := client.Command(host, args...)
 	defer func() {
 		verbose("close")
@@ -177,7 +188,7 @@ func newCPU(host string, args ...string) (retErr error) {
 	if *srvnfs {
 		var fstab string
 		for _, r := range c.Env {
-			if !strings.HasPrefix(r, "CPU_FSTAB=") {
+			if !strings.HasPrefix(r, "CPU_FSTAB=") && !strings.HasPrefix(r, "LC_GLENDA_CPU_FSTAB=") {
 				continue
 			}
 			s := strings.SplitN(r, "=", 2)
@@ -186,7 +197,6 @@ func newCPU(host string, args ...string) (retErr error) {
 			}
 			break
 		}
-		// for now, the cpio is empty, unlike sidecore.
 		f, nfsmount, err := client.SrvNFS(c, *cpioRoot, "/")
 		if err != nil {
 			return err
@@ -199,7 +209,8 @@ func newCPU(host string, args ...string) (retErr error) {
 			// wg.Done()
 		}()
 		verbose("nfsmount %q fstab %q join %q", nfsmount, fstab, client.JoinFSTab(nfsmount, fstab))
-		c.Env = append(c.Env, "CPU_FSTAB="+client.JoinFSTab(nfsmount, fstab))
+		fstab = client.JoinFSTab(nfsmount, fstab)
+		c.Env = append(c.Env, "CPU_FSTAB="+fstab, "LC_GLENDA_CPU_FSTAB="+fstab)
 	}
 
 	go func() {
@@ -270,10 +281,24 @@ func main() {
 
 	*keyFile = getKeyFile(host, *keyFile)
 	*port = getPort(host, *port)
-	hn := getHostName(host)
 
-	verbose("connecting to %q port %q", hn, *port)
-	if err := newCPU(hn, a...); err != nil {
+	// If we care connecting on port 22, 9p is not an option.
+	// It goes back to the way we send the Nonce, and that is
+	// too hard to fix, and not worth fixing, as 9p is just too
+	// slow.
+	if *port == "22" && *ninep {
+		verbose("turning ninep off for ssh usage")
+		*ninep = false
+	}
+	if *port == "22" && !*srvnfs && len(*namespace) > 0 {
+		verbose("turning srvnfs on for ssh usage")
+		*srvnfs = true
+	}
+	if *port == "22" {
+		*sshd = true
+	}
+	verbose("connecting to %q port %q", host, *port)
+	if err := newCPU(host, a...); err != nil {
 		e := 1
 		log.Printf("SSH error %s", err)
 		sshErr := &ossh.ExitError{}

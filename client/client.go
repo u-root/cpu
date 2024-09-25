@@ -124,9 +124,10 @@ func Command(host string, args ...string) *Cmd {
 		col, row = c, r
 	}
 
+	h, u := GetHostUser(host)
 	return &Cmd{
 		Host:     host,
-		HostName: GetHostName(host),
+		HostName: h,
 		Args:     args,
 		Port:     DefaultPort,
 		Timeout:  defaultTimeOut,
@@ -136,7 +137,7 @@ func Command(host string, args ...string) *Cmd {
 		Row:      row,
 		Col:      col,
 		config: ssh.ClientConfig{
-			User:            os.Getenv("USER"),
+			User:            u,
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		},
 		hasTTY:  hasTTY,
@@ -159,10 +160,7 @@ func WithServer(a p9.Attacher) Set {
 	}
 }
 
-// With9P enables the 9P2000 server in cpu.
-// The server is by default disabled. Ninep is sticky; if set by,
-// e.g., WithNameSpace, the Principle of Least Confusion argues
-// that it should remain set. Hence, we || it with its current value.
+// With9P enables the 9P2000 server in cpu. The server is by default disabled.
 func With9P(p9 bool) Set {
 	return func(c *Cmd) error {
 		c.Ninep = p9
@@ -171,8 +169,7 @@ func With9P(p9 bool) Set {
 }
 
 // WithNameSpace sets the namespace to Cmd.There is no default: having some default
-// violates the principle of least surprise for package users. If ns is non-empty
-// the Ninep is forced on.
+// violates the principle of least surprise for package users.
 func WithNameSpace(ns string) Set {
 	return func(c *Cmd) error {
 		c.NameSpace = ns
@@ -411,6 +408,7 @@ func (c *Cmd) Dial() error {
 	}
 	if len(c.FSTab) > 0 {
 		c.Env = append(c.Env, "CPU_FSTAB="+c.FSTab)
+		c.Env = append(c.Env, "LC_GLENDA_CPU_FSTAB="+c.FSTab)
 	}
 
 	return nil
@@ -431,7 +429,7 @@ func (c *Cmd) Start() error {
 	}
 	// Set up terminal modes
 	modes := ssh.TerminalModes{
-		ssh.ECHO:          0,     // disable echoing
+		ssh.ECHO:          1,     // do not disable echoing!
 		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
 		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
 	}
