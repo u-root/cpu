@@ -73,9 +73,6 @@
 //
 //	-9p bool
 //	      enable the 9p server in the client (default enabled)
-//	      Note that the 9p server is also enabled if the namespace
-//	      is not empty. To ensure the 9p server is not set,
-//	      cpu -9p=f -namespace=""
 //	-d
 //	      enable debug prints
 //	-dbg9p
@@ -264,10 +261,13 @@
 // Plan 9 papers on cpu, but be aware there are many subtle details visible only
 // in code.
 //
-// You can now tentatively talk to standard sshd.
+// You can now talk to a standard sshd.
 // Here is an example:
 // ./cpu -nfs=true -9p=false -d -key ~/.ssh/homemac -sp 22 127.0.0.1
-// A few things: 9p has to be off, since sshd don't understand the -9 switch
+// For this case, because it is port 22, cpu will arrange for cpuns
+// to run with the sudo command.
+// If the nfs switch is true, you must have sudo installed.
+// Also: 9p has to be off, since sshd does not understand the -9 switch.
 // Failing to Setenv is no longer an error, so you may not be able to set things
 // like SHELL.
 package main
