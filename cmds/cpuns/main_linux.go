@@ -65,7 +65,6 @@ func checkprivate() error {
 // sudo will get us into a root process, with correct environment
 // set up.
 func sudo(env string, args ...string) {
-	log.Printf("sudo: os.Env %v\nenv %v\nargs %v", os.Environ(), env, args)
 	n, err := os.Executable()
 	if err != nil {
 		log.Fatal(err)
@@ -107,7 +106,6 @@ func sudo(env string, args ...string) {
 // Be very careful in modifying this; it is designed to be
 // simple and avoid fork bombs.
 func unshare(env string, args ...string) {
-	log.Printf("unshare: os.Env %v\nenv %v\n args %v", os.Environ(), env, args)
 	n, err := os.Executable()
 	if err != nil {
 		log.Fatal(err)
@@ -172,7 +170,6 @@ func main() {
 		unshare(*env, args...)
 	}
 
-	log.Printf("mount and run: os.Env %v\n*env %v\n args %v", os.Environ(), *env, args)
 	shell := "/bin/sh"
 	if len(args) == 0 {
 		sh, ok := os.LookupEnv("SHELL")
