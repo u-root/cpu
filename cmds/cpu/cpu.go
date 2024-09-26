@@ -143,6 +143,13 @@ func newCPU(host string, args ...string) (retErr error) {
 	// Also, because of how sshd works, we need to pass in
 	// a PWD that is correct; otherwise it gets lost, since
 	// since ssh wants to simulate a login..
+	// Per rjkroege's comment:
+	// "This code for building the port and environment seems
+	//  twisty and exactly the kind of thing that would benefit
+	//  from being pulled out into utility functions that
+	//  have some tests to make sure that the environment is sane?"
+	// If you are looking for something to contribute to, here is
+	// your chance.
 	if *sshd && *srvnfs {
 		env := append(os.Environ(), "CPU_PWD="+os.Getenv("PWD"))
 		envargs := "-env=" + strings.Join(env, "\n")
