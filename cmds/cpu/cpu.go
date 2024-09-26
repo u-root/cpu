@@ -31,7 +31,8 @@ const defaultPort = "17010"
 
 var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
-	// For the ssh server part
+	// cpuns might not be in the limited search path of sshd. Allow users to set it.
+	cpuns       = flag.String("cpuns", "cpuns", "command to run to build cpu namespace")
 	debug       = flag.Bool("d", false, "enable debug prints")
 	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
 	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
@@ -49,7 +50,7 @@ var (
 	srvnfs   = flag.Bool("nfs", false, "start nfs")
 	cpioRoot = flag.String("cpio", "", "cpio initrd")
 
-	ssh = flag.Bool("ssh", false, "ssh only, no internal 9p, nfs, or mounts")
+	ssh  = flag.Bool("ssh", false, "ssh only, no internal 9p, nfs, or mounts")
 	sshd = flag.Bool("sshd", false, "server is sshd, not cpud")
 
 	// v allows debug printing.
@@ -153,7 +154,7 @@ func newCPU(host string, args ...string) (retErr error) {
 	if *sshd && *srvnfs {
 		env := append(os.Environ(), "CPU_PWD="+os.Getenv("PWD"))
 		envargs := "-env=" + strings.Join(env, "\n")
-		args = append([]string{"cpuns", envargs}, args...)
+		args = append([]string{*cpuns, envargs}, args...)
 	}
 	c := client.Command(host, args...)
 	defer func() {
