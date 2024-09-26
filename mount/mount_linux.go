@@ -109,7 +109,7 @@ func mount(m mounter, fstab string) error {
 		// we do no further manipulation of opts.
 		flags, data := parse(opts)
 		if e := m(dev, where, fstype, flags, data); e != nil {
-			err = errors.Join(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %v", dev, where, fstype, opts, flags, data, e))
+			err = errors.Join(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %w", dev, where, fstype, opts, flags, data, e))
 		}
 	}
 	return err
