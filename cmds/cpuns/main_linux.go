@@ -77,7 +77,7 @@ func sudo(env string, args ...string) {
 	// the cpu command sets LC_GLENDA_CPU_FSTAB to the fstab;
 	// we need to transform it here.
 
-	c := exec.Command("sudo", append([]string{"-E", n, "-env=" + env}, args...)...)
+	c := exec.Command("sudo", append([]string{n, "-env=" + env}, args...)...)
 	v("exec.Cmd args %q", c.Args)
 
 	// Find the environment variable, and transform it.
@@ -123,15 +123,18 @@ func unshare(env string, args ...string) {
 	c := exec.Command(n, args...)
 	v("exec.Cmd args %q", c.Args)
 
+	c.Env = os.Environ()
+	if s := strings.Split(env, "\n"); len(s) > 0 {
+		c.Env = append(c.Env, s...)
+	}
+
 	fstab, ok := os.LookupEnv("LC_GLENDA_CPU_FSTAB")
 	v("fstab set? %v value %q", ok, fstab)
 	if ok {
 		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
 		v("extended c.Env: %v", c.Env)
-		if s := strings.Split(env, "\n"); len(s) > 0 {
-			c.Env = append(c.Env, s...)
-		}
 	}
+
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
 	v("Run %q", c)
 
@@ -160,6 +163,7 @@ func main() {
 	args := flag.Args()
 	v("LC_GLENDA_CPU_FSTAB %s", os.Getenv("LC_GLENDA_CPU_FSTAB"))
 	v("CPU_FSTAB %s", os.Getenv("CPU_FSTAB"))
+	v("env\n\n%q\n\n", *env)
 	if os.Getuid() != 0 {
 		sudo(*env, args...)
 	}
@@ -209,10 +213,10 @@ func main() {
 	}
 
 	c := s.Command()
+	c.Env = os.Environ()
 	if s := strings.Split(*env, "\n"); len(s) > 0 {
 		c.Env = append(c.Env, s...)
 	}
-	verbose("cpuns: Command is %q, with args %q", c, args)
 	pwd := os.Getenv("CPU_PWD")
 	if _, err := os.Stat(pwd); err != nil {
 		log.Printf("%v:setting pwd to /", err)
