@@ -192,8 +192,8 @@ func main() {
 	}
 
 	// the default value of uid, gid is 0
-	uid := uint32(os.Getuid())
-	gid := uint32(os.Getgid())
+	uid := uint32(syscall.Getuid())
+	gid := uint32(syscall.Getgid())
 	if u, ok := os.LookupEnv("SUDO_UID"); ok {
 		i, err := strconv.ParseUint(u, 0, 32)
 		if err != nil {
