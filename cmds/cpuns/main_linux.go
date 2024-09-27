@@ -150,7 +150,7 @@ func unshare(env string, args ...string) {
 // more anyway ...
 func main() {
 	flag.CommandLine = flag.NewFlagSet("cpuns", flag.ExitOnError)
-	debug := flag.Bool("d", true, "enable debug prints")
+	debug := flag.Bool("d", false, "enable debug prints")
 	env := flag.String("env", "", "newline-separated array of environment variables")
 	flag.Parse()
 	if *debug {
