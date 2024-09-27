@@ -70,28 +70,28 @@ func sudo(env string, args ...string) {
 		log.Fatal(err)
 	}
 
-	v("Executable: %q", n)
+	verbose("Executable: %q", n)
 	// sshd filters most environment variables save LC_*.
 	// sudo strips most LC_* variables.
 	// the cpu command sets LC_GLENDA_CPU_FSTAB to the fstab;
 	// we need to transform it here.
 
-	c := exec.Command("sudo", append([]string{n, "-env=" + env}, args...)...)
-	v("exec.Cmd args %q", c.Args)
+	c := exec.Command("sudo", append([]string{"--preserve-env=CPU_FSTAB", n, "-env=" + env}, args...)...)
+	verbose("exec.Cmd args %q", c.Args)
 
 	// Find the environment variable, and transform it.
 	// sudo seems to strip many LC_* variables.
 	fstab, ok := os.LookupEnv("LC_GLENDA_CPU_FSTAB")
-	v("fstab set? %v value %q", ok, fstab)
+	verbose("fstab set? %v value %q", ok, fstab)
 	if ok {
 		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
-		v("extended c.Env: %v", c.Env)
+		verbose("extended c.Env: %v", c.Env)
 	}
 	if s := strings.Split(env, "\n"); len(s) > 0 {
 		c.Env = append(c.Env, s...)
 	}
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
-	v("Run %q", c)
+	verbose("Run %q", c)
 
 	// The return is carefully done here to avoid the caller
 	// making a mistake and fork-bomb.
@@ -117,9 +117,9 @@ func unshare(env string, args ...string) {
 	// we need to transform it here.
 	// Since we can get here direct from sshd, not sudo,
 	// we have to this twice.
-	v("Executable: %q", n)
+	verbose("Executable: %q", n)
 	c := exec.Command(n, args...)
-	v("exec.Cmd args %q", c.Args)
+	verbose("exec.Cmd args %q", c.Args)
 
 	c.Env = os.Environ()
 	if s := strings.Split(env, "\n"); len(s) > 0 {
@@ -127,14 +127,14 @@ func unshare(env string, args ...string) {
 	}
 
 	fstab, ok := os.LookupEnv("LC_GLENDA_CPU_FSTAB")
-	v("fstab set? %v value %q", ok, fstab)
+	verbose("fstab set? %v value %q", ok, fstab)
 	if ok {
 		c.Env = append(c.Env, "CPU_FSTAB="+fstab)
-		v("extended c.Env: %v", c.Env)
+		verbose("extended c.Env: %v", c.Env)
 	}
 
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = os.Stdin, os.Stdout, os.Stderr, os.Getenv("PWD")
-	v("Run %q", c)
+	verbose("Run %q", c)
 
 	c.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 	// The return is carefully done here to avoid the caller
@@ -150,23 +150,25 @@ func unshare(env string, args ...string) {
 // more anyway ...
 func main() {
 	flag.CommandLine = flag.NewFlagSet("cpuns", flag.ExitOnError)
-	debug := flag.Bool("d", false, "enable debug prints")
+	debug := flag.Bool("d", true, "enable debug prints")
 	env := flag.String("env", "", "newline-separated array of environment variables")
 	flag.Parse()
 	if *debug {
 		v = log.Printf
-		verbose("cpuns: os.Args %q", os.Args)
 		session.SetVerbose(v)
+		verbose("cpuns: os.Args %q env %q", os.Args, os.Environ())
 	}
 	args := flag.Args()
-	v("LC_GLENDA_CPU_FSTAB %s", os.Getenv("LC_GLENDA_CPU_FSTAB"))
-	v("CPU_FSTAB %s", os.Getenv("CPU_FSTAB"))
-	v("env\n\n%q\n\n", *env)
+	verbose("LC_GLENDA_CPU_FSTAB %s", os.Getenv("LC_GLENDA_CPU_FSTAB"))
+	verbose("CPU_FSTAB %s", os.Getenv("CPU_FSTAB"))
+	verbose("env\n\n%q\n\n", *env)
 	if os.Getuid() != 0 {
+		verbose("sudo %q %q", *env, args)
 		sudo(*env, args...)
 	}
 
 	if err := checkprivate(); err != nil {
+		verbose("unshare %q %q", *env, args)
 		unshare(*env, args...)
 	}
 
@@ -222,6 +224,7 @@ func main() {
 	c.Stdin, c.Stdout, c.Stderr, c.Dir = s.Stdin, s.Stdout, s.Stderr, pwd
 	c.SysProcAttr = &syscall.SysProcAttr{}
 	c.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+	verbose("Run %q %q %q", c, c.Args, c.Env)
 	if err := c.Run(); err != nil {
 		log.Fatalf("Run %v returns %v", c, err)
 	}
