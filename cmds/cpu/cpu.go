@@ -216,9 +216,9 @@ func newCPU(host string, args ...string) (retErr error) {
 			log.Printf("nfs: %v", err)
 			// wg.Done()
 		}()
-		verbose("nfsmount %q fstab %q join %q", nfsmount, fstab, client.JoinFSTab(nfsmount, fstab))
-		fstab = client.JoinFSTab(nfsmount, fstab)
-		c.Env = append(c.Env, "CPU_FSTAB="+fstab, "LC_GLENDA_CPU_FSTAB="+fstab)
+		jfstab := client.JoinFSTab(nfsmount, fstab)
+		c.Env = append(c.Env, "CPU_FSTAB="+jfstab, "LC_GLENDA_CPU_FSTAB="+jfstab)
+		verbose("nfsmount %q fstab %q join %q env %q", nfsmount, fstab, jfstab, c.Env)
 	}
 
 	go func() {
