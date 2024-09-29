@@ -9,6 +9,7 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -34,7 +35,7 @@ func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 
 	if mask.Size {
 		if e := unix.Truncate(l.path, int64(attr.Size)); e != nil {
-			err = errors.Join(err, e)
+			err = errors.Join(err, fmt.Errorf("Truncate:%w", err))
 		}
 	}
 	if mask.ATime || mask.MTime {
@@ -56,8 +57,9 @@ func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 		verbose("mask.CTime is set by client; ignoring")
 	}
 	if mask.Permissions {
-		if e := unix.Chmod(l.path, uint32(attr.Permissions)); e != nil {
-			err = errors.Join(err, e)
+		perm := uint32(attr.Permissions)
+		if e := unix.Chmod(l.path, perm); e != nil {
+			err = errors.Join(err, fmt.Errorf("%q:%o:%w", l.path, perm, err))
 		}
 	}
 
