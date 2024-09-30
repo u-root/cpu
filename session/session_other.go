@@ -9,7 +9,6 @@ package session
 
 import (
 	"fmt"
-	"net"
 	"os"
 )
 
@@ -17,31 +16,8 @@ import (
 // is set.
 // CPU_NAMESPACE can be the empty string.
 // It also requires that CPU_NONCE exist.
-func (s *Session) Namespace() (error, error) {
-	var warning error
-	// Get the nonce and remove it from the environment.
-	// N.B. We do not save the nonce in the cpu struct.
-	nonce := os.Getenv("CPUNONCE")
-	os.Unsetenv("CPUNONCE")
-	verbose("namespace is %q", s.binds)
-
-	// Connect to the socket, return the nonce.
-	a := net.JoinHostPort("localhost", s.port9p)
-	verbose("Dial %v", a)
-	so, err := net.Dial("tcp", a)
-	if err != nil {
-		return warning, fmt.Errorf("CPUD:Dial 9p port: %v", err)
-	}
-	verbose("Connected: write nonce %s\n", nonce)
-	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
-		return warning, fmt.Errorf("CPUD:Write nonce: %v", err)
-	}
-	verbose("Wrote the nonce")
-	// Zero it. I realize I am not a crypto person.
-	// improvements welcome.
-	copy([]byte(nonce), make([]byte, len(nonce)))
-
-	return warning, fmt.Errorf("CPUD: cannot use 9p connection yet")
+func (s *Session) Namespace() error {
+	return fmt.Errorf("CPUD: 9p mounts are only valid on Linux:%w", os.ErrNotExist)
 }
 
 func osMounts() error {

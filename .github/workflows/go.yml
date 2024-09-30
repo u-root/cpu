@@ -11,6 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
+        os: [linux, freebsd]
         arch: [amd64, arm, arm64, riscv64]
 
     runs-on: ubuntu-latest
