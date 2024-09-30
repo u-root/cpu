@@ -14,6 +14,11 @@ import (
 	"os/exec"
 )
 
+type Session struct {
+	binds string
+	port9p string
+}
+
 // Namespace assembles a NameSpace for this cpud, iff CPU_NAMESPACE
 // is set.
 // CPU_NAMESPACE can be the empty string.
