@@ -15,11 +15,14 @@ require (
 	github.com/brutella/dnssd v1.2.9
 	github.com/creack/pty v1.1.18
 	github.com/go-git/go-billy/v5 v5.5.1-0.20240514075308-8f1b719cb6a2
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
+	github.com/hashicorp/go-multierror v1.1.1
+	github.com/jacobsa/fuse v0.0.0-20240909130001-a1c7c8268f12
+	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/mdlayher/vsock v1.2.1
 	github.com/moby/sys/mountinfo v0.7.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/willscott/go-nfs v0.0.2
+	github.com/willscott/go-nfs v0.0.0-20240424173852-04b947a7e58a
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 	golang.org/x/term v0.19.0
 )
@@ -29,6 +32,7 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
