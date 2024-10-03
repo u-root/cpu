@@ -1,38 +1,36 @@
-extern crate env_logger;
-extern crate futures;
-extern crate thrussh;
-extern crate thrussh_keys;
-extern crate tokio;
 use anyhow::Result;
-use futures::Future;
+use async_trait::async_trait;
+use log::{info, trace, warn};
+// use futures::Future;
+use russh::*;
+// use russh::server::{Auth, Session};
+use russh_keys::*;
 use std::io::{Read, Write};
 use std::sync::Arc;
-use thrussh::*;
-// use thrussh::server::{Auth, Session};
-use thrussh_keys::*;
 
 struct Client {}
 
-impl client::Handler for Client {
-    type Error = thrussh::Error;
-    type FutureUnit = futures::future::Ready<Result<(Self, client::Session), Self::Error>>;
-    type FutureBool = futures::future::Ready<Result<(Self, bool), Self::Error>>;
+#[async_trait]
+impl russh::client::Handler for Client {
+    type Error = russh::Error;
 
-    fn finished_bool(self, b: bool) -> Self::FutureBool {
-        futures::future::ready(Ok((self, b)))
-    }
+    /*
     fn finished(self, session: client::Session) -> Self::FutureUnit {
         println!("FINISHED");
         futures::future::ready(Ok((self, session)))
     }
-    fn check_server_key(self, server_public_key: &key::PublicKey) -> Self::FutureBool {
-        println!(
-            "check_server_key: {:?}",
-            server_public_key.public_key_base64()
-        );
+    */
+
+    async fn check_server_key(
+        &mut self,
+        server_public_key: &key::PublicKey,
+    ) -> Result<bool, Self::Error> {
+        let key = server_public_key.public_key_base64();
+        println!("check_server_key: {key}");
         // TODO: compare against preshared key?
-        self.finished_bool(true)
+        Ok(true)
     }
+
     /*
     // FIXME: this here makes the session hang
     fn channel_open_confirmation(
@@ -56,7 +54,7 @@ impl client::Handler for Client {
     */
 }
 
-// from https://nest.pijul.com/pijul/thrussh/discussions/20
+// from https://nest.pijul.com/pijul/russh/discussions/20
 pub struct Session {
     session: client::Handle<Client>,
 }
@@ -65,47 +63,89 @@ impl Session {
     async fn connect(
         key_file: &str,
         user: impl Into<String>,
-        addr: impl std::net::ToSocketAddrs,
+        addrs: impl tokio::net::ToSocketAddrs,
     ) -> Result<Self> {
-        let key_pair = thrussh_keys::load_secret_key(key_file, None)?;
-        // TODO: import openssl for RSA key support
-        /*
-        let key_pair = key::KeyPair::RSA {
-            key: openssl::rsa::Rsa::private_key_from_pem(pem)?,
-            hash: key::SignatureHash::SHA2_512,
+        let key_pair = russh_keys::load_secret_key(key_file, None)?;
+        let config = russh::client::Config {
+            inactivity_timeout: Some(std::time::Duration::from_secs(3)),
+            ..<_>::default()
         };
-        */
-        let mut config = client::Config::default();
-        config.connection_timeout = Some(std::time::Duration::from_secs(3));
         let config = Arc::new(config);
         let sh = Client {};
+
+        let mut session = client::connect(config, addrs, sh).await?;
+        let auth_res = session
+            .authenticate_publickey(user, Arc::new(key_pair))
+            .await?;
+
+        if !auth_res {
+            anyhow::bail!("Authentication failed");
+        }
+
+        /*
         let mut agent = agent::client::AgentClient::connect_env().await?;
+        trace!("add key to agent");
         agent.add_identity(&key_pair, &[]).await?;
+        trace!("request identities");
         let mut identities = agent.request_identities().await?;
+        trace!("start session");
         let mut session = client::connect(config, addr, sh).await?;
         let pubkey = identities.pop().unwrap();
+        trace!("start authentication");
         let (_, auth_res) = session.authenticate_future(user, pubkey, agent).await;
         let _auth_res = auth_res?;
+        */
+
         Ok(Self { session })
     }
 
-    async fn call(&mut self, command: &str) -> Result<CommandResult> {
+    async fn call(&mut self, command: &str) -> Result<u32> {
         let mut channel = self.session.channel_open_session().await?;
         channel.exec(true, command).await?;
+
+        let mut code = None;
+        use tokio::io::AsyncWriteExt;
+        let mut stdout = tokio::io::stdout();
+
+        loop {
+            // There's an event available on the session channel
+            let Some(msg) = channel.wait().await else {
+                break;
+            };
+            match msg {
+                // Write data to the terminal
+                ChannelMsg::Data { ref data } => {
+                    // info!("DATA {}", data);
+                    stdout.write_all(data).await?;
+                    stdout.flush().await?;
+                }
+                // The command has returned an exit code
+                ChannelMsg::ExitStatus { exit_status } => {
+                    code = Some(exit_status);
+                    // cannot leave the loop immediately, there might still be more data to receive
+                }
+                _ => {}
+            }
+        }
+
+        /*
         let mut output = Vec::new();
         let mut code = None;
         while let Some(msg) = channel.wait().await {
             match msg {
-                thrussh::ChannelMsg::Data { ref data } => {
+                russh::ChannelMsg::Data { ref data } => {
                     output.write_all(&data).unwrap();
                 }
-                thrussh::ChannelMsg::ExitStatus { exit_status } => {
+                russh::ChannelMsg::ExitStatus { exit_status } => {
                     code = Some(exit_status);
                 }
                 _ => {}
             }
         }
-        Ok(CommandResult { output, code })
+        */
+        // Ok(CommandResult { output, code })
+
+        Ok(code.expect("program did not exit cleanly"))
     }
 
     async fn close(&mut self) -> Result<()> {
@@ -132,26 +172,23 @@ impl CommandResult {
 }
 
 #[tokio::main]
-pub async fn ssh() -> Result<()> {
-    let host = "localhost:2342";
-    let key_file = "/home/dama/.ssh/id_ed25519";
-    let command = "/bbin/ls";
-
-    let user: String;
-    match std::env::var("USER") {
-        Ok(val) => user = val,
+pub async fn cpu(key_file: &str, host: &str, command: &str) -> Result<()> {
+    let user = match std::env::var("USER") {
+        Ok(val) => val,
         Err(e) => {
-            user = "root".to_string();
-            println!("No USER set({}); going with {}", e, user);
+            let user = "root".to_string();
+            warn!("No USER set({e}); going with {user}");
+            user
         }
-    }
+    };
 
-    println!("Let's connect {:?}", host);
+    info!("Let's connect {host}");
     let mut ssh = Session::connect(key_file, user, host).await?;
-    println!("Let's run a command {:?}", command);
+    info!("Let's run a command {:?}", command);
     let r = ssh.call(command).await?;
-    assert!(r.success());
-    println!("Who am I, anyway? {:?}", r.output());
+    // info!("{:?} {:?}", r.output(), r.success());
+    // assert!(r.success());
+    // info!("Who am I, anyway? {:?}", r.output());
     ssh.close().await?;
     Ok(())
 }
@@ -159,8 +196,8 @@ pub async fn ssh() -> Result<()> {
 /*
 #[derive(Clone)]
 struct Server {
-    client_pubkey: Arc<thrussh_keys::key::PublicKey>,
-    clients: Arc<Mutex<HashMap<(usize, ChannelId), thrussh::server::Handle>>>,
+    client_pubkey: Arc<russh_keys::key::PublicKey>,
+    clients: Arc<Mutex<HashMap<(usize, ChannelId), russh::server::Handle>>>,
     id: usize,
 }
 
@@ -214,12 +251,12 @@ impl server::Handler for Server {
 
 #[tokio::main]
 async fn main() {
-    let client_key = thrussh_keys::key::KeyPair::generate_ed25519().unwrap();
+    let client_key = russh_keys::key::KeyPair::generate_ed25519().unwrap();
     let client_pubkey = Arc::new(client_key.clone_public_key());
-    let mut config = thrussh::server::Config::default();
+    let mut config = russh::server::Config::default();
     config.connection_timeout = Some(std::time::Duration::from_secs(3));
     config.auth_rejection_time = std::time::Duration::from_secs(3);
-    config.keys.push(thrussh_keys::key::KeyPair::generate_ed25519().unwrap());
+    config.keys.push(russh_keys::key::KeyPair::generate_ed25519().unwrap());
     let config = Arc::new(config);
     let sh = Server{
         client_pubkey,
@@ -228,7 +265,7 @@ async fn main() {
     };
     tokio::time::timeout(
        std::time::Duration::from_secs(1),
-       thrussh::server::run(config, "0.0.0.0:2222", sh)
+       russh::server::run(config, "0.0.0.0:2222", sh)
     ).await.unwrap_or(Ok(()));
 }
 */

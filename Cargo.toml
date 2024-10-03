@@ -6,9 +6,21 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thrussh = "0.33.5"
-thrussh-keys = "0.21.0"
-tokio = "1.18.5"
-futures = "0.3.21"
-env_logger = "0.9.0"
 anyhow = "1.0.55"
+async-trait = "0.1.83"
+clap = { version = "4.5.19", features = ["derive"] }
+env_logger = "0.9.0"
+futures = "0.3.21"
+log = { version = "0.4", features = ["std", "serde"] }
+# version = "0.45.0", 
+russh = { path = "./russh/russh" }
+russh-keys = { path = "./russh/russh-keys" }
+tokio = { version = "1.18.5", features = [
+    "io-std",
+    "io-util",
+    "rt-multi-thread",
+    "time",
+    "net",
+    "sync",
+    "macros",
+] }
