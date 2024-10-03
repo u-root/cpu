@@ -76,10 +76,15 @@ func initsetup() error {
 	if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
 		log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
 	}
+	log.Printf("Set up TTY")
+	// See u-root pkg/libinit/root_linux.go
+	ttyDev := "/dev/tty"
+	os.Remove(ttyDev)
+	unix.Mknod(ttyDev, unix.S_IFCHR|0o666, 0x0500)
 	if err := cpuSetup(); err != nil {
 		log.Printf("CPUD:CPU setup error with cpu running as init: %v", err)
 	}
-	cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-v", "--retry", "1000"}}
+	cmds := [][]string{{"/bin/sh"}, {"/bbin/dhclient", "-ipv6=false", "-v", "--retry", "1000"}}
 	verbose("Try to run %v", cmds)
 
 	for _, v := range cmds {
