@@ -169,7 +169,7 @@ func (s *Session) Run() error {
 		if tab, ok := os.LookupEnv(fstab); ok {
 			verbose("Mounting %q", tab)
 			if err := mount.Mount(tab); err != nil {
-				verbose("fstab mount failure: %v", err)
+				log.Printf("fstab mount failure: %v", err)
 				// Should we die if the mounts fail? For now, we think not;
 				// the user may be able to debug. Just record that it failed.
 				s.fail = true
