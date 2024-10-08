@@ -35,7 +35,7 @@ func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 
 	if mask.Size {
 		if e := unix.Truncate(l.path, int64(attr.Size)); e != nil {
-			err = errors.Join(err, fmt.Errorf("Truncate:%w", err))
+			err = errors.Join(err, fmt.Errorf("truncate:%w", err))
 		}
 	}
 	if mask.ATime || mask.MTime {
