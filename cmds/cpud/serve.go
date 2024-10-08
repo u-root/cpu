@@ -22,8 +22,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/mdlayher/vsock"
 	"github.com/u-root/cpu/server"
-	"github.com/u-root/u-root/pkg/ulog"
-	"golang.org/x/sys/unix"
 )
 
 const any = math.MaxUint32
@@ -65,17 +63,21 @@ func commonsetup() error {
 		server.SetVerbose(verbose)
 		v = log.Printf
 		if *klog {
-			ulog.KernelLog.Reinit()
-			v = ulog.KernelLog.Printf
+			//ulog.KernelLog.Reinit()
+			log.Panicf("klog: not yet")
+			//v = ulog.KernelLog.Printf
 		}
 	}
 	return nil
 }
 
 func initsetup() error {
-	if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
-		log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
-	}
+	// no tmpfs in freebsd?
+	/*
+		if err := unix.Mount("cpu", "/tmp", "tmpfs", 0, ""); err != nil {
+			log.Printf("CPUD:Warning: tmpfs mount on /tmp (%v) failed. There will be no 9p mount", err)
+		}
+	*/
 	if err := cpuSetup(); err != nil {
 		log.Printf("CPUD:CPU setup error with cpu running as init: %v", err)
 	}
