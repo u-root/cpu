@@ -10,6 +10,7 @@ package client
 import (
 	"os"
 	"reflect"
+	"runtime"
 
 	"path/filepath"
 	"testing"
@@ -87,7 +88,7 @@ func Test9pUnix(t *testing.T) {
 
 	sam.Permissions = true
 	if err := c.SetAttr(sam, sa); err != nil {
-		t.Fatalf("Setattr with mode: %v != nil", err)
+		t.Fatalf("Setattr(%v, %v): %v != nil", sam, sa, err)
 	}
 	_, _, ga2, err = c.GetAttr(m)
 	if err != nil {
@@ -178,13 +179,14 @@ func Test9pUnix(t *testing.T) {
 	sam.Permissions = true
 	sa.Permissions = 0
 	if err := c.SetAttr(sam, sa); err != nil {
-		t.Fatalf("Setattr with mode: %v != nil", err)
+		t.Fatalf("Setattr(%v,%v): %v != nil", sam, sa, err)
 	}
 
 	// The second time, since we blew permissions to
 	// zero, we ought to get an error.
-	if err := c.SetAttr(sam, sa); err == nil {
-		t.Fatalf("Setattr with mode: nil != %v", unix.EPERM)
+	// It seems, on freebsd, there is no error.
+	if err := c.SetAttr(sam, sa); runtime.GOOS != "freebsd" && err == nil {
+		t.Fatalf("Setattr(%v,%v): nil != %v", sam, sa, unix.EPERM)
 	}
 
 	// But getattr should work.
