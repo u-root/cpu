@@ -58,6 +58,8 @@ else
 	-cargo fmt
 endif
 
+cpud-mipsle-sf:
+	GOARCH=mipsle GOMIPS=softfloat go build -o cpud-mipsle-sf ./cmds/cpud
 
 clean:
 	rm -rf bin
