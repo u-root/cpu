@@ -2,7 +2,7 @@
 
 `p9cpu` is an implementation of the Plan 9 `cpu` command for Linux, similar to
 [u-root/cpu](https://github.com/u-root/cpu). Check the
-[CPU chapter of the LinuxBoot book](https://book.linuxboot.org/cpu/) for more
+[CPU chapter of the LinuxBoot book](https://book.linuxboot.org/utilities/cpu.html) for more
 details. Compared with the original Plan 9 `cpu` and the Go version
 [u-root/cpu](https://github.com/u-root/cpu), `p9cpu` is written in Rust and
 based on [tokio](https://tokio.rs/). It uses gRPC for the underlying transport.
