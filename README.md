@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/u-root/cpu/blob/master/LICENSE)
 
 This repo is an implementation the Plan 9 cpu command, both client and server, for Linux.
-More detail is available in the [CPU chapter of the LinuxBoot book](https://book.linuxboot.org/cpu/).
+More detail is available in the [CPU chapter of the LinuxBoot book](https://book.linuxboot.org/utilities/cpu.html).
 Unlike the Plan 9 command, this version uses the ssh protocol for the underlying transport. It includes
 features familiar to ssh users, such as support for the ssh config file.
 
