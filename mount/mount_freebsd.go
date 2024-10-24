@@ -8,9 +8,14 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"unsafe"
 
+	"github.com/u-root/u-root/pkg/mount"
 	"golang.org/x/sys/unix"
 )
 
@@ -66,6 +71,16 @@ func init() {
 	}
 }
 
+// iov returns an iovec for a string.
+// there is no official package, and it is simple
+// enough, that we just create it here.
+func iov(val string) syscall.Iovec {
+	s := val + "\x00"
+	vec := syscall.Iovec{Base: (*byte)(unsafe.Pointer(&[]byte(s)[0]))}
+	vec.SetLen(len(s))
+	return vec
+}
+
 // Mount takes a full fstab as a string and does whatever mounts are needed.
 // It ignores comment lines, and lines with less than 6 fields. In principal,
 // Mount should be able to do a full remount with the contents of /proc/mounts.
@@ -75,10 +90,6 @@ func init() {
 // diagnostics are possible.  i.e., follow the "Boots not Bricks"
 // principle.
 func Mount(fstab string) error {
-	return fmt.Errorf("??")
-}
-
-func mount(m mounter, fstab string) error {
 	var lineno int
 	s := bufio.NewScanner(strings.NewReader(fstab))
 	var err error
@@ -118,8 +129,16 @@ func mount(m mounter, fstab string) error {
 		// The man page implies that the Linux kernel handles flags of "defaults"
 		// we do no further manipulation of opts.
 		flags, data := parse(opts)
-		if e := m(dev, where, fstype, flags, data); e != nil {
-			err = errors.Join(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %w", dev, where, fstype, opts, flags, data, e))
+		if false {
+			if _, e := mount.Mount(dev, where, fstype, data, flags); e != nil {
+				err = errors.Join(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %w", dev, where, fstype, opts, flags, data, e))
+			}
+		} else {
+			c := exec.Command("mount", "-o", data, "-t", "nfs", dev, where)
+			c.Stdout, c.Stderr = os.Stdout, os.Stderr
+			if err := c.Run(); err != nil {
+				fmt.Printf("%v:%v", c, err)
+			}
 		}
 	}
 	return err
