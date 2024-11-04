@@ -8,7 +8,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"os"
+	"io"
+	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -74,7 +75,7 @@ func init() {
 // iov returns an iovec for a string.
 // there is no official package, and it is simple
 // enough, that we just create it here.
-func iov(val string) syscall.Iovec {
+func iovstring(val string) syscall.Iovec {
 	s := val + "\x00"
 	vec := syscall.Iovec{Base: (*byte)(unsafe.Pointer(&[]byte(s)[0]))}
 	vec.SetLen(len(s))
@@ -89,10 +90,26 @@ func iov(val string) syscall.Iovec {
 // a returned error, but be left in a situation in which further
 // diagnostics are possible.  i.e., follow the "Boots not Bricks"
 // principle.
+// Freebsd has very different ways of working than linux, so
+// we shell out to mount for now.
 func Mount(fstab string) error {
+	f, err := ioutil.TempFile("", "cpu")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := io.WriteString(f, fstab); err != nil {
+		return err
+	}
+
+	if o, err := exec.Command("mount", "-a", "-F", f.Name()).CombinedOutput(); err != nil {
+		return fmt.Errorf("mount -F %q:%s:%w", f.Name(), string(o), err)
+	}
+
+	return nil
 	var lineno int
 	s := bufio.NewScanner(strings.NewReader(fstab))
-	var err error
 	for s.Scan() {
 		lineno++
 		l := s.Text()
@@ -129,16 +146,8 @@ func Mount(fstab string) error {
 		// The man page implies that the Linux kernel handles flags of "defaults"
 		// we do no further manipulation of opts.
 		flags, data := parse(opts)
-		if false {
-			if _, e := mount.Mount(dev, where, fstype, data, flags); e != nil {
-				err = errors.Join(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %w", dev, where, fstype, opts, flags, data, e))
-			}
-		} else {
-			c := exec.Command("mount", "-o", data, "-t", "nfs", dev, where)
-			c.Stdout, c.Stderr = os.Stdout, os.Stderr
-			if err := c.Run(); err != nil {
-				fmt.Printf("%v:%v", c, err)
-			}
+		if _, e := mount.Mount(dev, where, fstype, data, flags); e != nil {
+			err = errors.Join(err, fmt.Errorf("Mount(%q, %q, %q, %q=>(%#x, %q)): %w", dev, where, fstype, opts, flags, data, e))
 		}
 	}
 	return err
