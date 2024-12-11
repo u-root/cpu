@@ -7,8 +7,8 @@ require (
 	github.com/hugelgupf/p9 v0.2.1-0.20230814004337-e6037077d6dc
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d
-	golang.org/x/crypto v0.22.0
-	golang.org/x/sys v0.20.0
+	golang.org/x/crypto v0.31.0
+	golang.org/x/sys v0.28.0
 )
 
 require (
@@ -21,7 +21,7 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/willscott/go-nfs v0.0.0-20240424173852-04b947a7e58a
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
-	golang.org/x/term v0.19.0
+	golang.org/x/term v0.27.0
 )
 
 require (
