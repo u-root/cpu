@@ -305,6 +305,9 @@ func main() {
 	if *port == "22" {
 		*sshd = true
 	}
+	if *srvnfs {
+		*ninep = false
+	}
 	verbose("connecting to %q port %q", host, *port)
 	if err := newCPU(host, a...); err != nil {
 		e := 1
