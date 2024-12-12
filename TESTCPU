@@ -1,10 +1,9 @@
 #!/bin/bash
 set -e
-SOURCE=${SOURCE:=$HOME/go/src/github.com/u-root/u-root}
+UROOT=${UROOT:=$HOME/go/src/github.com/u-root/u-root}
 KERNEL=${KERNEL:=$HOME/linuxboot/mainboards/intel/generic/kernel-noinitramfs}
 VMN=${VMN:=42}
-KEY=${KEY:=~/.ssh/cpu_rsa.pub:key.pub}
-UROOT=${UROOT:=~/go/src/github.com/u-root/u-root}
+KEY=${KEY:=$HOME/.ssh/cpu_rsa.pub}
 
 echo NOTE: WE USED TO RUN CPUD AUTOMAGICALLY
 echo That turned out to be inconvenient for testing
@@ -12,6 +11,11 @@ echo Once the VM is up, you need to run cpud manually
 echo If you want to test cpud as the init, add this line
 echo to the u-root command, along with the other switches.
 echo -initcmd=/bbin/cpud \
+
+# error our early for simple things
+ls ${KEY}
+ls -d ${UROOT}
+ls ${KERNEL}
 
 # You will need to put your host key and private key somewhere. They will be placed in the proper place in the image.
 #
