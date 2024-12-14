@@ -111,7 +111,7 @@ func (s *Session) Namespace() error {
 	// The debug= option is here so you can see how to temporarily set it if needed.
 	// It generates copious output so use it sparingly.
 	// A useful compromise value is 5.
-	opts := fmt.Sprintf("version=9p2000.L,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, s.msize)
+	opts := fmt.Sprintf("version=9p2000.L,noxattr,trans=fd,rfdno=%d,wfdno=%d,uname=%v,debug=0,msize=%d", fd, fd, user, s.msize)
 	if len(s.mopts) > 0 {
 		opts += "," + s.mopts
 	}
