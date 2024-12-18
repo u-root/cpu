@@ -8,56 +8,48 @@
 package server
 
 import (
-	"fmt"
-	"net"
 	"os"
 	"os/exec"
 )
 
-// Namespace assembles a NameSpace for this cpud, iff CPU_NAMESPACE
-// is set.
-// CPU_NAMESPACE can be the empty string.
-// It also requires that CPU_NONCE exist.
-func (s *Session) Namespace() (error, error) {
-	var warning error
-	// Get the nonce and remove it from the environment.
-	// N.B. We do not save the nonce in the cpu struct.
-	nonce := os.Getenv("CPUNONCE")
-	os.Unsetenv("CPUNONCE")
-	verbose("namespace is %q", s.binds)
-
-	// Connect to the socket, return the nonce.
-	a := net.JoinHostPort("localhost", s.port9p)
-	verbose("Dial %v", a)
-	so, err := net.Dial("tcp", a)
-	if err != nil {
-		return warning, fmt.Errorf("CPUD:Dial 9p port: %v", err)
+// cpud can run in one of three modes
+// o init
+// o daemon started by init
+// o manager of one cpu session.
+// It is *critical* that the session manager have a private
+// name space, else every cpu session will interfere with every
+// other session's mounts. What's the best way to ensure the manager
+// gets a private name space, and ensure that no improper use
+// of this package will result in NOT having a private name space?
+// How do we make the logic failsafe?
+//
+// It turns out there is no harm in always privatizing the name space,
+// no matter the mode.
+// So in this init function, we do not parse flags (that breaks tests;
+// flag.Parse() in init is a no-no), and then, no
+// matter what, privatize the namespace, and mount a private /tmp/cpu if we
+// are not pid1. As for pid1 tasks, they should be specified by the cpud
+// itself, not this package. This code merely ensures correction operation
+// of cpud no matter what mode it is invoked in.
+func init() {
+	// placeholder. It's not clear we ever want to do this. We used to create
+	// a root file system here, but that should be up to the server. The files
+	// might magically exist, b/c of initrd; or be automagically mounted via
+	// some other mechanism.
+	if os.Getpid() == 1 {
+		verbose("PID 1")
 	}
-	verbose("Connected: write nonce %s\n", nonce)
-	if _, err := fmt.Fprintf(so, "%s", nonce); err != nil {
-		return warning, fmt.Errorf("CPUD:Write nonce: %v", err)
-	}
-	verbose("Wrote the nonce")
-	// Zero it. I realize I am not a crypto person.
-	// improvements welcome.
-	copy([]byte(nonce), make([]byte, len(nonce)))
-
-	return warning, fmt.Errorf("CPUD: cannot use 9p connection yet")
-}
-
-func osMounts() error {
-	return nil
-}
-
-func logopts() {
 }
 
 func command(n string, args ...string) *exec.Cmd {
 	cmd := exec.Command(n, args...)
+	// N.B.: in the go runtime, after not long ago, CLONE_NEWNS in the Unshareflags
+	// also does two things: an unshare, and a remount of / to unshare mounts.
+	// see d8ed449d8eae5b39ffe227ef7f56785e978dd5e2 in the go tree for a discussion.
+	// This meant we could remove ALL calls of unshare and mount from cpud.
+	// Fun fact: I wrote that fix years ago, and then forgot to remove
+	// the support code from cpu. Oops.
+	// DARWIN DOESN'T HAVE NAMESPACE SO SKIP IT
+	//cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 	return cmd
-}
-
-// runSetup performs kernel-specific operations for starting a Session.
-func runSetup() error {
-	return nil
 }
