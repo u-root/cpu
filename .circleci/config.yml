@@ -3,7 +3,7 @@ version: 2
 templates:
   golang-template: &golang-template
     docker:
-      - image: cimg/go:1.20
+      - image: cimg/go:1.23
     working_directory: /home/circleci/go/src/github.com/u-root/cpu
     environment:
       - CGO_ENABLED: 0
