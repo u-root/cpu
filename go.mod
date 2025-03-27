@@ -1,13 +1,14 @@
 module github.com/u-root/cpu
 
 go 1.23
+toolchain go1.24.1
 
 require (
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d
-	golang.org/x/crypto v0.31.0
-	golang.org/x/sys v0.28.0
+	golang.org/x/crypto v0.35.0
+	golang.org/x/sys v0.30.0
 )
 
 require (
@@ -21,7 +22,7 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/willscott/go-nfs v0.0.0-20240424173852-04b947a7e58a
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
-	golang.org/x/term v0.27.0
+	golang.org/x/term v0.29.0
 )
 
 require (
@@ -45,7 +46,7 @@ require (
 	github.com/willscott/go-nfs-client v0.0.0-20240104095149-b44639837b00 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/tools v0.12.0 // indirect
 	google.golang.org/grpc v1.56.3 // indirect
