@@ -1,0 +1,69 @@
+#!/bin/sh
+# This has been tested on a bpi f3 with buildroot init
+# it was placed in an overlay before buildroot.
+# board/bananapi/bananapi-f3/rootfs_overlay/etc/init.d/S99cpud
+# cpud is in sbin, and cpu_rsa.pub is in etc
+# origin	https://github.com/Mr-Bossman/bpi-f3-buildroot (fetch)
+# 726897faf4692b06d594797940d22f3155e4d0b7 (HEAD -> master, origin/master, origin/HEAD)
+# This is a single user image, so you'll need to
+# put the pub key in /etc/cpud/.
+#
+# Starts cpud sshd.
+#
+
+# Allow a few customizations from a config file
+test -r /etc/default/cpud && . /etc/default/cpud
+
+start() {
+	CPUD_ARGS="$CPUD_ARGS -pk /etc/cpu_rsa.pub"
+
+	# If /etc/cpud is a symlink to /var/run/cpud, and
+	#   - the filesystem is RO (i.e. we can not rm the symlink),
+	#     create the directory pointed to by the symlink.
+	#   - the filesystem is RW (i.e. we can rm the symlink),
+	#     replace the symlink with an actual directory
+	if [ -L /etc/cpud \
+	     -a "$(readlink /etc/cpud)" = "/var/run/cpud" ]
+	then
+		if rm -f /etc/cpud >/dev/null 2>&1; then
+			mkdir -p /etc/cpud
+		else
+			echo "No persistent location to store SSH host keys. New keys will be"
+			echo "generated at each boot. Are you sure this is what you want to do?"
+			mkdir -p "$(readlink /etc/cpud)"
+		fi
+	fi
+
+	printf "Starting cpud: "
+	umask 077
+
+	start-stop-daemon -S -b -m -p /var/run/cpud.pid \
+		-x /sbin/cpud -- $CPUD_ARGS 
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+stop() {
+	printf "Stopping cpud: "
+	start-stop-daemon -K -p /var/run/cpud.pid
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+  start)
+  	start
+	;;
+  stop)
+  	stop
+	;;
+  restart|reload)
+  	restart
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
