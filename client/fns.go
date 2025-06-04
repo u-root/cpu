@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -118,7 +119,20 @@ func (c *Cmd) SetEnv(envs ...string) error {
 		if len(env) == 1 {
 			env = append(env, "")
 		}
-		if err := c.session.Setenv(env[0], env[1]); err != nil {
+		// Plan 9 rc shell adds a NUL to environment variables.
+		// This will cause go exec to fail, due to a security
+		// mitigation, see
+		// Reject NUL in environment variables to prevent security issues (#56284)
+		// If we are on Plan 9, trim trailing NUL.
+		v := env[1]
+		if runtime.GOOS == "plan9" {
+			v = strings.TrimRight(v, "\x00")
+			if strings.Contains(v, "\x00") {
+				continue
+			}
+		}
+		verbose("c.session.Setenv(%q,%q)", env[0], v)
+		if err := c.session.Setenv(env[0], v); err != nil {
 			err = errors.Join(fmt.Errorf("Warning: c.session.Setenv(%q, %q): %v", v, os.Getenv(v), err))
 		}
 	}
