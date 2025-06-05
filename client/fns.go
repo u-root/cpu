@@ -338,7 +338,9 @@ func ParseBinds(s string) (string, error) {
 		// The convention is that the remote side is relative to filepath.Join(tmpMnt, "cpu")
 		// and the left side is taken exactly as written. Further, recall that in bind mounts, the
 		// remote side is the "device", and the local side is the "target."
-		fstab = fstab + fmt.Sprintf("%s %s none defaults,bind 0 0\n", filepath.Join(tmpMnt, "cpu", remote), local)
+		el := fmt.Sprintf("%s %s none defaults,bind 0 0\n", filepath.Join(tmpMnt, "cpu", remote), local)
+		verbose("Set up fstab element %s", el)
+		fstab = fstab + el
 	}
 	return fstab, nil
 }
