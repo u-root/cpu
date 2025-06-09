@@ -17,6 +17,10 @@ else
 	mkdir -p bin
 	-CGO_ENABLED=0 go build -o bin/cpu ./cmds/cpu/.
 	-CGO_ENABLED=0 go build -o bin/decpu ./cmds/decpu/.
+	# Create symbolic links for variants
+	-ln -sf decpu bin/decker
+	-ln -sf decpu bin/decompose
+	-ln -sf decpu bin/delm
 ifeq ($(OS),Linux)
 	-CGO_ENABLED=0 go build -o bin/cpud ./cmds/cpud/.
 	-CGO_ENABLED=0 go build -tags mDNS -o bin/decpud ./cmds/cpud/.

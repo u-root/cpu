@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,11 +47,76 @@ var (
 	root           = flag.String("root", "/", "9p root")
 	timeout9P      = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep          = flag.Bool("9p", true, "Enable the 9p mount in the client")
+	// Special variant flags
+	dockerSocket    = flag.String("docker-socket", "/var/run/docker.sock", "Path to Docker socket for decker variant")
+	composeFile     = flag.String("compose-file", "docker-compose.yml", "Path to docker-compose.yml for decompose variant")
+	helmCharts      = flag.String("helm-charts", "", "Path to Helm charts directory for delm variant")
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
 	v          = func(string, ...interface{}) {}
 	dumpWriter *os.File
 )
+
+// Installation instructions for different platforms
+var installInstructions = map[string]map[string]string{
+	"docker": {
+		"darwin": `Install Docker Desktop for Mac:
+1. Visit https://www.docker.com/products/docker-desktop
+2. Download and install Docker Desktop
+3. Start Docker Desktop from your Applications folder`,
+		"linux": `Install Docker Engine:
+1. Update package index:
+   sudo apt-get update
+2. Install prerequisites:
+   sudo apt-get install ca-certificates curl gnupg
+3. Add Docker's official GPG key:
+   sudo install -m 0755 -d /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   sudo chmod a+r /etc/apt/keyrings/docker.gpg
+4. Add Docker repository:
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+5. Install Docker Engine:
+   sudo apt-get update
+   sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`,
+	},
+	"docker-compose": {
+		"darwin": `Docker Compose is included with Docker Desktop for Mac.
+If you need to install it separately:
+1. Install using Homebrew:
+   brew install docker-compose`,
+		"linux": `Install Docker Compose:
+1. Download the current stable release:
+   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+2. Apply executable permissions:
+   sudo chmod +x /usr/local/bin/docker-compose`,
+	},
+	"helm": {
+		"darwin": `Install Helm:
+1. Install using Homebrew:
+   brew install helm`,
+		"linux": `Install Helm:
+1. Download the installation script:
+   curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+2. Make the script executable:
+   chmod 700 get_helm.sh
+3. Run the script:
+   ./get_helm.sh`,
+	},
+}
+
+// checkCommandAvailability checks if a command is available and returns installation instructions if not
+func checkCommandAvailability(cmd string) error {
+	_, err := exec.LookPath(cmd)
+	if err != nil {
+		platform := runtime.GOOS
+		instructions, ok := installInstructions[cmd][platform]
+		if !ok {
+			instructions = fmt.Sprintf("Please install %s for your platform. Visit https://www.%s.com for more information.", cmd, cmd)
+		}
+		return fmt.Errorf("%s is not installed on your system.\n\nInstallation instructions:\n%s", cmd, instructions)
+	}
+	return nil
+}
 
 func verbose(f string, a ...interface{}) {
 	v("DECPU:"+f+"\r\n", a...)
@@ -135,10 +202,23 @@ func usage() {
 	var b bytes.Buffer
 	flag.CommandLine.SetOutput(&b)
 	flag.PrintDefaults()
-	log.Fatalf("Usage: cpu [options] host [shell command]:\n%v", b.String())
+	log.Fatalf(`Usage: decpu [options] host [shell command]
+
+Variants:
+  decker    - Execute docker commands on remote system using local Docker socket
+  decompose - Execute docker-compose commands on remote system using local compose file
+  delm      - Execute helm commands on remote system using local Helm charts
+
+Examples:
+  decker host ps                    # List containers on remote using local Docker
+  decompose host up                 # Start services using local docker-compose.yml
+  delm host install ./chart         # Install Helm chart from local directory
+
+Options:
+%v`, b.String())
 }
 
-func newCPU(host, port string, args ...string) error {
+func newCPU(host, port string, extraEnv []string, args ...string) error {
 	// note that 9P is enabled if namespace is not empty OR if ninep is true
 	c := client.Command(host, args...)
 	if err := c.SetOptions(
@@ -154,7 +234,30 @@ func newCPU(host, port string, args ...string) error {
 		log.Fatal(err)
 	}
 
-	c.Env = os.Environ()
+	// Add environment variables from the host
+	c.Env = append(os.Environ(), extraEnv...)
+
+	// For special variants, ensure necessary files are mounted
+	execName := filepath.Base(os.Args[0])
+	switch execName {
+	case "decker":
+		// Ensure Docker socket is mounted
+		if err := ensureDockerSocket(); err != nil {
+			return fmt.Errorf("failed to setup Docker socket: %v", err)
+		}
+	case "decompose":
+		// Ensure docker-compose.yml is mounted
+		if err := ensureComposeFile(); err != nil {
+			return fmt.Errorf("failed to setup docker-compose file: %v", err)
+		}
+	case "delm":
+		// Ensure Helm charts are mounted if specified
+		if *helmCharts != "" {
+			if err := ensureHelmCharts(); err != nil {
+				return fmt.Errorf("failed to setup Helm charts: %v", err)
+			}
+		}
+	}
 
 	if err := c.Dial(); err != nil {
 		return fmt.Errorf("Dial: %v", err)
@@ -173,12 +276,73 @@ func newCPU(host, port string, args ...string) error {
 	return err
 }
 
+// Helper functions for special variants
+func ensureDockerSocket() error {
+	// Check if Docker socket exists
+	if _, err := os.Stat(*dockerSocket); err != nil {
+		return fmt.Errorf("Docker socket not found at %s: %v", *dockerSocket, err)
+	}
+	return nil
+}
+
+func ensureComposeFile() error {
+	// Check if docker-compose.yml exists
+	if _, err := os.Stat(*composeFile); err != nil {
+		return fmt.Errorf("docker-compose.yml not found at %s: %v", *composeFile, err)
+	}
+	return nil
+}
+
+func ensureHelmCharts() error {
+	// Check if Helm charts directory exists
+	if _, err := os.Stat(*helmCharts); err != nil {
+		return fmt.Errorf("Helm charts directory not found at %s: %v", *helmCharts, err)
+	}
+	return nil
+}
+
 func main() {
 	flags()
 	args := flag.Args()
 	host := ds.Default
 	port := *sp
 	a := []string{}
+
+	// Get the executable name to determine which variant we're running
+	execName := filepath.Base(os.Args[0])
+	var cmdPrefix string
+	var extraEnv []string
+	switch execName {
+	case "decker":
+		cmdPrefix = "docker"
+		// Check if Docker is installed
+		if err := checkCommandAvailability("docker"); err != nil {
+			log.Fatal(err)
+		}
+		// Mount Docker socket from host
+		extraEnv = append(extraEnv, "DOCKER_HOST=unix:///tmp/cpu"+*dockerSocket)
+	case "decompose":
+		cmdPrefix = "docker-compose"
+		// Check if Docker Compose is installed
+		if err := checkCommandAvailability("docker-compose"); err != nil {
+			log.Fatal(err)
+		}
+		// Mount docker-compose.yml from host
+		extraEnv = append(extraEnv, "COMPOSE_FILE=/tmp/cpu"+*composeFile)
+	case "delm":
+		cmdPrefix = "helm"
+		// Check if Helm is installed
+		if err := checkCommandAvailability("helm"); err != nil {
+			log.Fatal(err)
+		}
+		if *helmCharts != "" {
+			// Mount Helm charts from host
+			extraEnv = append(extraEnv, "HELM_CHARTS=/tmp/cpu"+*helmCharts)
+		}
+	default:
+		cmdPrefix = ""
+	}
+
 	if len(args) > 0 {
 		host = args[0]
 		a = args[1:]
@@ -196,6 +360,11 @@ func main() {
 		} else {
 			a = []string{"/bin/sh"}
 		}
+	}
+
+	// If we're running one of the special variants, prepend the appropriate command
+	if cmdPrefix != "" {
+		a = append([]string{cmdPrefix}, a...)
 	}
 
 	// Try to parse it as a dnssd: path.
@@ -230,7 +399,7 @@ func main() {
 		hn := getHostName(cpu.host)
 
 		verbose("cpu to %v:%v", hn, port)
-		if err := newCPU(hn, port, a...); err != nil {
+		if err := newCPU(hn, port, extraEnv, a...); err != nil {
 			e := 1
 			log.Printf("SSH error %s", err)
 			sshErr := &ossh.ExitError{}
