@@ -188,6 +188,12 @@ there](https://linuxlink.timesys.com/docs/wiki/engineering/HOWTO_Use_USB_Gadget_
   * `CONFIG_INET`
 - add the MAC addresses for your gadget device and the machine you connect to in
   the kernel `CMDLINE`, e.g., `g_ether.dev_addr=12:34:56:78:9a:bc g_ether.host_addr=12:34:56:78:9a:bd`
+  * fixed MAC addresses allow your laptop to recognize the gadget again
+  * when using a CDC gadget (e.g. CDC ethernet+serial), use `g_cdc.dev_addr`/`g_cdc.host_addr`
+
+You will also need to configure the network. You can either go with DHCP or
+fixed addresses. Since `cpud` spawns a shell, if your shell allows for it, you
+can use a shell rc file.
 
 ## cpu will be familiar to ssh users
 
