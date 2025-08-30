@@ -177,7 +177,9 @@ we'll need a Linux binary tree to pick binaries from.
 ### cpu over USB
 
 There are many IoT like devices that do not have an ethernet port.
-Fear not though: The Linux USB gadget drivers offer ethernet via USB!
+Fear not though: The [Linux USB gadget
+drivers](https://www.kernel.org/doc/html/latest/driver-api/usb/gadget.html)
+offer ethernet via USB!
 
 There are [tutorials out
 there](https://linuxlink.timesys.com/docs/wiki/engineering/HOWTO_Use_USB_Gadget_Ethernet), and here is the gist:
