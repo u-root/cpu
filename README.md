@@ -185,7 +185,6 @@ there](https://linuxlink.timesys.com/docs/wiki/engineering/HOWTO_Use_USB_Gadget_
 - enable the Linux kernel options
   * `CONFIG_USB_GADGET`
   * `CONFIG_USB_ETH`
-  * `CONFIG_USB_ETH_RNDIS` (for Windows support)
   * `CONFIG_INET`
 - add the MAC addresses for your gadget device and the machine you connect to in
   the kernel `CMDLINE`, e.g., `g_ether.dev_addr=12:34:56:78:9a:bc g_ether.host_addr=12:34:56:78:9a:bd`
