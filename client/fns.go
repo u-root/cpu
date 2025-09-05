@@ -266,15 +266,15 @@ func (c *Cmd) Signal(s ssh.Signal) error {
 // and an error if either had trouble being read.
 func (c *Cmd) Outputs() ([]bytes.Buffer, error) {
 	var r [2]bytes.Buffer
-	var errs []error
+	var errs error
 	if _, err := io.Copy(&r[0], c.SessionOut); err != nil && err != io.EOF {
-		errs = append(errs, fmt.Errorf("Stdout: %w", err))
+		errs = err
 	}
 	if _, err := io.Copy(&r[1], c.SessionErr); err != nil && err != io.EOF {
-		errs = append(errs, fmt.Errorf("Stderr: %w", err))
+		errs = errors.Join(errs, err)
 	}
 	if errs != nil {
-		return r[:], fmt.Errorf(fmt.Sprintf("%v", errs))
+		return r[:], errs
 	}
 	return r[:], nil
 }
