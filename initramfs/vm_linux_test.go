@@ -11,13 +11,16 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/u-root/cpu/client"
 	"github.com/u-root/cpu/initramfs"
 )
 
-func TestCPU(t *testing.T) {
+// TestCPUAMD64 tests both general and specific things. The specific parts are the io and cmos commands.
+// It being cheaper to use a single generated initramfs, we use the full u-root for several tests.
+func TestCPUAMD64(t *testing.T) {
 	d := t.TempDir()
 	i, err := initramfs.New("linux", "amd64")
 	if !errors.Is(err, nil) {
@@ -34,8 +37,9 @@ func TestCPU(t *testing.T) {
 
 	n, err := initramfs.Uroot(d)
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("skipping this test as we have no uroot command")
 	}
+
 	c, err := i.CommandContext(ctx, d, n)
 	if err != nil {
 		t.Fatalf("starting VM: got %v, want nil", err)
@@ -56,7 +60,8 @@ func TestCPU(t *testing.T) {
 	} {
 		cpu, err := i.CPUCommand(tt.cmd, tt.args...)
 		if err != nil {
-			t.Fatalf("CPUCommand: got %v, want nil", err)
+			t.Errorf("CPUCommand: got %v, want nil", err)
+			continue
 		}
 		client.SetVerbose(t.Logf)
 
@@ -73,4 +78,34 @@ func TestCPU(t *testing.T) {
 	if string(b) != "hi" {
 		t.Fatalf("file b: got %q, want %q", b, "hi")
 	}
+
+	for _, tt := range []struct {
+		args string
+		out  string
+	}{
+		{args: "cw 14 1", out: ""},
+		{args: "cr 14", out: "0x01\n"},
+		{args: "cw 14 0", out: ""},
+		{args: "cr 14", out: "0x00\n"},
+	} {
+		cpu, err := i.CPUCommand("/bbin/io", strings.Split(tt.args, " ")...)
+		if err != nil {
+			t.Fatalf("CPUCommand: got %v, want nil", err)
+		}
+		client.SetVerbose(t.Logf)
+
+		b, err := cpu.CombinedOutput()
+		if err != nil {
+			t.Errorf("io %s: got %v, want nil", tt.args, err)
+		}
+		if string(b) != tt.out {
+			t.Errorf("io %s: got %v, want %v", tt.args, string(b), tt.out)
+		}
+		t.Logf("io %s = %q", tt.args, string(b))
+	}
+
+	// The io integration tests include writing to 3f8. There's no need to do that,
+	// the cmos write tests all that needs testing, as it uses inb and outb,
+	// and uart hardware is fickle. The test above is enough.
+
 }
