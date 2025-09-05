@@ -61,8 +61,8 @@ type Cmd struct {
 	SessionOut        io.Reader
 	SessionErr        io.Reader
 	Stdin             io.Reader
-	Stdout            io.Writer
-	Stderr            io.Writer
+	Stdout            io.WriteCloser
+	Stderr            io.WriteCloser
 	Row               int
 	Col               int
 	hasTTY            bool // Set if we have a TTY
@@ -100,6 +100,13 @@ func SetVerbose(f func(string, ...interface{})) {
 // Listen implements net.Listen on the ssh socket.
 func (c *Cmd) Listen(n, addr string) (net.Listener, error) {
 	return c.client.Listen(n, addr)
+}
+
+func sameFD(w io.WriteCloser, std *os.File) bool {
+	if file, ok := w.(*os.File); ok {
+		return file.Fd() == std.Fd()
+	}
+	return false
 }
 
 // Command implements exec.Command. The required parameter is a host.
@@ -512,6 +519,7 @@ func (c *Cmd) Start() error {
 		}
 		go c.TTYIn(c.session, c.SessionIn, c.Stdin)
 	} else {
+		verbose("Setup batch input")
 		go func() {
 			if _, err := io.Copy(c.SessionIn, c.Stdin); err != nil && !errors.Is(err, io.EOF) {
 				log.Printf("copying stdin: %v", err)
@@ -522,13 +530,25 @@ func (c *Cmd) Start() error {
 		}()
 	}
 	go func() {
+		verbose("set up copying to c.Stdout")
 		if _, err := io.Copy(c.Stdout, c.SessionOut); err != nil && !errors.Is(err, io.EOF) {
 			log.Printf("copying stdout: %v", err)
 		}
+
+		// If the file is NOT stdout, close it.
+		// This is needed when programmers have
+		// set c.Stdout to be some other WriteCloser, e.g. a pipe.
+		if !sameFD(c.Stdout, os.Stdout) {
+			c.Stdout.Close()
+		}
 	}()
 	go func() {
+		verbose("set up copying to c.Stderr")
 		if _, err := io.Copy(c.Stderr, c.SessionErr); err != nil && !errors.Is(err, io.EOF) {
 			log.Printf("copying stderr: %v", err)
+		}
+		if !sameFD(c.Stdout, os.Stderr) {
+			c.Stderr.Close()
 		}
 	}()
 
@@ -547,6 +567,21 @@ func (c *Cmd) Run() error {
 		return err
 	}
 	return c.Wait()
+}
+
+func (c *Cmd) CombinedOutput() ([]byte, error) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
+	c.Stdout, c.Stderr = w, w
+
+	cpuerr := c.Run()
+
+	b, err := io.ReadAll(r)
+
+	return b, errors.Join(cpuerr, err)
 }
 
 // TTYIn manages tty input for a cpu session.
