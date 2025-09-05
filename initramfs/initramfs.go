@@ -54,10 +54,10 @@ type Image struct {
 }
 
 var images = map[string]Image{
-	"linux_amd64":   Image{Kernel: kernel_linux_amd64, InitRAMFS: linux_amd64, Cmd: []string{"qemu-system-x86_64", "-m", "1G"}},
-	"linux_arm64":   Image{Kernel: kernel_linux_arm64, InitRAMFS: linux_arm64, Cmd: []string{"qemu-system-aarch64", "-machine", "virt", "-cpu", "max", "-m", "1G"}},
-	"linux_arm":     Image{Kernel: kernel_linux_arm, InitRAMFS: linux_arm, Cmd: []string{"qemu-system-arm", "-M", "virt,highmem=off"}},
-	"linux_riscv64": Image{Kernel: kernel_linux_riscv64, InitRAMFS: linux_riscv64, Cmd: []string{"qemu-system-riscv64", "-M", "virt", "-cpu", "rv64", "-m", "1G"}},
+	"linux_amd64":   {Kernel: kernel_linux_amd64, InitRAMFS: linux_amd64, Cmd: []string{"qemu-system-x86_64", "-m", "1G"}},
+	"linux_arm64":   {Kernel: kernel_linux_arm64, InitRAMFS: linux_arm64, Cmd: []string{"qemu-system-aarch64", "-machine", "virt", "-cpu", "max", "-m", "1G"}},
+	"linux_arm":     {Kernel: kernel_linux_arm, InitRAMFS: linux_arm, Cmd: []string{"qemu-system-arm", "-M", "virt,highmem=off"}},
+	"linux_riscv64": {Kernel: kernel_linux_riscv64, InitRAMFS: linux_riscv64, Cmd: []string{"qemu-system-riscv64", "-M", "virt", "-cpu", "rv64", "-m", "1G"}},
 }
 
 func New(kernel, arch string) (*Image, error) {
@@ -171,6 +171,6 @@ func (i *Image) CPUCommand(arg string, args ...string) (*client.Cmd, error) {
 	if err := cpu.Dial(); err != nil {
 		return nil, err
 	}
-	cpu.Env = append(cpu.Env, "PWD=/")
+	cpu.Env = append(cpu.Env, "PATH=/bbin", "PWD=/", "SHELL=/bbin/x")
 	return cpu, nil
 }
