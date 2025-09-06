@@ -18,6 +18,11 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: install qemu
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install qemu-system-x86
+
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
