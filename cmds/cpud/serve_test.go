@@ -60,7 +60,13 @@ func TestListen(t *testing.T) {
 				// e.g. no ipv4 or vsock
 				continue
 			}
-			t.Errorf("Listen(%v, %v): err != nil", tt.network, tt.port)
+			// If it is in use, not a lot to do.
+			if errors.As(err, &sysErr) && sysErr.Err == syscall.EADDRINUSE {
+				t.Logf("%s:%s is in use, so can not test; continuing", tt.network, tt.port)
+				// e.g. no ipv4 or vsock
+				continue
+			}
+			t.Errorf("Listen(%v, %v): got %v, want nil", tt.network, tt.port, err)
 			continue
 		}
 		if ln == nil {
