@@ -18,9 +18,6 @@ import (
 	"github.com/u-root/cpu/client"
 )
 
-// generate this boiler plate code? Not clear it's worth it,
-// it changes maybe once a year.
-
 //go:embed initramfs_linux_amd64.cpio.gz
 var linux_amd64 []byte
 
@@ -45,6 +42,9 @@ var kernel_linux_arm []byte
 //go:embed kernel_linux_riscv64.gz
 var kernel_linux_riscv64 []byte
 
+// Image defines an image, including []byte for a kernel and initramfs;
+// a []string for the Cmd and its args; and its environment;
+// and a directory in which to run.
 type Image struct {
 	Kernel    []byte
 	InitRAMFS []byte
@@ -60,6 +60,9 @@ var images = map[string]Image{
 	"linux_riscv64": {Kernel: kernel_linux_riscv64, InitRAMFS: linux_riscv64, Cmd: []string{"qemu-system-riscv64", "-M", "virt", "-cpu", "rv64", "-m", "1G"}},
 }
 
+// New creates an Image, using the kernel and arch to select the Image.
+// It will return an error if there is a problem uncompressing
+// the kernel and initramfs.
 func New(kernel, arch string) (*Image, error) {
 	common := []string{ /*"-serial", "/dev/tty",*/ "-nographic",
 		"-netdev", "user,id=net0,ipv4=on,hostfwd=tcp::17010-:17010",
@@ -100,6 +103,8 @@ func New(kernel, arch string) (*Image, error) {
 	return &Image{Kernel: k, InitRAMFS: i, Cmd: append(im.Cmd, common...), Env: append(env, im.Env...)}, nil
 }
 
+// Uroot builds a uroot cpio into the a directory.
+// It returns the full path of the file, or an error.
 func Uroot(d string) (string, error) {
 	c := exec.Command("u-root", "-o", filepath.Join(d, "uroot.cpio"))
 	c.Env = append(os.Environ(), "CGO_ENABLED=0")
@@ -110,6 +115,10 @@ func Uroot(d string) (string, error) {
 
 }
 
+// CommandContext starts qemu, given a context, directory in which to
+// run the command. The variadic arguments are a set of cpios which will
+// be merged into Image.InitRAMFS. A typical use of the extra arguments
+// will be to extend the initramfs; they are usually not needed.
 func (image *Image) CommandContext(ctx context.Context, d string, extra ...string) (*exec.Cmd, error) {
 	image.dir = d
 	i, k := filepath.Join(d, "initramfs"), filepath.Join(d, "kernel")
@@ -145,6 +154,9 @@ func (image *Image) CommandContext(ctx context.Context, d string, extra ...strin
 	return c, nil
 }
 
+// StartVm is used to starta VM (or in fact any exec.Cmd).
+// It includes a one second delay, experimentally needed to wait for the
+// guest network to be ready.
 func (*Image) StartVM(c *exec.Cmd) error {
 	if err := c.Start(); err != nil {
 		return fmt.Errorf("starting VM: %w", err)
@@ -153,6 +165,12 @@ func (*Image) StartVM(c *exec.Cmd) error {
 	return nil
 }
 
+// CPUCommand runs a command in a guest runnign cpud.
+// It is similar to exec.Command, in that it accepts an arg and
+// a set of optional args. It differs in that it can return an error.
+// If there are no errors, it returns a client.Cmd.
+// The returned client.Cmd can be called with CombinedOutput, to make
+// it easier to scan output from a command for error messages.
 func (i *Image) CPUCommand(arg string, args ...string) (*client.Cmd, error) {
 	cpu := client.Command("127.0.0.1", append([]string{arg}, args...)...)
 	cpu.Env = os.Environ()
