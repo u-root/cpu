@@ -1,6 +1,6 @@
 //go:generate go run build.go
 
-package initramfs
+package vm
 
 import (
 	"bufio"

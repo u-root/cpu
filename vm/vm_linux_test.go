@@ -4,7 +4,7 @@
 
 // runvmtest sets VMTEST_QEMU and VMTEST_KERNEL (if not already set) with
 // binaries downloaded from Docker images, then executes a command.
-package initramfs_test
+package vm_test
 
 import (
 	"context"
@@ -15,14 +15,14 @@ import (
 	"testing"
 
 	"github.com/u-root/cpu/client"
-	"github.com/u-root/cpu/initramfs"
+	"github.com/u-root/cpu/vm"
 )
 
 // TestCPUAMD64 tests both general and specific things. The specific parts are the io and cmos commands.
 // It being cheaper to use a single generated initramfs, we use the full u-root for several tests.
 func TestCPUAMD64(t *testing.T) {
 	d := t.TempDir()
-	i, err := initramfs.New("linux", "amd64")
+	i, err := vm.New("linux", "amd64")
 	if !errors.Is(err, nil) {
 		t.Fatalf("Testing kernel=linux arch=amd64: got %v, want nil", err)
 	}
@@ -35,7 +35,7 @@ func TestCPUAMD64(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	n, err := initramfs.Uroot(d)
+	n, err := vm.Uroot(d)
 	if err != nil {
 		t.Skipf("skipping this test as we have no uroot command")
 	}

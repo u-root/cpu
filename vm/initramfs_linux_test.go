@@ -1,4 +1,4 @@
-package initramfs_test
+package vm_test
 
 import (
 	"errors"
@@ -6,19 +6,19 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/u-root/cpu/initramfs"
+	"github.com/u-root/cpu/vm"
 )
 
 func TestInitRamfs(t *testing.T) {
-	if _, err := initramfs.New("no", "amd64"); !errors.Is(err, os.ErrNotExist) {
+	if _, err := vm.New("no", "amd64"); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("Testing kernel=no: got %v, want %v", err, os.ErrNotExist)
 	}
 
-	if _, err := initramfs.New("linux", "no"); !errors.Is(err, os.ErrNotExist) {
+	if _, err := vm.New("linux", "no"); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("Testing arch=no: got %v, want %v", err, os.ErrNotExist)
 	}
 
-	b, err := initramfs.New("linux", "amd64")
+	b, err := vm.New("linux", "amd64")
 	if !errors.Is(err, nil) {
 		t.Fatalf("Testing kernel=linux arch=amd64: got %v, want nil", err)
 	}
