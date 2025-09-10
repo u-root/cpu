@@ -3,7 +3,7 @@
 //
 // For purposes of convenience, this package provides, via embed, a set of
 // kernels and initramfs, for several architectures. Currently, it provides
-// Linux kernels and initramfs for am64, arm, arm64, and riscv64.
+// Linux kernels and initramfs for amd64, arm, arm64, and riscv64.
 //
 // The kernels are minimal, hence small; but enable enough options to run
 // cpud and u-root programs. The initramfs only contain the cpud and
