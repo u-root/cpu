@@ -64,7 +64,8 @@ var images = map[string]Image{
 // It will return an error if there is a problem uncompressing
 // the kernel and initramfs.
 func New(kernel, arch string) (*Image, error) {
-	common := []string{ /*"-serial", "/dev/tty",*/ "-nographic",
+	common := []string{
+		"-nographic",
 		"-netdev", "user,id=net0,ipv4=on,hostfwd=tcp::17010-:17010",
 		// required for mac. No idea why. Should work on linux. If not, we'll need a bit
 		// more logic.
@@ -72,7 +73,7 @@ func New(kernel, arch string) (*Image, error) {
 		// No password needed, you're just a guest vm ...
 		// The kernel may not understand ip=dhcp, in which case it just ends up
 		// in init's environment.
-		//"--append", "ip=dhcp init=/init -pk \"\" -d",
+		// To add cpud debugging, you can add -d to the append string.
 		"--append", "ip=dhcp init=/init -pk \"\"",
 	}
 	env := []string{}
@@ -154,9 +155,10 @@ func (image *Image) CommandContext(ctx context.Context, d string, extra ...strin
 	return c, nil
 }
 
-// StartVm is used to starta VM (or in fact any exec.Cmd).
-// It includes a one second delay, experimentally needed to wait for the
-// guest network to be ready.
+// StartVM is used to start a VM (or in fact any exec.Cmd).
+// Once cmd.Start is called, StartVM delays for one second.
+// This time has been experimentally determined as the minimum
+// required for the guest network to be ready.
 func (*Image) StartVM(c *exec.Cmd) error {
 	if err := c.Start(); err != nil {
 		return fmt.Errorf("starting VM: %w", err)
@@ -165,7 +167,7 @@ func (*Image) StartVM(c *exec.Cmd) error {
 	return nil
 }
 
-// CPUCommand runs a command in a guest runnign cpud.
+// CPUCommand runs a command in a guest running cpud.
 // It is similar to exec.Command, in that it accepts an arg and
 // a set of optional args. It differs in that it can return an error.
 // If there are no errors, it returns a client.Cmd.
