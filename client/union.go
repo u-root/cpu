@@ -25,6 +25,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -35,7 +36,6 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/go-git/go-billy/v5"
@@ -44,6 +44,9 @@ import (
 	nfs "github.com/willscott/go-nfs"
 	nfshelper "github.com/willscott/go-nfs/helpers"
 )
+
+// ErrLoop is the kernel-independent version of ELOOP
+var ErrLoop = errors.New("too many symbolic links were encountered in translating the pathname")
 
 // Chroot. This is deprecated, so we don't bother.
 func (*fsCPIO) Chroot(_ string) (billy.Filesystem, error) {
@@ -400,7 +403,7 @@ func (fs *fsCPIO) resolvelink(filename string) (string, error) {
 	for {
 		var s string
 		if linkcount > 20 {
-			return "", syscall.ELOOP
+			return "", ErrLoop
 		}
 
 		s, err = fs.Readlink(filename)
