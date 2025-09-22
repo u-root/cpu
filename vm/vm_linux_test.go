@@ -35,7 +35,7 @@ func TestCPUAMD64(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	n, err := vm.Uroot(d)
+	n, err := vm.Uroot(d, "linux", "amd64")
 	if err != nil {
 		t.Skipf("skipping this test as we have no uroot command")
 	}
@@ -48,7 +48,6 @@ func TestCPUAMD64(t *testing.T) {
 		t.Fatalf("starting VM: got %v, want nil", err)
 	}
 
-	// TODO: make stuff not appear on stderr/out.
 	for _, tt := range []struct {
 		cmd  string
 		args []string
@@ -59,7 +58,7 @@ func TestCPUAMD64(t *testing.T) {
 		{cmd: "/bbin/dd", args: []string{"if=/tmp/cpu/a", "of=/tmp/cpu/b"}, ok: true},
 	} {
 		cpu, err := i.CPUCommand(tt.cmd, tt.args...)
-		if err != nil {
+		if !errors.Is(err, nil) {
 			t.Errorf("CPUCommand: got %v, want nil", err)
 			continue
 		}
@@ -71,6 +70,7 @@ func TestCPUAMD64(t *testing.T) {
 		}
 		t.Logf("%q", string(b))
 	}
+
 	b, err := os.ReadFile(filepath.Join(d, "b"))
 	if err != nil {
 		t.Fatalf("reading b: got %v, want nil", err)
@@ -103,9 +103,68 @@ func TestCPUAMD64(t *testing.T) {
 		}
 		t.Logf("io %s = %q", tt.args, string(b))
 	}
+}
 
-	// The io integration tests include writing to 3f8. There's no need to do that,
-	// the cmos write tests all that needs testing, as it uses inb and outb,
-	// and uart hardware is fickle. The test above is enough.
+// TestCPUARM tests both general and specific things. The specific parts are the io and cmos commands.
+// It being cheaper to use a single generated initramfs, we use the full u-root for several tests.
+func TestCPUARM(t *testing.T) {
+	d := t.TempDir()
+	i, err := vm.New("linux", "arm")
+	if !errors.Is(err, nil) {
+		t.Fatalf("Testing kernel=linux arch=amd64: got %v, want nil", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(d, "a"), []byte("hi"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Cancel before wg.Wait(), so goroutine can exit.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	n, err := i.Uroot(d)
+	if err != nil {
+		t.Skipf("skipping this test as we have no uroot command")
+	}
+
+	c, err := i.CommandContext(ctx, d, n)
+	if err != nil {
+		t.Fatalf("starting VM: got %v, want nil", err)
+	}
+	t.Logf("Start VM: %v", c)
+	if err := i.StartVM(c); err != nil {
+		t.Fatalf("starting VM: got %v, want nil", err)
+	}
+
+	for _, tt := range []struct {
+		cmd  string
+		args []string
+		ok   bool
+	}{
+		{cmd: "/bbin/dd", args: []string{"if=/dev/x"}, ok: false},
+		{cmd: "/bbin/dd", args: []string{"if=/dev/null"}, ok: true},
+		{cmd: "/bbin/dd", args: []string{"if=/tmp/cpu/a", "of=/tmp/cpu/b"}, ok: true},
+	} {
+		cpu, err := i.CPUCommand(tt.cmd, tt.args...)
+		if !errors.Is(err, nil) {
+			t.Errorf("CPUCommand: got %v, want nil", err)
+			continue
+		}
+		client.SetVerbose(t.Logf)
+
+		b, err := cpu.CombinedOutput()
+		if err == nil != tt.ok {
+			t.Errorf("%s %s: got %v, want %v", tt.cmd, tt.args, err == nil != tt.ok, err == nil == tt.ok)
+		}
+		t.Logf("%q", string(b))
+	}
+
+	b, err := os.ReadFile(filepath.Join(d, "b"))
+	if err != nil {
+		t.Fatalf("reading b: got %v, want nil", err)
+	}
+	if string(b) != "hi" {
+		t.Fatalf("file b: got %q, want %q", b, "hi")
+	}
 
 }
