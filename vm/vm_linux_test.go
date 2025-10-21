@@ -111,7 +111,7 @@ func TestCPUARM(t *testing.T) {
 	d := t.TempDir()
 	i, err := vm.New("linux", "arm")
 	if !errors.Is(err, nil) {
-		t.Fatalf("Testing kernel=linux arch=amd64: got %v, want nil", err)
+		t.Fatalf("Testing kernel=linux arch=arm: got %v, want nil", err)
 	}
 
 	if err := os.WriteFile(filepath.Join(d, "a"), []byte("hi"), 0644); err != nil {
