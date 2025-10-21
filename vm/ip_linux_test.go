@@ -124,7 +124,7 @@ func TestIP(t *testing.T) {
 				// Verify VTI tunnel exists in /proc/net/dev
 				{cmd: "cat /proc/net/dev", includes: []string{"vti_tunnel"}},
 
-				//Verify VTI tunnel parameters
+				// Verify VTI tunnel parameters
 				{cmd: "ip tunnel show vti_tunnel", includes: []string{"vti_tunnel:", "remote 192.168.242.3", "local 192.168.241.1", "key 5678"}},
 				{cmd: "ip link set vti_tunnel up"},
 				{cmd: "ip addr add 172.16.0.1/30 dev vti_tunnel"},
@@ -139,7 +139,7 @@ func TestIP(t *testing.T) {
 				// Verify IPIP tunnel exists in /proc/net/dev
 				{cmd: "cat /proc/net/dev", includes: []string{"ipip_tunnel"}},
 
-				//Verify IPIP tunnel parameters
+				// Verify IPIP tunnel parameters
 				{cmd: "ip tunnel show ipip_tunnel", includes: []string{"ipip_tunnel:", "remote 192.168.243.1", "local 192.168.241.1", "ttl 64"}},
 				{cmd: "ip link set ipip_tunnel up"},
 				{cmd: "ip addr add 172.17.0.1/30 dev ipip_tunnel"},
@@ -155,7 +155,6 @@ func TestIP(t *testing.T) {
 
 				// Verify the neighbor entry
 				{cmd: "ip neigh show dev eth1", includes: []string{"192.168.241.2", "192.168.241.2 dev eth1 lladdr 00:11:22:33:44:55 PERMANENT"}},
-				//{cmd: "test "$neigh_entry" = "192.168.241.2 dev eth1 lladdr 00:11:22:33:44:55 PERMANENT"", includes: []string{},},
 
 				// Replace the entry with another hwaddress, nud state and router flag
 				{cmd: "ip neigh replace 192.168.241.2 lladdr 11:22:33:44:55:66 dev eth1 nud stale router", includes: []string{}},
