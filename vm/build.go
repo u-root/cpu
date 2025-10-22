@@ -66,6 +66,8 @@ var builds = []build{
 }
 
 func main() {
+	_, verbose := os.LookupEnv("VM_VERBOSE")
+
 	env := []string{"CGO_ENABLED=0"}
 	for _, b := range builds {
 		log.Printf("Build %v", b)
@@ -130,7 +132,7 @@ func main() {
 		if len(b.container) == 0 {
 			continue
 		}
-		if false {
+		if verbose {
 			ref, err := name.ParseReference(b.container, name.Insecure)
 			if err != nil {
 				log.Fatal(err)
@@ -138,7 +140,6 @@ func main() {
 
 			fmt.Printf("parse %s to %s", b.container, ref.Name())
 		}
-		//img, err := crane.Pull(ref.Name())
 		img, err := crane.Pull(b.container)
 		if err != nil {
 			log.Fatal(err)
