@@ -8,7 +8,6 @@ package vm_test
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +22,7 @@ import (
 func TestCPUAMD64(t *testing.T) {
 	d := t.TempDir()
 	i, err := vm.New("linux", "amd64")
-	if !errors.Is(err, nil) {
+	if err != nil {
 		t.Fatalf("Testing kernel=linux arch=amd64: got %v, want nil", err)
 	}
 
@@ -58,7 +57,7 @@ func TestCPUAMD64(t *testing.T) {
 		{cmd: "/bbin/dd", args: []string{"if=/tmp/cpu/a", "of=/tmp/cpu/b"}, ok: true},
 	} {
 		cpu, err := i.CPUCommand(tt.cmd, tt.args...)
-		if !errors.Is(err, nil) {
+		if err != nil {
 			t.Errorf("CPUCommand: got %v, want nil", err)
 			continue
 		}
@@ -110,7 +109,7 @@ func TestCPUAMD64(t *testing.T) {
 func TestCPUARM(t *testing.T) {
 	d := t.TempDir()
 	i, err := vm.New("linux", "arm")
-	if !errors.Is(err, nil) {
+	if err != nil {
 		t.Fatalf("Testing kernel=linux arch=arm: got %v, want nil", err)
 	}
 
@@ -146,7 +145,7 @@ func TestCPUARM(t *testing.T) {
 		{cmd: "/bbin/dd", args: []string{"if=/tmp/cpu/a", "of=/tmp/cpu/b"}, ok: true},
 	} {
 		cpu, err := i.CPUCommand(tt.cmd, tt.args...)
-		if !errors.Is(err, nil) {
+		if err != nil {
 			t.Errorf("CPUCommand: got %v, want nil", err)
 			continue
 		}
