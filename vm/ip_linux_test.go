@@ -42,6 +42,7 @@ func none(s string, t []string) bool {
 // TestIP tests creation and removal of addresses, tunnels, and
 // ARP entries with the u-root ip command.
 func TestIP(t *testing.T) {
+	_, spew := os.LookupEnv("VMTEST_SPEW")
 	d := t.TempDir()
 	for _, arch := range []string{"amd64", "arm", "arm64", "riscv64"} {
 		i, err := vm.New("linux", arch)
@@ -66,7 +67,7 @@ func TestIP(t *testing.T) {
 
 		// For debug. It's been needed, but we do not want this spew in
 		// CI logs, so leave it off.
-		if false {
+		if spew {
 			c.Stdout, c.Stderr = os.Stdout, os.Stderr
 		}
 		if err := i.StartVM(c); err != nil {
@@ -206,13 +207,13 @@ func TestIP(t *testing.T) {
 					t.Errorf("CPUCommand: got %v, want nil", err)
 					continue
 				}
-				if false {
+				if spew {
 					client.SetVerbose(t.Logf)
 				}
 
 				b, err := cpu.CombinedOutput()
 
-				if false { // Only enable this if you want to see console output/errors.
+				if spew { // Only enable this if you want to see console output/errors.
 					t.Logf("%s %v", string(b), err)
 				}
 
