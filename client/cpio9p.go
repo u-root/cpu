@@ -15,12 +15,12 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/hugelgupf/p9/fsimpl/templatefs"
 	"github.com/hugelgupf/p9/p9"
@@ -58,6 +58,9 @@ func NewCPIO9P(c string) (*CPIO9P, error) {
 	}
 	return NewCPIO9PReaderAt(f)
 }
+
+// ErrNosys is the kernel-independent ENOSYS
+var ErrNosys = errors.New("function not implemented")
 
 // NewCPIO9PReaderAt returns a CPIO9P, properly initialized, from an io.ReaderAt.
 func NewCPIO9PReaderAt(r io.ReaderAt) (*CPIO9P, error) {
@@ -351,25 +354,25 @@ func (l *CPIO9PFID) UnlinkAt(name string, flags uint32) error {
 
 // Mknod implements p9.File.Mknod.
 func (*CPIO9PFID) Mknod(name string, mode p9.FileMode, major uint32, minor uint32, _ p9.UID, _ p9.GID) (p9.QID, error) {
-	return p9.QID{}, syscall.ENOSYS
+	return p9.QID{}, ErrNosys
 }
 
 // Rename implements p9.File.Rename.
 func (*CPIO9PFID) Rename(directory p9.File, name string) error {
-	return syscall.ENOSYS
+	return ErrNosys
 }
 
 // RenameAt implements p9.File.RenameAt.
 // There is no guarantee that there is not a zipslip issue.
 func (l *CPIO9PFID) RenameAt(oldName string, newDir p9.File, newName string) error {
-	return syscall.ENOSYS
+	return ErrNosys
 }
 
 // StatFS implements p9.File.StatFS.
 //
 // Not implemented.
 func (*CPIO9PFID) StatFS() (p9.FSStat, error) {
-	return p9.FSStat{}, syscall.ENOSYS
+	return p9.FSStat{}, ErrNosys
 }
 
 // SetAttr implements SetAttr.
