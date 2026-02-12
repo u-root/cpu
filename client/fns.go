@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -118,7 +119,20 @@ func (c *Cmd) SetEnv(envs ...string) error {
 		if len(env) == 1 {
 			env = append(env, "")
 		}
-		if err := c.session.Setenv(env[0], env[1]); err != nil {
+		// Plan 9 rc shell adds a NUL to environment variables.
+		// This will cause go exec to fail, due to a security
+		// mitigation, see
+		// Reject NUL in environment variables to prevent security issues (#56284)
+		// If we are on Plan 9, trim trailing NUL.
+		v := env[1]
+		if runtime.GOOS == "plan9" {
+			v = strings.TrimRight(v, "\x00")
+			if strings.Contains(v, "\x00") {
+				continue
+			}
+		}
+		verbose("c.session.Setenv(%q,%q)", env[0], v)
+		if err := c.session.Setenv(env[0], v); err != nil {
 			err = errors.Join(fmt.Errorf("Warning: c.session.Setenv(%q, %q): %v", v, os.Getenv(v), err))
 		}
 	}
@@ -324,7 +338,9 @@ func ParseBinds(s string) (string, error) {
 		// The convention is that the remote side is relative to filepath.Join(tmpMnt, "cpu")
 		// and the left side is taken exactly as written. Further, recall that in bind mounts, the
 		// remote side is the "device", and the local side is the "target."
-		fstab = fstab + fmt.Sprintf("%s %s none defaults,bind 0 0\n", filepath.Join(tmpMnt, "cpu", remote), local)
+		el := fmt.Sprintf("%s %s none defaults,bind 0 0\n", filepath.Join(tmpMnt, "cpu", remote), local)
+		verbose("Set up fstab element %s", el)
+		fstab = fstab + el
 	}
 	return fstab, nil
 }
