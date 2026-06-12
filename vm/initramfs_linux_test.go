@@ -19,7 +19,7 @@ func TestInitRamfs(t *testing.T) {
 	}
 
 	b, err := vm.New("linux", "amd64")
-	if !errors.Is(err, nil) {
+	if err != nil {
 		t.Fatalf("Testing kernel=linux arch=amd64: got %v, want nil", err)
 	}
 
