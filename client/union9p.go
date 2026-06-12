@@ -19,7 +19,6 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"syscall"
 
 	"github.com/hugelgupf/p9/p9"
 )
@@ -328,25 +327,25 @@ func (u *union9PFID) UnlinkAt(name string, flags uint32) error {
 // Mknod implements p9.File.Mknod.
 func (*union9PFID) Mknod(name string, mode p9.FileMode, major uint32, minor uint32, _ p9.UID, _ p9.GID) (p9.QID, error) {
 	v("union9p:mknod")
-	return p9.QID{}, syscall.ENOSYS
+	return p9.QID{}, ErrNosys
 }
 
 // Rename implements p9.File.Rename.
 func (*union9PFID) Rename(directory p9.File, name string) error {
 	v("union9p:rename")
-	return syscall.ENOSYS
+	return ErrNosys
 }
 
 // RenameAt implements p9.File.RenameAt.
 func (u *union9PFID) RenameAt(oldName string, newDir p9.File, newName string) error {
 	v("union9p:renameat")
-	return syscall.ENOSYS
+	return ErrNosys
 }
 
 // StatFS implements p9.File.StatFS.
 func (*union9PFID) StatFS() (p9.FSStat, error) {
 	v("union9p:statfs")
-	return p9.FSStat{}, syscall.ENOSYS
+	return p9.FSStat{}, ErrNosys
 }
 
 // SetAttr implements SetAttr.
@@ -397,20 +396,20 @@ func (u *union9PFID) GetAttr(req p9.AttrMask) (p9.QID, p9.AttrMask, p9.Attr, err
 
 // SetXattr implements p9.File.SetXattr
 func (u *union9PFID) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
-	return syscall.ENOSYS
+	return ErrNosys
 }
 
 // ListXattrs implements p9.File.ListXattrs
 func (u *union9PFID) ListXattrs() ([]string, error) {
-	return nil, syscall.ENOSYS
+	return nil, ErrNosys
 }
 
 // GetXattr implements p9.File.GetXattr
 func (u *union9PFID) GetXattr(attr string) ([]byte, error) {
-	return nil, syscall.ENOSYS
+	return nil, ErrNosys
 }
 
 // RemoveXattr implements p9.File.RemoveXattr
 func (u *union9PFID) RemoveXattr(attr string) error {
-	return syscall.ENOSYS
+	return ErrNosys
 }

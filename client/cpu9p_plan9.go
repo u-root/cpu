@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !windows && !plan9
-// +build !windows,!plan9
-
 package client
 
 import (
@@ -14,10 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hugelgupf/p9/fsimpl/xattr"
 	"github.com/hugelgupf/p9/p9"
-	"golang.org/x/sys/unix"
 )
+
+// ErrNoDirInfo means Sys() was empty after a Stat()
+var ErrNoDirInfo = errors.New("no Sys() after a Stat()")
 
 // SetAttr implements p9.File.SetAttr.
 func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
@@ -36,7 +34,7 @@ func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 	// The test actually caught this ...
 
 	if mask.Size {
-		if e := unix.Truncate(l.path, int64(attr.Size)); e != nil {
+		if e := os.Truncate(l.path, int64(attr.Size)); e != nil {
 			err = errors.Join(err, fmt.Errorf("truncate:%w", err))
 		}
 	}
@@ -60,58 +58,23 @@ func (l *CPU9P) SetAttr(mask p9.SetAttrMask, attr p9.SetAttr) error {
 	}
 	if mask.Permissions {
 		perm := uint32(attr.Permissions)
-		if e := unix.Chmod(l.path, perm); e != nil {
+		if e := os.Chmod(l.path, os.FileMode(perm)); e != nil {
 			err = errors.Join(err, fmt.Errorf("%q:%o:%w", l.path, perm, err))
 		}
 	}
 
 	if mask.GID {
-		if e := unix.Chown(l.path, -1, int(attr.GID)); e != nil {
-			err = errors.Join(err, e)
-		}
+		err = errors.Join(err, os.ErrPermission)
 	}
 	if mask.UID {
-		if e := unix.Chown(l.path, int(attr.UID), -1); e != nil {
-			err = errors.Join(err, e)
-		}
+		err = errors.Join(err, os.ErrPermission)
 	}
 	return err
 }
 
 // Lock implements p9.File.Lock.
+// No such thing on Plan 9. Just say ok.
 func (l *CPU9P) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, length uint64, client string) (p9.LockStatus, error) {
-	var cmd int
-	switch flags {
-	case p9.LockFlagsBlock:
-		cmd = unix.F_SETLKW
-	case p9.LockFlagsReclaim:
-		return p9.LockStatusError, unix.ENOSYS
-	default:
-		cmd = unix.F_SETLK
-	}
-	var t int16
-	switch locktype {
-	case p9.ReadLock:
-		t = unix.F_RDLCK
-	case p9.WriteLock:
-		t = unix.F_WRLCK
-	case p9.Unlock:
-		t = unix.F_UNLCK
-	default:
-		return p9.LockStatusError, unix.ENOSYS
-	}
-	lk := &unix.Flock_t{
-		Type:   t,
-		Whence: unix.SEEK_SET,
-		Start:  int64(start),
-		Len:    int64(length),
-	}
-	if err := unix.FcntlFlock(l.file.Fd(), cmd, lk); err != nil {
-		if errors.Is(err, unix.EAGAIN) {
-			return p9.LockStatusBlocked, nil
-		}
-		return p9.LockStatusError, err
-	}
 	return p9.LockStatusOK, nil
 }
 
@@ -126,38 +89,41 @@ func (l *CPU9P) info() (p9.QID, os.FileInfo, error) {
 	// Stat the file.
 	if l.file != nil {
 		fi, err = l.file.Stat()
-	} else {
-		fi, err = os.Lstat(l.path)
 	}
+
 	if err != nil {
-		//log.Printf("error stating %#v: %v", l, err)
 		return qid, nil, err
 	}
 
-	// Construct the QID type.
-	qid.Type = p9.ModeFromOS(fi.Mode()).QIDType()
+	d, ok := fi.Sys().(*syscall.Dir)
+	if !ok {
+		return qid, fi, fmt.Errorf("%q:%v", l.file.Name(), ErrNoDirInfo)
 
-	// Save the path from the Ino.
-	qid.Path = fi.Sys().(*syscall.Stat_t).Ino
+	}
+
+	qid.Path, qid.Version, qid.Type = d.Qid.Path, d.Qid.Vers, p9.QIDType(d.Qid.Type)
+
 	return qid, fi, nil
 }
 
 // SetXattr implements p9.File.SetXattr
 func (l *CPU9P) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
-	return unix.Setxattr(l.path, attr, data, int(flags))
+	return ErrNosys
 }
 
 // ListXattrs implements p9.File.ListXattrs
+// Since there technically are none, return an empty []string and
+// no error.
 func (l *CPU9P) ListXattrs() ([]string, error) {
-	return xattr.List(l.path)
+	return []string{}, nil
 }
 
 // GetXattr implements p9.File.GetXattr
 func (l *CPU9P) GetXattr(attr string) ([]byte, error) {
-	return xattr.Get(l.path, attr)
+	return nil, nil
 }
 
 // RemoveXattr implements p9.File.RemoveXattr
 func (l *CPU9P) RemoveXattr(attr string) error {
-	return unix.Removexattr(l.path, attr)
+	return ErrNosys
 }
