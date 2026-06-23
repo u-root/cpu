@@ -1,0 +1,12 @@
+[Unit]
+Description=CPU daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/env cpud -pk /key.pub
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+
