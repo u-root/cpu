@@ -20,11 +20,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"syscall"
 
-	"github.com/hugelgupf/p9/fsimpl/xattr"
 	"github.com/hugelgupf/p9/p9"
-	"golang.org/x/sys/unix"
 )
 
 // CPU9P is a p9.Attacher.
@@ -49,53 +46,6 @@ var (
 	_ p9.File     = &CPU9P{}
 	_ p9.Attacher = &CPU9P{}
 )
-
-// info constructs a QID for this file.
-func (l *CPU9P) info() (p9.QID, os.FileInfo, error) {
-	var (
-		qid p9.QID
-		fi  os.FileInfo
-		err error
-	)
-
-	// Stat the file.
-	if l.file != nil {
-		fi, err = l.file.Stat()
-	} else {
-		fi, err = os.Lstat(l.path)
-	}
-	if err != nil {
-		//log.Printf("error stating %#v: %v", l, err)
-		return qid, nil, err
-	}
-
-	// Construct the QID type.
-	qid.Type = p9.ModeFromOS(fi.Mode()).QIDType()
-
-	// Save the path from the Ino.
-	qid.Path = fi.Sys().(*syscall.Stat_t).Ino
-	return qid, fi, nil
-}
-
-// SetXattr implements p9.File.SetXattr
-func (l *CPU9P) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
-	return unix.Setxattr(l.path, attr, data, int(flags))
-}
-
-// ListXattrs implements p9.File.ListXattrs
-func (l *CPU9P) ListXattrs() ([]string, error) {
-	return xattr.List(l.path)
-}
-
-// GetXattr implements p9.File.GetXattr
-func (l *CPU9P) GetXattr(attr string) ([]byte, error) {
-	return xattr.Get(l.path, attr)
-}
-
-// RemoveXattr implements p9.File.RemoveXattr
-func (l *CPU9P) RemoveXattr(attr string) error {
-	return unix.Removexattr(l.path, attr)
-}
 
 // Walk implements p9.File.Walk.
 func (l *CPU9P) Walk(names []string) ([]p9.QID, p9.File, error) {
@@ -303,13 +253,13 @@ func (l *CPU9P) UnlinkAt(name string, flags uint32) error {
 // Mknod implements p9.File.Mknod.
 func (*CPU9P) Mknod(name string, mode p9.FileMode, major uint32, minor uint32, _ p9.UID, _ p9.GID) (p9.QID, error) {
 	verbose("Mknod: not implemented")
-	return p9.QID{}, syscall.ENOSYS
+	return p9.QID{}, ErrNosys
 }
 
 // Rename implements p9.File.Rename.
 func (*CPU9P) Rename(directory p9.File, name string) error {
 	verbose("Rename: not implemented")
-	return syscall.ENOSYS
+	return ErrNosys
 }
 
 // RenameAt implements p9.File.RenameAt.
@@ -333,5 +283,5 @@ func (l *CPU9P) RenameAt(oldName string, newDir p9.File, newName string) error {
 // Not implemented.
 func (*CPU9P) StatFS() (p9.FSStat, error) {
 	verbose("StatFS: not implemented")
-	return p9.FSStat{}, syscall.ENOSYS
+	return p9.FSStat{}, ErrNosys
 }
