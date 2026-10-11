@@ -24,7 +24,6 @@ import (
 
 	// We use this ssh because it can unpack password-protected private keys.
 	ossh "golang.org/x/crypto/ssh"
-	"golang.org/x/sys/unix"
 )
 
 const defaultPort = "17010"
@@ -187,7 +186,7 @@ func newCPU(host string, args ...string) (retErr error) {
 
 	sigChan := make(chan os.Signal, 1)
 	defer close(sigChan)
-	signal.Notify(sigChan, unix.SIGINT, unix.SIGTERM)
+	signal.Notify(sigChan, os.Kill, os.Interrupt)
 	defer signal.Stop(sigChan)
 	errChan := make(chan error, 1)
 	defer close(errChan)
@@ -238,9 +237,9 @@ loop:
 		case sig := <-sigChan:
 			var sigErr error
 			switch sig {
-			case unix.SIGINT:
+			case os.Interrupt:
 				sigErr = c.Signal(ossh.SIGINT)
-			case unix.SIGTERM:
+			case os.Kill:
 				sigErr = c.Signal(ossh.SIGTERM)
 			}
 			if sigErr != nil {

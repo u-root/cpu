@@ -11,8 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
 	"time"
 
+	"github.com/hugelgupf/p9/fsimpl/xattr"
 	"github.com/hugelgupf/p9/p9"
 	"golang.org/x/sys/unix"
 )
@@ -111,4 +113,51 @@ func (l *CPU9P) Lock(pid int, locktype p9.LockType, flags p9.LockFlags, start, l
 		return p9.LockStatusError, err
 	}
 	return p9.LockStatusOK, nil
+}
+
+// info constructs a QID for this file.
+func (l *CPU9P) info() (p9.QID, os.FileInfo, error) {
+	var (
+		qid p9.QID
+		fi  os.FileInfo
+		err error
+	)
+
+	// Stat the file.
+	if l.file != nil {
+		fi, err = l.file.Stat()
+	} else {
+		fi, err = os.Lstat(l.path)
+	}
+	if err != nil {
+		//log.Printf("error stating %#v: %v", l, err)
+		return qid, nil, err
+	}
+
+	// Construct the QID type.
+	qid.Type = p9.ModeFromOS(fi.Mode()).QIDType()
+
+	// Save the path from the Ino.
+	qid.Path = fi.Sys().(*syscall.Stat_t).Ino
+	return qid, fi, nil
+}
+
+// SetXattr implements p9.File.SetXattr
+func (l *CPU9P) SetXattr(attr string, data []byte, flags p9.XattrFlags) error {
+	return unix.Setxattr(l.path, attr, data, int(flags))
+}
+
+// ListXattrs implements p9.File.ListXattrs
+func (l *CPU9P) ListXattrs() ([]string, error) {
+	return xattr.List(l.path)
+}
+
+// GetXattr implements p9.File.GetXattr
+func (l *CPU9P) GetXattr(attr string) ([]byte, error) {
+	return xattr.Get(l.path, attr)
+}
+
+// RemoveXattr implements p9.File.RemoveXattr
+func (l *CPU9P) RemoveXattr(attr string) error {
+	return unix.Removexattr(l.path, attr)
 }
