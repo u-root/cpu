@@ -8,8 +8,8 @@ require (
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d
-	golang.org/x/crypto v0.45.0
-	golang.org/x/sys v0.38.0
+	golang.org/x/crypto v0.46.0
+	golang.org/x/sys v0.39.0
 )
 
 require (
@@ -24,7 +24,7 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/willscott/go-nfs v0.0.0-20240424173852-04b947a7e58a
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
-	golang.org/x/term v0.37.0
+	golang.org/x/term v0.38.0
 )
 
 require (
@@ -56,10 +56,9 @@ require (
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/willscott/go-nfs-client v0.0.0-20240104095149-b44639837b00 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
-	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sync v0.15.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
-	google.golang.org/grpc v1.56.3 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	golang.org/x/mod v0.30.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 )
