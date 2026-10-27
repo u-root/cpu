@@ -5,11 +5,16 @@
 package client
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/hugelgupf/p9/p9"
+	"github.com/u-root/u-root/pkg/cpio"
 )
 
 func TestCPIO9P(t *testing.T) {
@@ -208,5 +213,79 @@ func TestCPIOReadLink(t *testing.T) {
 	if h != "/etc/hosts" {
 		t.Fatalf("Readlink 'b/e/hosts': want '/etc/hosts', got %v", h)
 	}
+}
 
+func TestCPIO9PReaddirPaginationAndSyntheticDirs(t *testing.T) {
+	var buf bytes.Buffer
+	rw := cpio.Newc.Writer(&buf)
+	// Write records out of order, without "." or intermediate directories.
+	records := []cpio.Record{
+		cpio.StaticFile("lib/modules/6.6/kernel/foo.ko", "foo-data", 0o644),
+		cpio.StaticFile("etc/resolv.conf", "nameserver 1.1.1.1\n", 0o644),
+		cpio.StaticFile("lib/modules/6.6/modules.dep", "kernel/foo.ko:\n", 0o644),
+	}
+	for _, r := range records {
+		if err := rw.WriteRecord(r); err != nil {
+			t.Fatalf("WriteRecord(%q): %v", r.Name, err)
+		}
+	}
+	if err := cpio.WriteTrailer(rw); err != nil {
+		t.Fatalf("WriteTrailer: %v", err)
+	}
+
+	fs, err := NewCPIO9PReaderAt(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("NewCPIO9PReaderAt: %v", err)
+	}
+
+	// Verify off-by-one check in rec() when path == len(fs.recs).
+	badFID := &CPIO9PFID{fs: fs, path: uint64(len(fs.recs))}
+	if _, err := badFID.rec(); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("rec() at len(recs): got %v, want os.ErrNotExist", err)
+	}
+
+	root, err := fs.Attach()
+	if err != nil {
+		t.Fatalf("Attach: %v", err)
+	}
+
+	// Walking ".." from root should stay at root.
+	if _, f, err := root.Walk([]string{"..", ".", ".."}); err != nil {
+		t.Fatalf("Walk .. from root: %v", err)
+	} else if _, _, err := f.Walk([]string{"etc", "resolv.conf"}); err != nil {
+		t.Fatalf("Walk etc/resolv.conf after root ..: %v", err)
+	}
+
+	// Walk into synthesized intermediate directory and back up with "..".
+	_, modDir, err := root.Walk([]string{"lib", "modules", "6.6"})
+	if err != nil {
+		t.Fatalf("Walk lib/modules/6.6: %v", err)
+	}
+	if _, _, err := modDir.Walk([]string{"..", "..", "..", "etc", "resolv.conf"}); err != nil {
+		t.Fatalf("Walk ../../../etc/resolv.conf from lib/modules/6.6: %v", err)
+	}
+
+	// Paginate Readdir one entry at a time using returned Offset cookies
+	// until EOF.
+	var names []string
+	var offset uint64
+	for range 10 {
+		dirents, err := modDir.Readdir(offset, 1)
+		if errors.Is(err, io.EOF) || len(dirents) == 0 {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Readdir(offset=%d): %v", offset, err)
+		}
+		for _, d := range dirents {
+			names = append(names, d.Name)
+			offset = d.Offset
+		}
+	}
+	want := []string{".", "kernel", "modules.dep"}
+	slices.Sort(names)
+	slices.Sort(want)
+	if !slices.Equal(names, want) {
+		t.Fatalf("paginated Readdir on lib/modules/6.6 = %v, want %v", names, want)
+	}
 }
