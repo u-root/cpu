@@ -23,17 +23,20 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/moby/sys/mountinfo"
 	"github.com/u-root/cpu/session"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -187,6 +190,14 @@ func main() {
 	s := session.New("", args[0], args[1:]...)
 	if err := s.NameSpace(); err != nil {
 		log.Fatalf("CPUD(remote): %v", err)
+	}
+
+	// We have been told that leaving /tmp/cpu present, while it is quite handy,
+	// leaves things like /proc and /sys open. Therefore, once the namespace
+	// is built, tear down /tmp/cpu.
+	cpu := filepath.Join(os.TempDir(), "cpu")
+	if err := unix.Unmount(cpu, 0); err != nil && !errors.Is(err, unix.EINVAL) && !errors.Is(err, unix.ENOENT) {
+		log.Fatalf("unmounting %q: %v", cpu, err)
 	}
 
 	if err := s.Terminal(); err != nil {

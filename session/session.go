@@ -177,6 +177,14 @@ func (s *Session) Run() error {
 		}
 	}
 
+	// We have been told that leaving /tmp/cpu present, while it is quite handy,
+	// leaves things like /proc and /sys open. Therefore, once the namespace
+	// is built, tear down /tmp/cpu.
+	cpu := filepath.Join(os.TempDir(), "cpu")
+	if err := unix.Unmount(cpu, 0); err != nil && !errors.Is(err, unix.EINVAL) && !errors.Is(err, unix.ENOENT) {
+		return errors.Join(errs, fmt.Errorf("unmounting %q: %w", cpu, err))
+	}
+
 	if err := s.Terminal(); err != nil {
 		s.fail = true
 		errs = errors.Join(errs, err)
