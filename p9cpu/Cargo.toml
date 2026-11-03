@@ -1,10 +1,9 @@
 [workspace]
 members = [
-    "crates/p9cpu",
     "crates/p9cpud",
-    "crates/libp9cpu",
-    "crates/9p",
 ]
+
+resolver="1"
 
 [profile.release]
 lto = true
