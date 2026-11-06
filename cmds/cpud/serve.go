@@ -115,7 +115,7 @@ func listen(network, port string) (net.Listener, error) {
 	switch network {
 	case "vsock":
 		var p uint64
-		p, err = strconv.ParseUint(port, 0, 16)
+		p, err = strconv.ParseUint(port, 0, 32)
 		if err != nil {
 			return nil, err
 		}
