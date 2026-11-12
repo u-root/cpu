@@ -95,16 +95,17 @@ func runMarker(t *testing.T, i *vm.Image, qemu *vmProcess) (string, error) {
 		}
 		last = err
 	}
-	return "", last
+	return "", fmt.Errorf("%w; %s", last, qemu.report())
 }
 
 // vmProcess watches a running qemu, so a test can tell "not ready yet" from
 // "never going to be ready" instead of polling a socket for two minutes.
 type vmProcess struct {
-	mu     sync.Mutex
-	err    error
-	done   bool
-	stderr *strings.Builder
+	mu      sync.Mutex
+	err     error
+	done    bool
+	stderr  *lockedBuilder
+	console *lockedBuilder
 }
 
 func (p *vmProcess) exited() error {
@@ -116,13 +117,49 @@ func (p *vmProcess) exited() error {
 	return fmt.Errorf("%v: %s", p.err, p.stderr)
 }
 
+// report is what to say when a guest never answered: whether qemu is still
+// running, and the tail of the console, which is where a guest that failed to
+// boot says so.
+func (p *vmProcess) report() string {
+	p.mu.Lock()
+	done := p.done
+	p.mu.Unlock()
+	tail := p.console.String()
+	if n := 2000; len(tail) > n {
+		tail = "..." + tail[len(tail)-n:]
+	}
+	return fmt.Sprintf("qemu exited=%v, stderr %q, console tail:\n%s", done, p.stderr, tail)
+}
+
+// lockedBuilder is written by the goroutine draining qemu and read by the
+// test, so it needs a lock of its own.
+type lockedBuilder struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (l *lockedBuilder) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuilder) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
 // startVM starts qemu and arranges for its exit and its stderr to be
 // observable while the test polls.
 func startVM(t *testing.T, i *vm.Image, c *exec.Cmd) *vmProcess {
 	t.Helper()
 
-	p := &vmProcess{stderr: &strings.Builder{}}
+	p := &vmProcess{stderr: &lockedBuilder{}, console: &lockedBuilder{}}
 	c.Stderr = p.stderr
+	// -nographic puts the guest console on stdout. Keeping it is what turns
+	// "connection reset by peer" into a boot log that says why.
+	c.Stdout = p.console
 	if err := i.StartVM(c); err != nil {
 		t.Fatalf("StartVM: got %v, want nil", err)
 	}
@@ -138,6 +175,22 @@ func startVM(t *testing.T, i *vm.Image, c *exec.Cmd) *vmProcess {
 		}
 	})
 	return p
+}
+
+// trimMemory gives the guest what this test needs rather than what the image
+// asks for.
+//
+// The amd64 image says -m 4G, which is generous for running one small static
+// binary, and this test starts two of them in every matrix cell of a CI job
+// that also holds a Go toolchain and a build cache. Measured: the image boots
+// and answers on 256M. 512M leaves room without crowding the runner, where 2x4G
+// made cpud fail to answer about a quarter of the time.
+func trimMemory(i *vm.Image) {
+	for j := 1; j < len(i.Cmd); j++ {
+		if i.Cmd[j-1] == "-m" {
+			i.Cmd[j] = "512M"
+		}
+	}
 }
 
 // Two guests run at once and each answers on its own socket, which is the
@@ -183,6 +236,7 @@ func TestTwoGuestsRunAtOnce(t *testing.T) {
 		if err != nil {
 			t.Fatalf("New: got %v, want nil", err)
 		}
+		trimMemory(i)
 		c, err := i.CommandContext(t.Context(), d)
 		if err != nil {
 			t.Fatalf("CommandContext: got %v, want nil", err)
@@ -190,24 +244,44 @@ func TestTwoGuestsRunAtOnce(t *testing.T) {
 		guests = append(guests, guest{image: i, qemu: startVM(t, i, c)})
 	}
 
-	seen := map[string]string{}
+	// Poll both at once rather than one after the other. They are running
+	// at once, which is the point, and a guest that is slow to come up must
+	// not spend the other's budget as well as its own.
+	type answer struct {
+		sock string
+		id   string
+		err  error
+	}
+	answers := make(chan answer, len(guests))
+	var wg sync.WaitGroup
 	for _, g := range guests {
-		out, err := runMarker(t, g.image, g.qemu)
-		if err != nil {
-			t.Errorf("guest at %s: got %v, want nil", g.image.Socket(), err)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			out, err := runMarker(t, g.image, g.qemu)
+			answers <- answer{g.image.Socket(), strings.TrimSpace(out), err}
+		}()
+	}
+	wg.Wait()
+	close(answers)
+
+	seen := map[string]string{}
+	for a := range answers {
+		if a.err != nil {
+			t.Errorf("guest at %s: got %v, want nil", a.sock, a.err)
 			continue
 		}
-		id := strings.TrimSpace(out)
+		id := a.id
 		if id == "" {
-			t.Errorf("guest at %s reported no boot_id", g.image.Socket())
+			t.Errorf("guest at %s reported no boot_id", a.sock)
 			continue
 		}
 		if other, dup := seen[id]; dup {
 			t.Errorf("the guests at %s and %s report the same boot_id %s: both clients reached one guest",
-				other, g.image.Socket(), id)
+				other, a.sock, id)
 			continue
 		}
-		seen[id] = g.image.Socket()
-		t.Logf("guest at %s has boot_id %s", g.image.Socket(), id)
+		seen[id] = a.sock
+		t.Logf("guest at %s has boot_id %s", a.sock, id)
 	}
 }
