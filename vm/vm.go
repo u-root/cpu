@@ -13,6 +13,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/u-root/cpu/client"
@@ -88,12 +90,23 @@ type Option func(*Image) error
 // concurrent VMs cannot collide and nothing has to be reserved. qemu creates
 // the socket; the directory must exist.
 //
-// unix(7) caps sun_path, so the path must be under 108 bytes including the
-// terminator. A directory from os.MkdirTemp with a short prefix leaves room.
+// The path must be absolute. qemu refuses a relative one outright -- "unix
+// socket path must be absolute" -- and CommandContext runs it with Dir set to
+// the VM's directory, so a relative path would not mean the same thing to
+// qemu as it does to the dial here. Refusing it names the rule instead.
+//
+// unix(7) caps sun_path, so the path must fit in maxSockPath bytes. A
+// directory from os.MkdirTemp with a short prefix leaves room.
 func WithSocket(path string) Option {
 	return func(i *Image) error {
 		if path == "" {
 			return fmt.Errorf("socket path is empty: %w", os.ErrInvalid)
+		}
+		if !filepath.IsAbs(path) {
+			return fmt.Errorf("socket path %q is relative, and qemu requires an absolute one: %w", path, os.ErrInvalid)
+		}
+		if strings.ContainsRune(path, 0) {
+			return fmt.Errorf("socket path %q contains a NUL: %w", path, os.ErrInvalid)
 		}
 		if len(path) > maxSockPath {
 			return fmt.Errorf("socket path %q is %d bytes, over the %d unix(7) allows: %w", path, len(path), maxSockPath, os.ErrInvalid)
@@ -103,9 +116,15 @@ func WithSocket(path string) Option {
 	}
 }
 
-// maxSockPath is the longest usable unix socket path. sun_path is 108 bytes
-// including the terminator, so 107 are usable; measured by binding.
-const maxSockPath = 107
+// maxSockPath is the longest usable unix socket path: sun_path less the
+// terminator.
+//
+// Taken from the structure rather than written down, because it is not the
+// same everywhere -- 107 on Linux, 103 on Darwin and FreeBSD, which this
+// package also builds for. A hardcoded 107 would pass a path macOS cannot
+// bind, and macOS $TMPDIR is long enough to reach that on its own. len of an
+// array is a constant expression, so this is still a compile-time constant.
+const maxSockPath = len(syscall.RawSockaddrUnix{}.Path) - 1
 
 var images = map[string]Image{
 	"linux_amd64":   {Kernel: kernel_linux_amd64, InitRAMFS: linux_amd64, Cmd: []string{"qemu-system-x86_64", "-m", "4G"}},
@@ -127,7 +146,11 @@ func New(goos, arch string, opts ...Option) (*Image, error) {
 
 	fwd := fmt.Sprintf("hostfwd=tcp::%s-:%s", client.DefaultPort, client.DefaultPort)
 	if i.sock != "" {
-		fwd = fmt.Sprintf("hostfwd=unix:%s-:%s", i.sock, client.DefaultPort)
+		// -netdev is a keyval list: it splits on "," and reads ",," as a
+		// literal comma. Only the qemu argument is escaped; i.sock stays
+		// as the caller gave it, because that is what Socket reports and
+		// what net.Dial is handed.
+		fwd = fmt.Sprintf("hostfwd=unix:%s-:%s", strings.ReplaceAll(i.sock, ",", ",,"), client.DefaultPort)
 	}
 
 	common := []string{
@@ -252,19 +275,45 @@ func (*Image) StartVM(c *exec.Cmd) error {
 // The returned client.Cmd can be called with CombinedOutput, to make
 // it easier to scan output from a command for error messages.
 func (i *Image) CPUCommand(arg string, args ...string) (*client.Cmd, error) {
-	// A unix socket is named by its path and has no port; a TCP forward is
-	// reached on the loopback address.
-	host, network := "127.0.0.1", "tcp"
-	if i.sock != "" {
-		host, network = i.sock, "unix"
+	cpu, err := i.cpuCmd(arg, args...)
+	if err != nil {
+		return nil, err
 	}
-	// The port is ignored on a unix socket, which is named by its path.
-	cpu := client.Command(host, append([]string{arg}, args...)...)
+	if err := cpu.Dial(); err != nil {
+		return nil, err
+	}
+	cpu.Env = append(cpu.Env, "PATH=/bbin", "PWD=/", "SHELL=/bbin/x")
+	return cpu, nil
+}
+
+// cpuCmd builds the client command and points it at this Image's endpoint.
+//
+// Split from CPUCommand, which dials, so that a test can check where the dial
+// would be made without needing a VM to dial to.
+func (i *Image) cpuCmd(arg string, args ...string) (*client.Cmd, error) {
+	// Always "127.0.0.1" here, never the socket path, because Command runs
+	// the name it is given through GetHostUser before any option applies.
+	// That cuts on "@", so a socket under a directory such as
+	// "workspace@2" would lose everything before it, and it then asks
+	// ssh_config for a HostName, where a wildcard rule matches a path --
+	// "*" matches "/" -- and rewrites it to a host. Either way the dial
+	// would be made against something other than the socket.
+	cpu := client.Command("127.0.0.1", append([]string{arg}, args...)...)
 	cpu.Env = os.Environ()
+
+	// A unix socket is named by its path and has no port; a TCP forward is
+	// reached on the loopback address. Set after Command, so the path is
+	// never a candidate for the rewrites above.
+	network := "tcp"
+	if i.sock != "" {
+		cpu.Host, cpu.HostName, network = i.sock, i.sock, "unix"
+	}
 
 	if err := cpu.SetOptions(
 		client.WithDisablePrivateKey(true),
 		client.WithNetwork(network),
+		// The port is ignored on a unix socket, which is named by its
+		// path.
 		client.WithPort(client.DefaultPort),
 		client.WithRoot(i.dir),
 		client.WithNameSpace("/"),
@@ -273,10 +322,5 @@ func (i *Image) CPUCommand(arg string, args ...string) (*client.Cmd, error) {
 	); err != nil {
 		return nil, err
 	}
-
-	if err := cpu.Dial(); err != nil {
-		return nil, err
-	}
-	cpu.Env = append(cpu.Env, "PATH=/bbin", "PWD=/", "SHELL=/bbin/x")
 	return cpu, nil
 }
