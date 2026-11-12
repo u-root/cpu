@@ -71,13 +71,11 @@ func buildHelper(t *testing.T, goarch string) string {
 
 // bootBudget is how long a guest gets to answer.
 //
-// It is generous because the guests run under TCG: nothing asks qemu for an
-// accelerator, and a CI runner has no nested virtualization to offer anyway,
-// so a boot that takes a couple of seconds on a developer's machine takes far
-// longer on a shared four-core runner. Two minutes was not enough there --
-// qemu was still running, had printed no error, and the guest simply had not
-// finished booting.
-const bootBudget = 5 * time.Minute
+// A guest that is going to answer does so well inside this. The budget is
+// really about how long to wait before concluding that one is not going to,
+// which happens when it stalls taking a DHCPv6 lease -- so it is kept short
+// enough that eight matrix cells waiting it out is not an hour of CI.
+const bootBudget = 3 * time.Minute
 
 // pollInterval is how often to try cpud.
 //
@@ -211,20 +209,6 @@ func trimMemory(i *vm.Image) {
 	}
 }
 
-// noIPv6 turns IPv6 off on both of the image's slirp networks.
-//
-// The guest takes a DHCPv4 lease and then tries for a DHCPv6 one, and on a CI
-// runner it has been seen sitting in that for over five minutes without ever
-// starting cpud -- the same thing the riscv64 guest does. Nothing here needs
-// IPv6, so the simplest cure is to leave none on offer.
-func noIPv6(i *vm.Image) {
-	for j := 1; j < len(i.Cmd); j++ {
-		if i.Cmd[j-1] == "-netdev" && strings.HasPrefix(i.Cmd[j], "user,") {
-			i.Cmd[j] += ",ipv6=off"
-		}
-	}
-}
-
 // wantConsole asks the guest kernel to talk to the serial port.
 //
 // -nographic puts that on qemu's stdout, which startVM captures. Without it
@@ -284,7 +268,6 @@ func TestTwoGuestsRunAtOnce(t *testing.T) {
 		}
 		trimMemory(i)
 		wantConsole(i)
-		noIPv6(i)
 		c, err := i.CommandContext(t.Context(), d)
 		if err != nil {
 			t.Fatalf("CommandContext: got %v, want nil", err)
