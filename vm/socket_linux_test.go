@@ -69,9 +69,27 @@ func buildHelper(t *testing.T, goarch string) string {
 	return out
 }
 
+// bootBudget is how long a guest gets to answer.
+//
+// It is generous because the guests run under TCG: nothing asks qemu for an
+// accelerator, and a CI runner has no nested virtualization to offer anyway,
+// so a boot that takes a couple of seconds on a developer's machine takes far
+// longer on a shared four-core runner. Two minutes was not enough there --
+// qemu was still running, had printed no error, and the guest simply had not
+// finished booting.
+const bootBudget = 5 * time.Minute
+
+// pollInterval is how often to try cpud.
+//
+// Deliberately not milliseconds. Each attempt is a full SSH handshake, which
+// is real work, and the thing it is waiting for is a guest competing for the
+// same few cores. Polling ten times a second slows down the boot it is
+// waiting on.
+const pollInterval = time.Second
+
 // runMarker runs the helper in the guest and returns what it printed.
 //
-// cpud answers a few seconds after the VM starts, and StartVM's fixed one
+// cpud answers some seconds after the VM starts, and StartVM's fixed one
 // second sleep is not on its own enough, so this polls. It gives up early if
 // qemu has already exited, because then nothing is ever going to answer and
 // qemu's own stderr says why.
@@ -79,7 +97,7 @@ func runMarker(t *testing.T, i *vm.Image, qemu *vmProcess) (string, error) {
 	t.Helper()
 
 	var last error
-	for start := time.Now(); time.Since(start) < 2*time.Minute; time.Sleep(100 * time.Millisecond) {
+	for start := time.Now(); time.Since(start) < bootBudget; time.Sleep(pollInterval) {
 		if err := qemu.exited(); err != nil {
 			return "", fmt.Errorf("qemu exited before cpud answered: %w", err)
 		}
@@ -193,6 +211,20 @@ func trimMemory(i *vm.Image) {
 	}
 }
 
+// wantConsole asks the guest kernel to talk to the serial port.
+//
+// -nographic puts that on qemu's stdout, which startVM captures. Without it
+// the capture is empty whatever happens, because the image's kernel command
+// line names no console at all -- which is how a failing guest came to report
+// nothing but a reset connection.
+func wantConsole(i *vm.Image) {
+	for j := 1; j < len(i.Cmd); j++ {
+		if i.Cmd[j-1] == "--append" || i.Cmd[j-1] == "-append" {
+			i.Cmd[j] = "console=ttyS0 " + i.Cmd[j]
+		}
+	}
+}
+
 // Two guests run at once and each answers on its own socket, which is the
 // thing a single shared port makes impossible.
 //
@@ -237,6 +269,7 @@ func TestTwoGuestsRunAtOnce(t *testing.T) {
 			t.Fatalf("New: got %v, want nil", err)
 		}
 		trimMemory(i)
+		wantConsole(i)
 		c, err := i.CommandContext(t.Context(), d)
 		if err != nil {
 			t.Fatalf("CommandContext: got %v, want nil", err)
