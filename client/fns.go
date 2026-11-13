@@ -279,6 +279,54 @@ func (c *Cmd) Outputs() ([]bytes.Buffer, error) {
 	return r[:], nil
 }
 
+func parseBindElem(bind string, i int) (local, remote string, err error) {
+	if len(bind) == 0 {
+		return "", "", fmt.Errorf("bind: element %d is zero length:%w", i, strconv.ErrSyntax)
+	}
+	// If the value is local=remote, len(c) will be 2.
+	// The value might be some weird degenerate form such as
+	// =name or name=. Both are considered to be an error.
+	// The convention is to split on the first =. It is not up
+	// to this code to determine that more than one = is an error
+	// There is no rule that filenames can not contain an '='!
+	c := strings.SplitN(bind, "=", 2)
+	switch len(c) {
+	case 0:
+		return "", "", fmt.Errorf("bind: element %d(%q): empty elements are not supported:%w", i, bind, strconv.ErrSyntax)
+	case 1:
+		local, remote = c[0], c[0]
+	case 2:
+		local, remote = c[0], c[1]
+	default:
+		return "", "", fmt.Errorf("bind: element %d(%q): too many elements around = sign:%w", i, bind, strconv.ErrSyntax)
+	}
+	if len(local) == 0 {
+		return "", "", fmt.Errorf("bind: element %d(%q): local is 0 length:%w", i, bind, strconv.ErrSyntax)
+	}
+	if len(remote) == 0 {
+		return "", "", fmt.Errorf("bind: element %d(%q): remote is 0 length:%w", i, bind, strconv.ErrSyntax)
+	}
+	return local, remote, nil
+}
+
+// ParseBindRemotes parses a CPU_NAMESPACE-style string and returns the
+// list of client-side ("remote") paths to export.
+func ParseBindRemotes(s string) ([]string, error) {
+	if len(s) == 0 {
+		return nil, nil
+	}
+	binds := strings.Split(s, ":")
+	remotes := make([]string, 0, len(binds))
+	for i, bind := range binds {
+		_, remote, err := parseBindElem(bind, i)
+		if err != nil {
+			return nil, err
+		}
+		remotes = append(remotes, remote)
+	}
+	return remotes, nil
+}
+
 // ParseBinds parses a CPU_NAMESPACE-style string to a
 // an fstab format string.
 func ParseBinds(s string) (string, error) {
@@ -293,32 +341,9 @@ func ParseBinds(s string) (string, error) {
 	tmpMnt := "/tmp"
 	binds := strings.Split(s, ":")
 	for i, bind := range binds {
-		if len(bind) == 0 {
-			return "", fmt.Errorf("bind: element %d is zero length:%w", i, strconv.ErrSyntax)
-		}
-		// If the value is local=remote, len(c) will be 2.
-		// The value might be some weird degenerate form such as
-		// =name or name=. Both are considered to be an error.
-		// The convention is to split on the first =. It is not up
-		// to this code to determine that more than one = is an error
-		// There is no rule that filenames can not contain an '='!
-		c := strings.SplitN(bind, "=", 2)
-		var local, remote string
-		switch len(c) {
-		case 0:
-			return fstab, fmt.Errorf("bind: element %d(%q): empty elements are not supported:%w", i, bind, strconv.ErrSyntax)
-		case 1:
-			local, remote = c[0], c[0]
-		case 2:
-			local, remote = c[0], c[1]
-		default:
-			return fstab, fmt.Errorf("bind: element %d(%q): too many elements around = sign:%w", i, bind, strconv.ErrSyntax)
-		}
-		if len(local) == 0 {
-			return fstab, fmt.Errorf("bind: element %d(%q): local is 0 length:%w", i, bind, strconv.ErrSyntax)
-		}
-		if len(remote) == 0 {
-			return fstab, fmt.Errorf("bind: element %d(%q): remote is 0 length:%w", i, bind, strconv.ErrSyntax)
+		local, remote, err := parseBindElem(bind, i)
+		if err != nil {
+			return "", err
 		}
 
 		// The convention is that the remote side is relative to filepath.Join(tmpMnt, "cpu")

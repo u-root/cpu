@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hugelgupf/p9/fsimpl/localfs"
 	"github.com/hugelgupf/p9/p9"
 	"github.com/mdlayher/vsock"
 	"golang.org/x/crypto/ssh"
@@ -72,6 +73,9 @@ type Cmd struct {
 	FSTab string
 	// Ninep determines if client will run a 9P server
 	Ninep bool
+	// UnsafeExport exports all of Root rather than restricting the export
+	// to paths in NameSpace.
+	UnsafeExport bool
 
 	nonce      nonce
 	network    string // This is a variable but we expect it will always be tcp
@@ -241,6 +245,15 @@ func WithHostKeyFile(key string) Set {
 func WithRoot(root string) Set {
 	return func(c *Cmd) error {
 		c.Root = root
+		return nil
+	}
+}
+
+// WithUnsafeExport controls whether the client exports all of Root rather than
+// restricting the export to paths in NameSpace.
+func WithUnsafeExport(unsafe bool) Set {
+	return func(c *Cmd) error {
+		c.UnsafeExport = unsafe
 		return nil
 	}
 }
@@ -468,7 +481,15 @@ func (c *Cmd) Start() error {
 
 	// if they did not set an attacher, provide a default one
 	if c.fileServer == nil {
-		c.fileServer = &CPU9P{path: c.Root}
+		attacher := localfs.Attacher(c.Root)
+		if !c.UnsafeExport {
+			remotes, err := ParseBindRemotes(c.NameSpace)
+			if err != nil {
+				return err
+			}
+			attacher = NewFilter9P(attacher, remotes)
+		}
+		c.fileServer = attacher
 	}
 
 	if c.SessionIn, err = c.session.StdinPipe(); err != nil {

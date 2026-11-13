@@ -749,7 +749,15 @@ func SrvNFS(cl *Cmd, n string, dir string) (func() error, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	handler := NewNullAuthHandler(l, COS{mem}, u.String())
+	var fs billy.Filesystem = COS{mem}
+	if !cl.UnsafeExport {
+		remotes, err := ParseBindRemotes(cl.NameSpace)
+		if err != nil {
+			return nil, "", err
+		}
+		fs = NewFilterFS(fs, remotes)
+	}
+	handler := NewNullAuthHandler(l, fs, u.String())
 	verbose("uuid is %q", u.String())
 	cacheHelper := nfshelper.NewCachingHandler(handler, 1024*1024)
 	f := func() error {

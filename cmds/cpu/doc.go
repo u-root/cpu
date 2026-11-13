@@ -115,6 +115,9 @@
 //	      what server to run (default none; use internal)
 //	-timeout9p time.Duration
 //	      How long to wait for the server to connect to 9p (default100ms)
+//	-unsafe-export
+//	      Export all of -root instead of restricting to paths in -namespace
+//	      (default false)
 //
 // Cpud environment variables:
 //   - CPUD_IGNORE_CMD_ERROR: passed from cpud to cpud --remote.  If the

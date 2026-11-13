@@ -43,8 +43,13 @@ func Test9pUnix(t *testing.T) {
 		DataVersion: true,
 	}
 
-	c := &CPU9P{
-		path: f,
+	root, err := NewCPU9P(d).Attach()
+	if err != nil {
+		t.Fatalf("Attach(%q): %v", d, err)
+	}
+	_, c, err := root.Walk([]string{"a"})
+	if err != nil {
+		t.Fatalf("Walk([\"a\"]): %v", err)
 	}
 
 	q, gm, ga, err := c.GetAttr(m)
@@ -206,12 +211,20 @@ func Test9pRemove(t *testing.T) {
 	if err := os.WriteFile(f, []byte("hi"), 0666); err != nil {
 		t.Fatalf(`os.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
-	c := &CPU9P{
-		path: f,
+	root, err := NewCPU9P(d).Attach()
+	if err != nil {
+		t.Fatalf("Attach(%q): %v", d, err)
+	}
+	_, c, err := root.Walk([]string{"a"})
+	if err != nil {
+		t.Fatalf("Walk([\"a\"]): %v", err)
 	}
 
-	err := c.Remove()
-	if err != nil {
+	r, ok := c.(interface{ Remove() error })
+	if !ok {
+		t.Fatalf("%T does not implement Remove()", c)
+	}
+	if err := r.Remove(); err != nil {
 		t.Errorf("Remove: %v != nil", err)
 	}
 	if _, err := os.Stat(f); err == nil {
@@ -225,11 +238,12 @@ func Test9pUnlinkat(t *testing.T) {
 	if err := os.WriteFile(f, []byte("hi"), 0666); err != nil {
 		t.Fatalf(`os.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
-	c := &CPU9P{
-		path: d,
+	c, err := NewCPU9P(d).Attach()
+	if err != nil {
+		t.Fatalf("Attach(%q): %v", d, err)
 	}
 
-	err := c.UnlinkAt("a", 0)
+	err = c.UnlinkAt("a", 0)
 	if err != nil {
 		t.Errorf("UnlinkAt: %v != nil", err)
 	}
@@ -244,19 +258,22 @@ func Test9pRenameAt(t *testing.T) {
 	if err := os.WriteFile(f, []byte("hi"), 0666); err != nil {
 		t.Fatalf(`os.WriteFile(%q, "hi", 0666): %v != nil`, f, err)
 	}
-	c := &CPU9P{
-		path: filepath.Join(d, "nd"),
+	ndPath := filepath.Join(d, "nd")
+	if err := os.Mkdir(ndPath, 0777); err != nil {
+		t.Fatalf("Mkdir(%q, 0777): %v != nil", ndPath, err)
 	}
-	if err := os.Mkdir(c.path, 0777); err != nil {
-		t.Fatalf("Mkdir(%q, 0777): %v != nil", c.path, err)
+	oldPath, err := NewCPU9P(d).Attach()
+	if err != nil {
+		t.Fatalf("Attach(%q): %v", d, err)
 	}
-	oldPath := &CPU9P{
-		path: d,
+	_, c, err := oldPath.Walk([]string{"nd"})
+	if err != nil {
+		t.Fatalf("Walk([\"nd\"]): %v", err)
 	}
 	if err := oldPath.RenameAt("a", c, "z"); err != nil {
-		t.Errorf("RenameAt(%q, %q, \"z\"): %v != nil", f, c.path, err)
+		t.Errorf("RenameAt(%q, %q, \"z\"): %v != nil", f, ndPath, err)
 	}
-	newFile := filepath.Join(c.path, "z")
+	newFile := filepath.Join(ndPath, "z")
 	if _, err := os.Stat(newFile); err != nil {
 		t.Errorf("os.Stat(%q): %v != nil", newFile, err)
 	}
