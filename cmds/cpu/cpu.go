@@ -43,7 +43,7 @@ var (
 	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
 	network     = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
 	port        = flag.String("sp", "", "cpu default port")
-	root        = flag.String("root", "/", "9p root")
+	root        = flag.String("root", "/", "9p/nfs root")
 	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
 
@@ -205,7 +205,7 @@ func newCPU(host string, args ...string) (retErr error) {
 			}
 			break
 		}
-		f, nfsmount, err := client.SrvNFS(c, *cpioRoot, "/")
+		f, nfsmount, err := client.SrvNFS(c, *cpioRoot, *root)
 		if err != nil {
 			return err
 		}
