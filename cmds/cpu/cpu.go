@@ -32,20 +32,21 @@ const defaultPort = "17010"
 var (
 	defaultKeyFile = filepath.Join(os.Getenv("HOME"), ".ssh/cpu_rsa")
 	// cpuns might not be in the limited search path of sshd. Allow users to set it.
-	cpuns       = flag.String("cpuns", "cpuns", "command to run to build cpu namespace")
-	debug       = flag.Bool("d", false, "enable debug prints")
-	dbg9p       = flag.Bool("dbg9p", false, "show 9p io")
-	dump        = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
-	fstab       = flag.String("fstab", "", "pass an fstab to the cpud")
-	hostKeyFile = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
-	keyFile     = flag.String("key", "", "key file")
-	useKey      = flag.Bool("useKey", true, "Use key file to encrypt the ssh connection")
-	namespace   = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
-	network     = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
-	port        = flag.String("sp", "", "cpu default port")
-	root        = flag.String("root", "/", "9p/nfs root")
-	timeout9P   = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
-	ninep       = flag.Bool("9p", true, "Enable the 9p mount in the client")
+	cpuns        = flag.String("cpuns", "cpuns", "command to run to build cpu namespace")
+	debug        = flag.Bool("d", false, "enable debug prints")
+	dbg9p        = flag.Bool("dbg9p", false, "show 9p io")
+	dump         = flag.Bool("dump", false, "Dump copious output, including a 9p trace, to a temp file at exit")
+	fstab        = flag.String("fstab", "", "pass an fstab to the cpud")
+	hostKeyFile  = flag.String("hk", "" /*"/etc/ssh/ssh_host_rsa_key"*/, "file for host key")
+	keyFile      = flag.String("key", "", "key file")
+	useKey       = flag.Bool("useKey", true, "Use key file to encrypt the ssh connection")
+	namespace    = flag.String("namespace", "/lib:/lib64:/usr:/bin:/etc:/home", "Default namespace for the remote process -- set to none for none")
+	network      = flag.String("net", "", "network type to use. Defaults to whatever the cpu client defaults to")
+	port         = flag.String("sp", "", "cpu default port")
+	root         = flag.String("root", "/", "9p/nfs root")
+	timeout9P    = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
+	ninep        = flag.Bool("9p", true, "Enable the 9p mount in the client")
+	unsafeExport = flag.Bool("unsafe-export", false, "Export all of -root instead of restricting to paths in -namespace")
 
 	srvnfs   = flag.Bool("nfs", false, "start nfs")
 	cpioRoot = flag.String("cpio", "", "cpio initrd")
@@ -176,6 +177,7 @@ func newCPU(host string, args ...string) (retErr error) {
 		client.WithRoot(*root),
 		client.WithNameSpace(*namespace),
 		client.With9P(*ninep),
+		client.WithUnsafeExport(*unsafeExport),
 		client.WithFSTab(*fstab),
 		client.WithNetwork(*network),
 		client.WithTimeout(*timeout9P)); err != nil {

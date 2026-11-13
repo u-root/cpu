@@ -45,6 +45,7 @@ var (
 	root           = flag.String("root", "/", "9p root")
 	timeout9P      = flag.String("timeout9p", "100ms", "time to wait for the 9p mount to happen.")
 	ninep          = flag.Bool("9p", true, "Enable the 9p mount in the client")
+	unsafeExport   = flag.Bool("unsafe-export", false, "Export all of -root instead of restricting to paths in -namespace")
 	// v allows debug printing.
 	// Do not call it directly, call verbose instead.
 	v          = func(string, ...interface{}) {}
@@ -148,6 +149,7 @@ func newCPU(host, port string, args ...string) error {
 		client.WithRoot(*root),
 		client.WithNameSpace(*namespace),
 		client.With9P(*ninep),
+		client.WithUnsafeExport(*unsafeExport),
 		client.WithFSTab(*fstab),
 		client.WithNetwork(*network),
 		client.WithTimeout(*timeout9P)); err != nil {
