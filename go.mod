@@ -6,7 +6,7 @@ require (
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/u-root/u-root v0.11.1-0.20230913033713-004977728a9d
-	golang.org/x/crypto v0.52.0
+	golang.org/x/crypto v0.51.0
 	golang.org/x/sys v0.45.0
 )
 
@@ -55,7 +55,7 @@ require (
 	github.com/willscott/go-nfs-client v0.0.0-20240104095149-b44639837b00 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
 	google.golang.org/grpc v1.56.3 // indirect
